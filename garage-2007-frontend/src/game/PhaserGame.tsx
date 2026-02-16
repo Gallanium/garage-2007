@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
 import { gameConfig } from './gameConfig'
 import  MainScene from './MainScene'
@@ -33,6 +33,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
   
   // Ref для хранения ссылки на MainScene
   const sceneRef = useRef<MainScene | null>(null)
+
+  // Состояние готовности игры (для скрытия индикатора загрузки)
+  const [isGameReady, setIsGameReady] = useState(false)
 
   /**
    * Эффект инициализации Phaser при монтировании компонента
@@ -78,6 +81,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
       // Сохраняем ссылку на сцену
       sceneRef.current = mainScene
 
+      // ИСПРАВЛЕНИЕ БАГА 1: Устанавливаем игру как готовую только ПОСЛЕ готовности сцены
+      setIsGameReady(true)
+      console.log('PhaserGame: Игра полностью готова, индикатор загрузки скрыт')
+
       console.log('PhaserGame: MainScene получена, настраиваем события...')
 
       // Подписываемся на событие клика по гаражу из Phaser
@@ -99,6 +106,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
     // Cleanup функция при размонтировании компонента
     return () => {
       console.log('PhaserGame: Размонтирование компонента, очистка ресурсов...')
+
+      // Сбрасываем состояние готовности
+      setIsGameReady(false)
 
       // Отписываемся от событий сцены
       if (sceneRef.current) {
@@ -156,8 +166,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
     >
       {/* Canvas будет автоматически создан Phaser внутри этого div */}
       
-      {/* Можно добавить loader пока игра загружается */}
-      {!gameRef.current && (
+      {/* ИСПРАВЛЕНИЕ БАГА 1: Показываем loader только пока игра НЕ готова */}
+      {!isGameReady && (
         <div style={{
           position: 'absolute',
           color: '#E6B800',

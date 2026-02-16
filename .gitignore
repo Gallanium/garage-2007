@@ -58,3 +58,6 @@ coverage/
 # Временные файлы
 *.tmp
 *.temp
+
+# Файлы Claude
+.claude/

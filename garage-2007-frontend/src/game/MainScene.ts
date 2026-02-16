@@ -88,8 +88,8 @@ export default class MainScene extends Phaser.Scene {
    * Создание временного прямоугольника вместо спрайта гаража
    */
   private createGaragePlaceholder(): void {
-    const centerX = GAME_DIMENSIONS.CENTER_X
-    const centerY = GAME_DIMENSIONS.CENTER_Y
+    const centerX = this.scale.width / 2
+    const centerY = this.scale.height / 2
 
     // Создаём прямоугольник-плейсхолдер
     this.garageSprite = this.add.rectangle(
