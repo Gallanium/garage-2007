@@ -1,0 +1,60 @@
+# Зависимости
+node_modules/
+.pnp
+.pnp.js
+
+# Сборка проекта
+dist/
+dist-ssr/
+build/
+*.local
+
+# Логи
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Кэш редактора и IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Переменные окружения
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Временные файлы операционной системы
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Тестирование
+coverage/
+.nyc_output/
+
+# Кэш различных инструментов
+.eslintcache
+.stylelintcache
+*.tgz
+
+# Временные файлы
+*.tmp
+*.temp
