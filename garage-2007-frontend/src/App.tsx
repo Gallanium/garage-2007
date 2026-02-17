@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   useGameStore,
   useBalance,
@@ -6,10 +6,18 @@ import {
   useTotalClicks,
   useGarageLevel,
   usePassiveIncome,
+  useNuts,
+  useIsLoaded,
+  useLastOfflineEarnings,
+  useLastOfflineTimeAway,
+  useNextLevelCost,
+  useGarageProgress,
+  useCanUpgradeGarage,
 } from './store/gameStore'
 import PhaserGame from './game/PhaserGame'
 import TabNavigation from './components/TabNavigation'
 import UpgradesPanel from './components/UpgradesPanel'
+import WelcomeBackModal from './components/WelcomeBackModal'
 
 // ============================================
 // КОНСТАНТЫ
@@ -20,6 +28,21 @@ const tabs = [
   { id: 'game', label: 'Игра', icon: '🏠' },
   { id: 'upgrades', label: 'Улучшения', icon: '⬆️' },
 ]
+
+/** Интервал автосохранения в миллисекундах (30 секунд) */
+const AUTO_SAVE_INTERVAL_MS = 30_000
+
+/**
+ * Минимальный интервал между сохранениями при изменении данных (мс).
+ * Предотвращает спам localStorage при каждом тике пассивного дохода.
+ */
+const SAVE_DEBOUNCE_MS = 5_000
+
+/** Минимальное время оффлайна для показа модалки (секунды) */
+const MIN_OFFLINE_FOR_MODAL = 60
+
+/** Задержка перед показом модалки для плавности (мс) */
+const MODAL_SHOW_DELAY_MS = 500
 
 /** Названия уровней гаража согласно GDD (раздел 5) */
 const GARAGE_LEVEL_NAMES: Record<number, string> = {
@@ -61,6 +84,7 @@ function formatNumber(num: number): string {
 function App() {
   // --- Локальное состояние ---
   const [activeTab, setActiveTab] = useState<string>('game')
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false)
 
   // --- Данные из store (оптимизированные селекторы) ---
   const balance = useBalance()
@@ -68,23 +92,156 @@ function App() {
   const totalClicks = useTotalClicks()
   const garageLevel = useGarageLevel()
   const passiveIncomePerSecond = usePassiveIncome()
+  const nuts = useNuts()
+  const isLoaded = useIsLoaded()
+  const offlineEarnings = useLastOfflineEarnings()
+  const offlineTime = useLastOfflineTimeAway()
+  const nextLevelCost = useNextLevelCost()
+  const garageProgress = useGarageProgress()
+  const canUpgradeGarage = useCanUpgradeGarage()
 
   // --- Действия из store ---
   const handleClick = useGameStore((s) => s.handleClick)
   const resetGame = useGameStore((s) => s.resetGame)
   const startPassiveIncome = useGameStore((s) => s.startPassiveIncome)
+  const loadProgress = useGameStore((s) => s.loadProgress)
+  const saveProgress = useGameStore((s) => s.saveProgress)
+  const clearOfflineEarnings = useGameStore((s) => s.clearOfflineEarnings)
+  const upgradeGarage = useGameStore((s) => s.upgradeGarage)
 
-  // --- Запуск пассивного дохода при монтировании ---
+  // --- Ref для debounce сохранения при изменении данных ---
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ============================================
+  // ЭФФЕКТЫ (все хуки ДО условных рендеров — правила React)
+  // ============================================
+
+  /**
+   * 1. Загрузка прогресса при монтировании.
+   *    loadProgress вычисляет оффлайн-доход и сохраняет его в store
+   *    (lastOfflineEarnings / lastOfflineTimeAway).
+   */
+  useEffect(() => {
+    loadProgress()
+  }, [loadProgress])
+
+  /**
+   * 1b. Показ модалки Welcome Back после загрузки.
+   *     Читаем данные оффлайн-дохода из store (заполняются в loadProgress).
+   *     Показываем модалку если время отсутствия > 60 сек И доход > 0.
+   */
+  useEffect(() => {
+    if (!isLoaded) return
+    if (offlineEarnings <= 0) return
+    if (offlineTime <= MIN_OFFLINE_FOR_MODAL) return
+
+    console.log(`[App] Показываем модалку: ${offlineEarnings.toFixed(2)} ₽ за ${offlineTime} сек`)
+
+    const timer = setTimeout(() => {
+      setShowWelcomeBack(true)
+    }, MODAL_SHOW_DELAY_MS)
+
+    return () => clearTimeout(timer)
+  }, [isLoaded, offlineEarnings, offlineTime])
+
+  /**
+   * 2. Запуск пассивного дохода при монтировании.
+   *    Возвращает cleanup для clearInterval.
+   */
   useEffect(() => {
     const cleanup = startPassiveIncome()
     return cleanup
   }, [startPassiveIncome])
 
-  // Временная заглушка для гаек (premium валюта)
-  const nuts = 0 // TODO: добавить в store позже
+  /**
+   * 3. Автосохранение каждые 30 секунд.
+   *    Работает только после завершения загрузки.
+   */
+  useEffect(() => {
+    if (!isLoaded) return
+
+    const saveInterval = setInterval(() => {
+      saveProgress()
+    }, AUTO_SAVE_INTERVAL_MS)
+
+    return () => clearInterval(saveInterval)
+  }, [isLoaded, saveProgress])
+
+  /**
+   * 4. Сохранение при изменении критичных данных (debounced).
+   *
+   *    Триггеры: balance, garageLevel.
+   *    Debounce 5 сек — предотвращает спам при каждом тике
+   *    пассивного дохода (1 раз/сек), при этом гарантирует
+   *    запись после серии быстрых кликов.
+   */
+  useEffect(() => {
+    if (!isLoaded) return
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+    }
+
+    saveTimerRef.current = setTimeout(() => {
+      saveProgress()
+    }, SAVE_DEBOUNCE_MS)
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+      }
+    }
+  }, [balance, garageLevel, isLoaded, saveProgress])
+
+  /**
+   * 5. Сохранение при закрытии вкладки / браузера.
+   *    Использует событие beforeunload.
+   */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveProgress()
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [saveProgress])
+
+  // ============================================
+  // ОБРАБОТЧИКИ
+  // ============================================
+
+  /** Закрытие модалки Welcome Back */
+  const handleWelcomeBackClose = () => {
+    setShowWelcomeBack(false)
+    clearOfflineEarnings()
+  }
+
+  // ============================================
+  // ЭКРАН ЗАГРУЗКИ
+  // ============================================
+
+  if (!isLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-gray-800 to-gray-900 gap-4">
+        <h1 className="text-4xl font-bold text-garage-yellow font-mono drop-shadow-lg">
+          ГАРАЖ 2007
+        </h1>
+        <p className="text-xl text-gray-300 font-mono animate-pulse">
+          Загрузка игры...
+        </p>
+      </div>
+    )
+  }
+
+  // ============================================
+  // ОСНОВНОЙ РЕНДЕР
+  // ============================================
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-y-auto">
 
       {/* ========== ВЕРХНЯЯ ПАНЕЛЬ (Header) ========== */}
       <header className="flex justify-between items-center p-4 bg-gray-900/80 backdrop-blur-sm border-b-2 border-garage-rust shadow-lg z-10">
@@ -135,7 +292,8 @@ function App() {
       {activeTab === 'game' && (
         <>
           {/* Phaser Game (60% высоты) */}
-          <main className="flex-grow relative bg-gradient-to-b from-gray-800 to-gray-900" style={{ height: '60%' }}>
+          {/* flex-1 + min-h-0: canvas занимает доступное пространство, не выталкивая footer */}
+          <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
 
             <div className="w-full h-full flex items-center justify-center">
               <PhaserGame
@@ -164,7 +322,8 @@ function App() {
           </main>
 
           {/* Нижняя панель: Статистика */}
-          <footer className="bg-gray-900/90 backdrop-blur-sm border-t-2 border-garage-rust shadow-2xl">
+          {/* flex-shrink-0: footer не сжимается, всегда виден полностью */}
+          <footer className="flex-shrink-0 bg-gray-900/90 backdrop-blur-sm border-t-2 border-garage-rust shadow-2xl">
 
             <div className="grid grid-cols-3 gap-2 p-4">
 
@@ -200,32 +359,54 @@ function App() {
 
             </div>
 
-            {/* Прогресс + кнопка сброса */}
-            <div className="px-4 pb-4 flex justify-between items-center">
+            {/* Прогресс уровня гаража + кнопки */}
+            <div className="px-4 pb-4 space-y-2">
 
-              <div className="flex-grow mr-4">
+              {/* Прогресс-бар */}
+              <div>
                 <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-500"
-                    style={{ width: '35%' }} // TODO: рассчитывать реальный прогресс
+                    style={{ width: `${Math.round(garageProgress * 100)}%` }}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1 font-mono">
-                  До уровня {garageLevel + 1}: 65%
+                  {nextLevelCost
+                    ? `До уровня ${garageLevel + 1}: ${formatNumber(Math.max(0, nextLevelCost - balance))} ₽ (${Math.round(garageProgress * 100)}%)`
+                    : 'Максимальный уровень!'}
                 </p>
               </div>
 
-              <button
-                onClick={resetGame}
-                className="bg-red-900/50 hover:bg-red-800/70
-                           text-red-300 text-xs font-medium py-2 px-3 rounded
-                           transition-colors duration-200
-                           border border-red-700/50 font-mono
-                           active:scale-95 transform"
-                title="Сбросить игру к начальным значениям"
-              >
-                🔄 Сброс
-              </button>
+              {/* Кнопки: улучшить гараж + сброс */}
+              <div className="flex justify-between items-center gap-2">
+
+                {nextLevelCost && (
+                  <button
+                    onClick={upgradeGarage}
+                    disabled={!canUpgradeGarage}
+                    className={`flex-grow py-2 px-4 rounded font-mono text-sm font-bold
+                               border transition-all duration-200 active:scale-95 transform
+                               ${canUpgradeGarage
+                                 ? 'bg-gradient-to-r from-garage-rust to-garage-yellow text-gray-900 border-garage-yellow shadow-lg shadow-garage-yellow/20 hover:brightness-110'
+                                 : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'}`}
+                  >
+                    Улучшить гараж — {formatNumber(nextLevelCost)} ₽
+                  </button>
+                )}
+
+                <button
+                  onClick={resetGame}
+                  className="bg-red-900/50 hover:bg-red-800/70
+                             text-red-300 text-xs font-medium py-2 px-3 rounded
+                             transition-colors duration-200
+                             border border-red-700/50 font-mono
+                             active:scale-95 transform shrink-0"
+                  title="Сбросить игру к начальным значениям"
+                >
+                  🔄 Сброс
+                </button>
+
+              </div>
 
             </div>
 
@@ -238,6 +419,14 @@ function App() {
           <UpgradesPanel />
         </main>
       )}
+
+      {/* ========== МОДАЛКА: Welcome Back ========== */}
+      <WelcomeBackModal
+        offlineEarnings={offlineEarnings}
+        offlineTime={offlineTime}
+        isOpen={showWelcomeBack}
+        onClose={handleWelcomeBackClose}
+      />
 
       {/* ========== DEBUG INFO (только в dev режиме) ========== */}
       {import.meta.env.DEV && (

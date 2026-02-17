@@ -14,10 +14,13 @@ import {
 export default class MainScene extends Phaser.Scene {
   // Спрайт гаража (пока placeholder - прямоугольник)
   private garageSprite?: Phaser.GameObjects.Rectangle
-  
+
+  // Текст уровня на гараже (обновляется в updateGarageLevel)
+  private levelText?: Phaser.GameObjects.Text
+
   // Текущий уровень гаража (1-5)
   private currentLevel: number = 1
-  
+
   // Контейнер для эффектов частиц
   private particlesContainer?: Phaser.GameObjects.Container
   
@@ -124,8 +127,8 @@ export default class MainScene extends Phaser.Scene {
       this.handleGarageClick(pointer)
     })
 
-    // Добавляем текст с номером уровня (для отладки)
-    const levelText = this.add.text(
+    // Добавляем текст с номером уровня (сохраняем ссылку для обновления в updateGarageLevel)
+    this.levelText = this.add.text(
       centerX,
       centerY,
       `Уровень ${this.currentLevel}`,
@@ -138,8 +141,8 @@ export default class MainScene extends Phaser.Scene {
         strokeThickness: 4,
       }
     )
-    levelText.setOrigin(0.5)
-    levelText.setDepth(DEPTH_LAYERS.UI)
+    this.levelText.setOrigin(0.5)
+    this.levelText.setDepth(DEPTH_LAYERS.UI)
 
     console.log('Placeholder гаража создан для уровня:', this.currentLevel)
   }
@@ -227,8 +230,7 @@ export default class MainScene extends Phaser.Scene {
    * @param level - новый уровень (1-5)
    */
   public updateGarageLevel(level: number): void {
-    // Валидация уровня
-    if (level < 1 || level > 5) {
+    if (level < 1) {
       console.warn('Недопустимый уровень:', level)
       return
     }
@@ -242,8 +244,10 @@ export default class MainScene extends Phaser.Scene {
       return
     }
 
-    // Получаем новый цвет для уровня
-    const newColor = this.LEVEL_COLORS[level]
+    // Получаем цвет для уровня (или последний известный)
+    const maxDefinedLevel = Math.max(...Object.keys(this.LEVEL_COLORS).map(Number))
+    const colorKey = Math.min(level, maxDefinedLevel)
+    const newColor = this.LEVEL_COLORS[colorKey]
 
     // Анимация перехода:
     // 1. Увеличение масштаба
@@ -270,10 +274,9 @@ export default class MainScene extends Phaser.Scene {
     // Создаём эффект "вспышки" при повышении уровня
     this.createLevelUpEffect()
 
-    // Обновляем текст уровня
-    const levelText = this.children.getByName('levelText') as Phaser.GameObjects.Text
-    if (levelText) {
-      levelText.setText(`Уровень ${level}`)
+    // Обновляем текст уровня через сохранённую ссылку
+    if (this.levelText) {
+      this.levelText.setText(`Уровень ${level}`)
     }
   }
 

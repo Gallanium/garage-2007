@@ -1,4 +1,10 @@
 import { create } from 'zustand'
+import {
+  saveGame,
+  loadGame,
+  calculateOfflineEarnings,
+  clearSave,
+} from '../utils/storageService'
 
 // ============================================
 // КОНСТАНТЫ ЭКОНОМИКИ (из GDD раздел 6.3)
@@ -15,6 +21,17 @@ const WORK_SPEED_BASE_COST = 500
 
 /** Бонус скорости работы за каждый уровень: +10% (GDD раздел 4.2C) */
 const WORK_SPEED_BONUS_PER_LEVEL = 0.10
+
+/**
+ * Пороги стоимости улучшения гаража (GDD раздел 5).
+ * Ключ — текущий уровень, значение — стоимость перехода на следующий.
+ */
+export const GARAGE_LEVEL_THRESHOLDS: Record<number, number> = {
+  1: 10_000,
+  2: 50_000,
+  3: 200_000,
+  4: 1_000_000,
+}
 
 // ============================================
 // ТИПЫ
@@ -63,8 +80,9 @@ export interface WorkersState {
 }
 
 /**
- * Интерфейс состояния игры
- * Содержит все данные о прогрессе игрока
+ * Интерфейс состояния игры.
+ * Содержит все данные о прогрессе игрока, включая мета-поля
+ * для системы сохранения и аналитики.
  */
 interface GameState {
   /** Текущий баланс игрока в рублях */
@@ -81,54 +99,83 @@ interface GameState {
   upgrades: UpgradesState
   /** Состояние работников */
   workers: WorkersState
+
+  // --- Поля для системы сохранения ---
+
+  /** Премиум валюта (гайки) — покупается за Telegram Stars */
+  nuts: number
+  /** Суммарный заработок за всё время (для лиг и аналитики) */
+  totalEarned: number
+  /** Количество игровых сессий */
+  sessionCount: number
+  /** ISO-дата последней сессии */
+  lastSessionDate: string
+  /** Флаг завершения загрузки — UI показывает лоадер, пока false */
+  isLoaded: boolean
+
+  // --- Данные оффлайн-дохода (для модалки Welcome Back) ---
+
+  /** Сумма оффлайн-дохода, начисленного при загрузке (₽). 0 = не было оффлайна */
+  lastOfflineEarnings: number
+  /** Время отсутствия в секундах (для отображения в модалке) */
+  lastOfflineTimeAway: number
 }
 
 /**
- * Интерфейс действий (actions)
- * Методы для изменения состояния игры
+ * Интерфейс действий (actions).
+ * Методы для изменения состояния игры.
  */
 interface GameActions {
   /** Обработчик клика по гаражу */
   handleClick: () => void
 
   /**
-   * Покупка апгрейда дохода за клик (устаревший, оставлен для обратной совместимости)
+   * Покупка апгрейда дохода за клик (устаревший)
    * @deprecated Используй purchaseClickUpgrade()
    */
   purchaseUpgrade: (cost: number, newClickValue: number) => boolean
 
-  /**
-   * Покупка улучшения дохода за клик.
-   * Списывает деньги, повышает уровень, увеличивает clickValue на 1,
-   * пересчитывает стоимость следующего уровня по формуле GDD.
-   * @returns true если покупка успешна
-   */
+  /** Покупка улучшения дохода за клик */
   purchaseClickUpgrade: () => boolean
 
-  /**
-   * Покупка улучшения скорости работы.
-   * Каждый уровень даёт +10% к пассивному доходу всех работников.
-   * @returns true если покупка успешна
-   */
+  /** Покупка улучшения скорости работы (+10% к пассивному доходу) */
   purchaseWorkSpeedUpgrade: () => boolean
 
-  /**
-   * Найм работника указанного типа.
-   * Проверяет баланс и лимит, списывает деньги,
-   * пересчитывает стоимость и passiveIncomePerSecond.
-   * @param workerType - тип работника
-   * @returns true если найм успешен
-   */
+  /** Найм работника указанного типа */
   hireWorker: (workerType: WorkerType) => boolean
 
-  /**
-   * Запускает начисление пассивного дохода каждую секунду.
-   * @returns функция-очистка для остановки интервала
-   */
+  /** Запуск интервала пассивного дохода. Возвращает cleanup */
   startPassiveIncome: () => () => void
 
   /** Сброс игры к начальным значениям (для отладки) */
   resetGame: () => void
+
+  // --- Действия системы сохранения ---
+
+  /**
+   * Сохраняет текущий прогресс в localStorage.
+   * Вызывается автоматически каждые 30 сек и при значимых действиях.
+   */
+  saveProgress: () => void
+
+  /**
+   * Загружает прогресс из localStorage при старте.
+   * Вычисляет и начисляет оффлайн-доход.
+   * Устанавливает isLoaded = true по завершении.
+   */
+  loadProgress: () => void
+
+  /**
+   * Начисляет оффлайн-доход на баланс и totalEarned.
+   * @param amount — сумма оффлайн-дохода в рублях
+   */
+  addOfflineEarnings: (amount: number) => void
+
+  /** Сбрасывает данные оффлайн-дохода после показа модалки */
+  clearOfflineEarnings: () => void
+
+  /** Улучшение гаража до следующего уровня (списывает деньги) */
+  upgradeGarage: () => boolean
 }
 
 /** Полный тип хранилища */
@@ -141,20 +188,14 @@ type GameStore = GameState & GameActions
 /**
  * Вычисляет стоимость апгрейда по формуле из GDD (раздел 6.3):
  * Cost(n) = BaseCost × 1.15^n
- * @param baseCost - базовая стоимость
- * @param level - текущий уровень (n)
- * @returns округлённая стоимость следующего уровня
  */
 function calculateUpgradeCost(baseCost: number, level: number): number {
   return Math.round(baseCost * Math.pow(UPGRADE_COST_MULTIPLIER, level))
 }
 
 /**
- * Вычисляет суммарный пассивный доход в секунду с учётом бонуса скорости работы.
+ * Вычисляет суммарный пассивный доход в секунду с учётом бонуса скорости.
  * Формула: сумма(count × baseIncomePerSec) × (1 + workSpeedLevel × 0.10)
- * @param workers - текущее состояние работников
- * @param workSpeedLevel - уровень апгрейда скорости работы
- * @returns пассивный доход в секунду
  */
 function calculatePassiveIncome(workers: WorkersState, workSpeedLevel: number): number {
   const baseIncome =
@@ -180,12 +221,12 @@ const initialState: GameState = {
   upgrades: {
     clickPower: {
       level: 0,
-      cost: CLICK_UPGRADE_BASE_COST,       // 100 ₽ (GDD: уровень 1 стоит 100)
+      cost: CLICK_UPGRADE_BASE_COST,
       baseCost: CLICK_UPGRADE_BASE_COST,
     },
     workSpeed: {
       level: 0,
-      cost: WORK_SPEED_BASE_COST,           // 500 ₽
+      cost: WORK_SPEED_BASE_COST,
       baseCost: WORK_SPEED_BASE_COST,
     },
   },
@@ -193,19 +234,30 @@ const initialState: GameState = {
   workers: {
     apprentice: {
       count: 0,
-      cost: 500,                            // GDD: Подмастерье 500 ₽
+      cost: 500,
       baseCost: 500,
-      baseIncomePerSec: 0.5,                // GDD: 0.5 ₽/сек
-      maxCount: 10,                         // GDD: макс. 10
+      baseIncomePerSec: 0.5,
+      maxCount: 10,
     },
     mechanic: {
       count: 0,
-      cost: 5_000,                          // GDD: Механик 5 000 ₽
+      cost: 5_000,
       baseCost: 5_000,
-      baseIncomePerSec: 5,                  // GDD: 5 ₽/сек
-      maxCount: 10,                         // GDD: макс. 10
+      baseIncomePerSec: 5,
+      maxCount: 10,
     },
   },
+
+  // Поля системы сохранения
+  nuts: 0,
+  totalEarned: 0,
+  sessionCount: 0,
+  lastSessionDate: new Date().toISOString(),
+  isLoaded: false,
+
+  // Данные оффлайн-дохода
+  lastOfflineEarnings: 0,
+  lastOfflineTimeAway: 0,
 }
 
 // ============================================
@@ -216,25 +268,32 @@ const initialState: GameState = {
  * Zustand хранилище для игрового состояния.
  *
  * Архитектурные решения:
- * - Все экономические расчёты используют формулы из GDD (раздел 6.3)
- * - passiveIncomePerSecond пересчитывается при каждом изменении работников / скорости
- * - Базовые стоимости хранятся отдельно для корректного пересчёта Cost(n) = BaseCost × 1.15^n
- * - startPassiveIncome возвращает cleanup-функцию для использования в useEffect
+ * - Формулы экономики строго по GDD (раздел 6.3)
+ * - passiveIncomePerSecond пересчитывается при изменении работников / скорости
+ * - baseCost хранится отдельно для корректного Cost(n) = BaseCost × 1.15^n
+ * - startPassiveIncome возвращает cleanup для useEffect
+ * - saveProgress / loadProgress интегрируют storageService
+ * - totalEarned обновляется при каждом начислении дохода (клик, пассив, оффлайн)
  */
 export const useGameStore = create<GameStore>((set, get) => ({
   ...initialState,
 
-  // ---- Клик по гаражу ----
+  // ============================================
+  // КЛИК ПО ГАРАЖУ
+  // ============================================
 
   handleClick: () => {
     const { clickValue } = get()
     set((state) => ({
       balance: state.balance + clickValue,
       totalClicks: state.totalClicks + 1,
+      totalEarned: state.totalEarned + clickValue,
     }))
   },
 
-  // ---- Legacy-метод покупки (обратная совместимость) ----
+  // ============================================
+  // LEGACY-МЕТОД (обратная совместимость)
+  // ============================================
 
   purchaseUpgrade: (cost: number, newClickValue: number) => {
     const { balance } = get()
@@ -247,7 +306,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true
   },
 
-  // ---- Покупка апгрейда клика ----
+  // ============================================
+  // ПОКУПКА АПГРЕЙДА КЛИКА
+  // ============================================
 
   purchaseClickUpgrade: () => {
     const { balance, upgrades } = get()
@@ -278,7 +339,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true
   },
 
-  // ---- Покупка апгрейда скорости работы ----
+  // ============================================
+  // ПОКУПКА АПГРЕЙДА СКОРОСТИ РАБОТЫ
+  // ============================================
 
   purchaseWorkSpeedUpgrade: () => {
     const { balance, upgrades, workers } = get()
@@ -310,19 +373,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true
   },
 
-  // ---- Найм работника ----
+  // ============================================
+  // НАЙМ РАБОТНИКА
+  // ============================================
 
   hireWorker: (workerType: WorkerType) => {
     const { balance, workers, upgrades } = get()
     const worker = workers[workerType]
 
-    // Проверка лимита
     if (worker.count >= worker.maxCount) {
       console.warn(`[HireWorker] Достигнут лимит для ${workerType}: ${worker.maxCount}`)
       return false
     }
 
-    // Проверка баланса
     if (balance < worker.cost) {
       console.warn(`[HireWorker] Недостаточно средств: нужно ${worker.cost} ₽, есть ${balance} ₽`)
       return false
@@ -331,7 +394,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newCount = worker.count + 1
     const newCost = calculateUpgradeCost(worker.baseCost, newCount)
 
-    // Обновляем работника
     const updatedWorkers: WorkersState = {
       ...workers,
       [workerType]: {
@@ -341,7 +403,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     }
 
-    // Пересчитываем пассивный доход с учётом нового работника
     const newPassiveIncome = calculatePassiveIncome(updatedWorkers, upgrades.workSpeed.level)
 
     set((state) => ({
@@ -351,12 +412,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }))
 
     console.log(
-      `[HireWorker] ${workerType} #${newCount}, следующий стоит: ${newCost} ₽, пассивный доход: ${newPassiveIncome} ₽/сек`
+      `[HireWorker] ${workerType} #${newCount}, следующий стоит: ${newCost} ₽, пассивный доход: ${newPassiveIncome} ₽/сек`,
     )
     return true
   },
 
-  // ---- Пассивный доход ----
+  // ============================================
+  // ПАССИВНЫЙ ДОХОД
+  // ============================================
 
   startPassiveIncome: () => {
     const intervalId = setInterval(() => {
@@ -365,6 +428,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       set((state) => ({
         balance: parseFloat((state.balance + passiveIncomePerSecond).toFixed(2)),
+        totalEarned: parseFloat((state.totalEarned + passiveIncomePerSecond).toFixed(2)),
       }))
     }, 1000)
 
@@ -373,11 +437,206 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // ---- Сброс ----
+  // ============================================
+  // СОХРАНЕНИЕ ПРОГРЕССА
+  // ============================================
+
+  saveProgress: () => {
+    const state = get()
+
+    const success = saveGame({
+      playerData: {
+        balance: state.balance,
+        nuts: state.nuts,
+        totalClicks: state.totalClicks,
+        garageLevel: state.garageLevel,
+      },
+      upgrades: {
+        clickPower: { level: state.upgrades.clickPower.level, cost: state.upgrades.clickPower.cost },
+        workSpeed: { level: state.upgrades.workSpeed.level, cost: state.upgrades.workSpeed.cost },
+      },
+      workers: {
+        apprentice: { count: state.workers.apprentice.count, cost: state.workers.apprentice.cost },
+        mechanic: { count: state.workers.mechanic.count, cost: state.workers.mechanic.cost },
+      },
+      stats: {
+        totalEarned: state.totalEarned,
+        sessionCount: state.sessionCount,
+        lastSessionDate: state.lastSessionDate,
+      },
+    })
+
+    if (success) {
+      console.log('[Save] Прогресс сохранён')
+    } else {
+      console.error('[Save] Ошибка сохранения')
+    }
+  },
+
+  // ============================================
+  // ЗАГРУЗКА ПРОГРЕССА
+  // ============================================
+
+  loadProgress: () => {
+    const saveData = loadGame()
+
+    if (!saveData) {
+      console.log('[Load] Сохранение не найдено, начинаем новую игру')
+      set({
+        isLoaded: true,
+        sessionCount: 1,
+        lastSessionDate: new Date().toISOString(),
+      })
+      return
+    }
+
+    console.log('[Load] Загружаем сохранённый прогресс...')
+
+    // --- Восстанавливаем работников с полными данными ---
+    // SaveData хранит только count и cost, остальные поля берём из initialState
+
+    const restoredWorkers: WorkersState = {
+      apprentice: {
+        ...initialState.workers.apprentice,
+        count: saveData.workers.apprentice.count,
+        cost: saveData.workers.apprentice.cost,
+      },
+      mechanic: {
+        ...initialState.workers.mechanic,
+        count: saveData.workers.mechanic.count,
+        cost: saveData.workers.mechanic.cost,
+      },
+    }
+
+    // --- Восстанавливаем апгрейды с baseCost ---
+
+    const restoredUpgrades: UpgradesState = {
+      clickPower: {
+        ...initialState.upgrades.clickPower,
+        level: saveData.upgrades.clickPower.level,
+        cost: saveData.upgrades.clickPower.cost,
+      },
+      workSpeed: {
+        ...initialState.upgrades.workSpeed,
+        level: saveData.upgrades.workSpeed.level,
+        cost: saveData.upgrades.workSpeed.cost,
+      },
+    }
+
+    // --- Пересчитываем пассивный доход на основе загруженных данных ---
+
+    const passiveIncome = calculatePassiveIncome(
+      restoredWorkers,
+      restoredUpgrades.workSpeed.level,
+    )
+
+    // --- Вычисляем оффлайн-доход (макс 24 часа, GDD раздел 6) ---
+
+    const offlineEarnings = calculateOfflineEarnings(passiveIncome, 24)
+
+    // --- Вычисляем время отсутствия для модалки ---
+
+    const now = Date.now()
+    const offlineTimeAway = saveData.timestamp > 0
+      ? Math.floor((now - saveData.timestamp) / 1000)
+      : 0
+
+    console.log(`[Load] timestamp сохранения: ${new Date(saveData.timestamp).toLocaleString('ru-RU')}`)
+    console.log(`[Load] Время отсутствия: ${offlineTimeAway} сек, пассивный доход: ${passiveIncome} ₽/сек`)
+    console.log(`[Load] Рассчитанный оффлайн-доход: ${offlineEarnings.toFixed(2)} ₽`)
+
+    // --- Восстанавливаем clickValue из уровня апгрейда ---
+    // clickValue = базовый (1) + уровень апгрейда клика
+
+    const restoredClickValue = 1 + restoredUpgrades.clickPower.level
+
+    // --- Применяем всё разом ---
+
+    set({
+      balance: saveData.playerData.balance,
+      nuts: saveData.playerData.nuts ?? 0,
+      totalClicks: saveData.playerData.totalClicks,
+      garageLevel: saveData.playerData.garageLevel,
+      clickValue: restoredClickValue,
+      upgrades: restoredUpgrades,
+      workers: restoredWorkers,
+      totalEarned: saveData.stats.totalEarned ?? 0,
+      sessionCount: (saveData.stats.sessionCount ?? 0) + 1,
+      lastSessionDate: new Date().toISOString(),
+      passiveIncomePerSecond: passiveIncome,
+      isLoaded: true,
+      lastOfflineEarnings: offlineEarnings,
+      lastOfflineTimeAway: offlineTimeAway,
+    })
+
+    // --- Начисляем оффлайн-доход после set ---
+
+    if (offlineEarnings > 0) {
+      get().addOfflineEarnings(offlineEarnings)
+    }
+
+    console.log('[Load] Прогресс загружен!')
+    console.log(`[Load] Оффлайн-доход: ${offlineEarnings.toFixed(2)} ₽`)
+  },
+
+  // ============================================
+  // ОФФЛАЙН-ДОХОД
+  // ============================================
+
+  addOfflineEarnings: (amount: number) => {
+    set((state) => ({
+      balance: parseFloat((state.balance + amount).toFixed(2)),
+      totalEarned: parseFloat((state.totalEarned + amount).toFixed(2)),
+    }))
+
+    console.log(`[Offline] Начислен оффлайн-доход: ${amount.toFixed(2)} ₽`)
+  },
+
+  // ============================================
+  // ОЧИСТКА ДАННЫХ ОФФЛАЙН-ДОХОДА
+  // ============================================
+
+  clearOfflineEarnings: () => {
+    set({ lastOfflineEarnings: 0, lastOfflineTimeAway: 0 })
+  },
+
+  // ============================================
+  // УЛУЧШЕНИЕ ГАРАЖА
+  // ============================================
+
+  upgradeGarage: () => {
+    const { balance, garageLevel } = get()
+    const cost = GARAGE_LEVEL_THRESHOLDS[garageLevel]
+
+    if (!cost) {
+      console.warn(`[GarageUpgrade] Максимальный уровень достигнут: ${garageLevel}`)
+      return false
+    }
+
+    if (balance < cost) {
+      console.warn(`[GarageUpgrade] Недостаточно средств: нужно ${cost} ₽, есть ${balance} ₽`)
+      return false
+    }
+
+    const newLevel = garageLevel + 1
+
+    set((state) => ({
+      balance: state.balance - cost,
+      garageLevel: newLevel,
+    }))
+
+    console.log(`[GarageUpgrade] Уровень ${garageLevel} → ${newLevel}, списано ${cost} ₽`)
+    return true
+  },
+
+  // ============================================
+  // СБРОС
+  // ============================================
 
   resetGame: () => {
-    set(initialState)
-    console.log('[Game] Сброшена к начальным значениям')
+    clearSave()
+    set({ ...initialState, isLoaded: true })
+    console.log('[Game] Сброшена к начальным значениям, сохранение удалено')
   },
 }))
 
@@ -392,3 +651,32 @@ export const useGarageLevel = () => useGameStore((s) => s.garageLevel)
 export const usePassiveIncome = () => useGameStore((s) => s.passiveIncomePerSecond)
 export const useUpgrades = () => useGameStore((s) => s.upgrades)
 export const useWorkers = () => useGameStore((s) => s.workers)
+export const useNuts = () => useGameStore((s) => s.nuts)
+export const useTotalEarned = () => useGameStore((s) => s.totalEarned)
+export const useIsLoaded = () => useGameStore((s) => s.isLoaded)
+export const useSessionCount = () => useGameStore((s) => s.sessionCount)
+export const useLastOfflineEarnings = () => useGameStore((s) => s.lastOfflineEarnings)
+export const useLastOfflineTimeAway = () => useGameStore((s) => s.lastOfflineTimeAway)
+
+// ============================================
+// СЕЛЕКТОРЫ УРОВНЯ ГАРАЖА
+// ============================================
+
+/** Стоимость улучшения до следующего уровня (null = максимальный уровень) */
+export const useNextLevelCost = () =>
+  useGameStore((s) => GARAGE_LEVEL_THRESHOLDS[s.garageLevel] ?? null)
+
+/** Прогресс до следующего уровня (0–1). 1 = достаточно средств или макс уровень */
+export const useGarageProgress = () =>
+  useGameStore((s) => {
+    const cost = GARAGE_LEVEL_THRESHOLDS[s.garageLevel]
+    if (!cost) return 1
+    return Math.min(s.balance / cost, 1)
+  })
+
+/** Можно ли улучшить гараж прямо сейчас */
+export const useCanUpgradeGarage = () =>
+  useGameStore((s) => {
+    const cost = GARAGE_LEVEL_THRESHOLDS[s.garageLevel]
+    return cost !== undefined && s.balance >= cost
+  })
