@@ -13,6 +13,12 @@ import {
 /** Коэффициент роста стоимости апгрейдов: Cost(n) = BaseCost × 1.15^n */
 const UPGRADE_COST_MULTIPLIER = 1.15
 
+/** Шанс критического клика (GDD раздел 4.1): 5% = 0.05 */
+const CRITICAL_CLICK_CHANCE = 0.05
+
+/** Множитель дохода при критическом клике (GDD раздел 4.1): x2 */
+const CRITICAL_CLICK_MULTIPLIER = 2
+
 /** Базовая стоимость апгрейда клика (GDD раздел 4.2A) */
 const CLICK_UPGRADE_BASE_COST = 100
 
@@ -25,12 +31,29 @@ const WORK_SPEED_BONUS_PER_LEVEL = 0.10
 /**
  * Пороги стоимости улучшения гаража (GDD раздел 5).
  * Ключ — текущий уровень, значение — стоимость перехода на следующий.
+ * 20 уровней: от «Ржавая ракушка» до «Автомобильная империя».
  */
 export const GARAGE_LEVEL_THRESHOLDS: Record<number, number> = {
   1: 10_000,
   2: 50_000,
   3: 200_000,
   4: 1_000_000,
+  5: 5_000_000,
+  6: 20_000_000,
+  7: 80_000_000,
+  8: 300_000_000,
+  9: 1_000_000_000,
+  10: 5_000_000_000,
+  11: 20_000_000_000,
+  12: 80_000_000_000,
+  13: 300_000_000_000,
+  14: 1_000_000_000_000,
+  15: 5_000_000_000_000,
+  16: 20_000_000_000_000,
+  17: 80_000_000_000_000,
+  18: 300_000_000_000_000,
+  19: 1_000_000_000_000_000,
+  // Уровень 20 — максимальный, ключа нет, upgradeGarage вернёт false
 }
 
 // ============================================
@@ -126,8 +149,8 @@ interface GameState {
  * Методы для изменения состояния игры.
  */
 interface GameActions {
-  /** Обработчик клика по гаражу */
-  handleClick: () => void
+  /** Обработчик клика по гаражу. Возвращает true при критическом клике */
+  handleClick: () => boolean
 
   /**
    * Покупка апгрейда дохода за клик (устаревший)
@@ -284,11 +307,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   handleClick: () => {
     const { clickValue } = get()
+    const isCritical = Math.random() < CRITICAL_CLICK_CHANCE
+    const income = isCritical ? clickValue * CRITICAL_CLICK_MULTIPLIER : clickValue
+
     set((state) => ({
-      balance: state.balance + clickValue,
+      balance: state.balance + income,
       totalClicks: state.totalClicks + 1,
-      totalEarned: state.totalEarned + clickValue,
+      totalEarned: state.totalEarned + income,
     }))
+
+    return isCritical
   },
 
   // ============================================

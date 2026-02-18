@@ -133,7 +133,7 @@ function App() {
   useEffect(() => {
     if (!isLoaded) return
     if (offlineEarnings <= 0) return
-    if (offlineTime <= MIN_OFFLINE_FOR_MODAL) return
+    if (offlineTime < MIN_OFFLINE_FOR_MODAL) return
 
     console.log(`[App] Показываем модалку: ${offlineEarnings.toFixed(2)} ₽ за ${offlineTime} сек`)
 

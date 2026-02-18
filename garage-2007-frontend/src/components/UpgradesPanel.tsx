@@ -22,7 +22,11 @@ const UpgradesPanel: React.FC = () => {
   const workers = useWorkers()
 
   const purchaseClickUpgrade = useGameStore((s) => s.purchaseClickUpgrade)
+  const purchaseWorkSpeedUpgrade = useGameStore((s) => s.purchaseWorkSpeedUpgrade)
   const hireWorker = useGameStore((s) => s.hireWorker)
+
+  const apprenticeMaxed = workers.apprentice.count >= workers.apprentice.maxCount
+  const mechanicMaxed = workers.mechanic.count >= workers.mechanic.maxCount
 
   return (
     <div className="flex flex-col gap-6 p-4 overflow-y-auto h-full">
@@ -43,6 +47,16 @@ const UpgradesPanel: React.FC = () => {
             canAfford={balance >= upgrades.clickPower.cost}
             onPurchase={purchaseClickUpgrade}
           />
+
+          <UpgradeCard
+            icon="⚡"
+            title="Скорость работы"
+            description="Увеличивает доход работников на 10%"
+            currentLevel={upgrades.workSpeed.level}
+            cost={upgrades.workSpeed.cost}
+            canAfford={balance >= upgrades.workSpeed.cost}
+            onPurchase={purchaseWorkSpeedUpgrade}
+          />
         </div>
       </section>
 
@@ -56,20 +70,20 @@ const UpgradesPanel: React.FC = () => {
           <UpgradeCard
             icon="👷"
             title="Нанять подмастерье"
-            description="Доход: 0.5 ₽/сек"
+            description={`Доход: 0.5 ₽/сек (${workers.apprentice.count}/${workers.apprentice.maxCount})`}
             currentLevel={workers.apprentice.count}
             cost={workers.apprentice.cost}
-            canAfford={balance >= workers.apprentice.cost}
+            canAfford={!apprenticeMaxed && balance >= workers.apprentice.cost}
             onPurchase={() => hireWorker('apprentice')}
           />
 
           <UpgradeCard
             icon="⚙️"
             title="Нанять механика"
-            description="Доход: 5 ₽/сек"
+            description={`Доход: 5 ₽/сек (${workers.mechanic.count}/${workers.mechanic.maxCount})`}
             currentLevel={workers.mechanic.count}
             cost={workers.mechanic.cost}
-            canAfford={balance >= workers.mechanic.cost}
+            canAfford={!mechanicMaxed && balance >= workers.mechanic.cost}
             onPurchase={() => hireWorker('mechanic')}
           />
         </div>

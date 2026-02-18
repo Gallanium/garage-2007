@@ -133,7 +133,7 @@ const DEFAULT_SAVE_DATA: SaveData = {
  * @param source - объект с обновлениями
  * @returns новый объект — результат мерджа
  */
-function deepMerge<T extends Record<string, unknown>>(
+function deepMerge<T extends object>(
   target: T,
   source: Partial<T>,
 ): T {
@@ -153,8 +153,8 @@ function deepMerge<T extends Record<string, unknown>>(
       !Array.isArray(targetVal)
     ) {
       result[key] = deepMerge(
-        targetVal as Record<string, unknown>,
-        sourceVal as Record<string, unknown>,
+        targetVal as Record<string, unknown> & object,
+        sourceVal as Partial<Record<string, unknown> & object>,
       ) as T[keyof T]
     } else if (sourceVal !== undefined) {
       result[key] = sourceVal as T[keyof T]
@@ -236,7 +236,7 @@ export function saveGame(data: Partial<SaveData>): boolean {
     const existing = loadGame() ?? { ...DEFAULT_SAVE_DATA }
 
     // Мерджим новые данные поверх существующих
-    const merged = deepMerge(existing, data)
+    const merged = deepMerge(existing, data) as SaveData
 
     // Проставляем мета-поля
     merged.version = SAVE_VERSION
@@ -292,7 +292,7 @@ export function loadGame(): SaveData | null {
 
     // Мерджим с дефолтами — добавляет поля, которых могло не быть
     // в старых версиях сохранения (forward-compatibility)
-    const merged = deepMerge(DEFAULT_SAVE_DATA, parsed)
+    const merged = deepMerge(DEFAULT_SAVE_DATA, parsed) as SaveData
 
     console.log(
       `[StorageService] Сохранение загружено (v${merged.version}, ` +

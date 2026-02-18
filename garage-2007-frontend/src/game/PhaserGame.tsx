@@ -27,12 +27,16 @@ interface PhaserGameProps {
 const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
-  
+
   // Ref для div-контейнера, куда Phaser монтирует canvas
   const containerRef = useRef<HTMLDivElement | null>(null)
-  
+
   // Ref для хранения ссылки на MainScene
   const sceneRef = useRef<MainScene | null>(null)
+
+  // Ref для актуального коллбэка (защита от stale closure в Phaser event)
+  const onGarageClickRef = useRef(onGarageClick)
+  onGarageClickRef.current = onGarageClick
 
   // Состояние готовности игры (для скрытия индикатора загрузки)
   const [isGameReady, setIsGameReady] = useState(false)
@@ -90,9 +94,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
       // Подписываемся на событие клика по гаражу из Phaser
       mainScene.events.on('garageClicked', (data: any) => {
         console.log('PhaserGame: Получено событие garageClicked из Phaser:', data)
-        
-        // Вызываем коллбэк из props
-        onGarageClick()
+
+        // Вызываем коллбэк через ref (защита от stale closure)
+        onGarageClickRef.current()
       })
 
       // Подписываемся на событие завершения анимации перехода уровня
