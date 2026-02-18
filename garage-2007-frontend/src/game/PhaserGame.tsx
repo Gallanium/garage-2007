@@ -38,6 +38,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
   const onGarageClickRef = useRef(onGarageClick)
   onGarageClickRef.current = onGarageClick
 
+  // FIX Баг 1: Ref для актуального garageLevel, чтобы синхронизировать при готовности сцены
+  const garageLevelRef = useRef(garageLevel)
+  garageLevelRef.current = garageLevel
+
   // Состояние готовности игры (для скрытия индикатора загрузки)
   const [isGameReady, setIsGameReady] = useState(false)
 
@@ -85,8 +89,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
       // Сохраняем ссылку на сцену
       sceneRef.current = mainScene
 
-      // ИСПРАВЛЕНИЕ БАГА 1: Устанавливаем игру как готовую только ПОСЛЕ готовности сцены
       setIsGameReady(true)
+
+      // FIX Баг 1: Синхронизируем garageLevel сразу после готовности сцены,
+      // чтобы визуал соответствовал текущему уровню из store
+      if (garageLevelRef.current > 1) {
+        console.log('PhaserGame: Начальная синхронизация garageLevel:', garageLevelRef.current)
+        mainScene.updateGarageLevel(garageLevelRef.current)
+      }
+
       console.log('PhaserGame: Игра полностью готова, индикатор загрузки скрыт')
 
       console.log('PhaserGame: MainScene получена, настраиваем события...')

@@ -244,35 +244,41 @@ function App() {
     <div className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-y-auto">
 
       {/* ========== ВЕРХНЯЯ ПАНЕЛЬ (Header) ========== */}
-      <header className="flex justify-between items-center p-4 bg-gray-900/80 backdrop-blur-sm border-b-2 border-garage-rust shadow-lg z-10">
+      {/* FIX Баг 2: relative + absolute для заголовка — он всегда в центре,
+          не зависит от ширины баланса/гаек */}
+      <header className="relative p-4 bg-gray-900/80 backdrop-blur-sm border-b-2 border-garage-rust shadow-lg z-10">
 
-        {/* Левая часть: Баланс */}
-        <div className="flex flex-col">
-          <span className="text-xs text-gray-400 uppercase tracking-wider font-mono">Баланс</span>
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-garage-yellow font-mono tracking-tight">
-              {formatNumber(balance)}
-            </span>
-            <span className="text-lg text-garage-yellow/70 font-mono">₽</span>
+        {/* Центр: Название игры — абсолютно позиционирован, всегда в центре */}
+        <div className="hidden sm:flex absolute inset-0 items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-garage-yellow drop-shadow-lg font-mono">
+              ГАРАЖ 2007
+            </h1>
+            <p className="text-xs text-gray-400">v0.1.0-MVP</p>
           </div>
         </div>
 
-        {/* Центр: Название игры */}
-        <div className="hidden sm:block text-center">
-          <h1 className="text-xl font-bold text-garage-yellow drop-shadow-lg font-mono">
-            ГАРАЖ 2007
-          </h1>
-          <p className="text-xs text-gray-400">v0.1.0-MVP</p>
-        </div>
+        <div className="flex justify-between items-center">
+          {/* Левая часть: Баланс */}
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-400 uppercase tracking-wider font-mono">Баланс</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-bold text-garage-yellow font-mono tabular-nums tracking-tight">
+                {formatNumber(balance)}
+              </span>
+              <span className="text-lg text-garage-yellow/70 font-mono">₽</span>
+            </div>
+          </div>
 
-        {/* Правая часть: Гайки (premium валюта) */}
-        <div className="flex flex-col items-end">
-          <span className="text-xs text-gray-400 uppercase tracking-wider font-mono">Гайки</span>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-orange-400 font-mono">
-              {formatNumber(nuts)}
-            </span>
-            <span className="text-xl">🔩</span>
+          {/* Правая часть: Гайки (premium валюта) */}
+          <div className="flex flex-col items-end">
+            <span className="text-xs text-gray-400 uppercase tracking-wider font-mono">Гайки</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-orange-400 font-mono tabular-nums">
+                {formatNumber(nuts)}
+              </span>
+              <span className="text-xl">🔩</span>
+            </div>
           </div>
         </div>
 
@@ -287,10 +293,15 @@ function App() {
         />
       </div>
 
-      {/* ========== КОНТЕНТ: условный рендер по активному табу ========== */}
+      {/* ========== КОНТЕНТ: табы скрываются через CSS, не размонтируются ========== */}
 
-      {activeTab === 'game' && (
-        <>
+      {/* FIX Баг 1: PhaserGame НЕ размонтируется при смене табов.
+          Используем display:none вместо условного рендера,
+          чтобы Phaser.Game не уничтожался и сохранял визуал гаража. */}
+      <div
+        className="flex flex-col flex-1 min-h-0"
+        style={{ display: activeTab === 'game' ? 'flex' : 'none' }}
+      >
           {/* Phaser Game (60% высоты) */}
           {/* flex-1 + min-h-0: canvas занимает доступное пространство, не выталкивая footer */}
           <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
@@ -411,14 +422,14 @@ function App() {
             </div>
 
           </footer>
-        </>
-      )}
+      </div>
 
-      {activeTab === 'upgrades' && (
-        <main className="flex-grow overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900">
-          <UpgradesPanel />
-        </main>
-      )}
+      <div
+        className="flex-grow overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900"
+        style={{ display: activeTab === 'upgrades' ? 'block' : 'none' }}
+      >
+        <UpgradesPanel />
+      </div>
 
       {/* ========== МОДАЛКА: Welcome Back ========== */}
       <WelcomeBackModal
