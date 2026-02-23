@@ -12,12 +12,20 @@ import {
   useLastOfflineTimeAway,
   useNextLevelCost,
   useGarageProgress,
-  useCanUpgradeGarage,
+  useShowMilestoneModal,
+  usePendingMilestoneLevel,
+  usePurchaseMilestone,
+  useCloseMilestoneModal,
+  useCheckForMilestone,
+  GARAGE_LEVEL_NAMES,
+  MILESTONE_UPGRADES,
+  type MilestoneLevel,
 } from './store/gameStore'
 import PhaserGame from './game/PhaserGame'
 import TabNavigation from './components/TabNavigation'
 import UpgradesPanel from './components/UpgradesPanel'
 import WelcomeBackModal from './components/WelcomeBackModal'
+import MilestoneUpgradeModal from './components/MilestoneUpgradeModal'
 
 // ============================================
 // КОНСТАНТЫ
@@ -44,29 +52,7 @@ const MIN_OFFLINE_FOR_MODAL = 60
 /** Задержка перед показом модалки для плавности (мс) */
 const MODAL_SHOW_DELAY_MS = 500
 
-/** Названия уровней гаража согласно GDD (раздел 5) */
-const GARAGE_LEVEL_NAMES: Record<number, string> = {
-  1: 'Ржавая ракушка',
-  2: 'Начало пути',
-  3: 'Базовый ремонт',
-  4: 'Мастерская',
-  5: 'Гараж механика',
-  6: 'Продвинутый гараж',
-  7: 'Тюнинг-ателье',
-  8: 'Автосервис',
-  9: 'СТО',
-  10: 'Большой сервис',
-  11: 'Автоцентр',
-  12: 'Премиум-сервис',
-  13: 'Автокомплекс',
-  14: 'Техноцентр',
-  15: 'Автохолдинг',
-  16: 'Мегасервис',
-  17: 'Автоимперия',
-  18: 'Легенда района',
-  19: 'Король гаражей',
-  20: 'Элитный автосервис',
-}
+/** Названия уровней гаража импортируются из gameStore (GARAGE_LEVEL_NAMES) */
 
 // ============================================
 // УТИЛИТЫ
@@ -98,7 +84,11 @@ function App() {
   const offlineTime = useLastOfflineTimeAway()
   const nextLevelCost = useNextLevelCost()
   const garageProgress = useGarageProgress()
-  const canUpgradeGarage = useCanUpgradeGarage()
+  const showMilestoneModal = useShowMilestoneModal()
+  const pendingMilestoneLevel = usePendingMilestoneLevel()
+  const purchaseMilestone = usePurchaseMilestone()
+  const closeMilestoneModal = useCloseMilestoneModal()
+  const checkForMilestone = useCheckForMilestone()
 
   // --- Действия из store ---
   const handleClick = useGameStore((s) => s.handleClick)
@@ -107,7 +97,6 @@ function App() {
   const loadProgress = useGameStore((s) => s.loadProgress)
   const saveProgress = useGameStore((s) => s.saveProgress)
   const clearOfflineEarnings = useGameStore((s) => s.clearOfflineEarnings)
-  const upgradeGarage = useGameStore((s) => s.upgradeGarage)
 
   // --- Ref для debounce сохранения при изменении данных ---
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -192,6 +181,17 @@ function App() {
       }
     }
   }, [balance, garageLevel, isLoaded, saveProgress])
+
+  /**
+   * 4b. Проверка milestone-апгрейдов при смене уровня гаража.
+   *     Когда garageLevel достигает 5/10/15/20 — показываем модалку
+   *     (если milestone ещё не куплен). Без этого эффекта модалка
+   *     появлялась бы только при загрузке сохранения (loadProgress).
+   */
+  useEffect(() => {
+    if (!isLoaded) return
+    checkForMilestone()
+  }, [garageLevel, isLoaded, checkForMilestone])
 
   /**
    * 5. Сохранение при закрытии вкладки / браузера.
@@ -317,7 +317,7 @@ function App() {
             <div className="absolute top-4 left-4 bg-gray-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-garage-rust shadow-lg">
               <p className="text-xs text-gray-400 font-mono">Уровень</p>
               <p className="text-lg font-bold text-white font-mono">
-                {garageLevel} • {GARAGE_LEVEL_NAMES[garageLevel] || 'Неизвестно'}
+                {garageLevel} • {GARAGE_LEVEL_NAMES[garageLevel as keyof typeof GARAGE_LEVEL_NAMES] || 'Неизвестно'}
               </p>
             </div>
 
@@ -388,22 +388,8 @@ function App() {
                 </p>
               </div>
 
-              {/* Кнопки: улучшить гараж + сброс */}
-              <div className="flex justify-between items-center gap-2">
-
-                {nextLevelCost && (
-                  <button
-                    onClick={upgradeGarage}
-                    disabled={!canUpgradeGarage}
-                    className={`flex-grow py-2 px-4 rounded font-mono text-sm font-bold
-                               border transition-all duration-200 active:scale-95 transform
-                               ${canUpgradeGarage
-                                 ? 'bg-gradient-to-r from-garage-rust to-garage-yellow text-gray-900 border-garage-yellow shadow-lg shadow-garage-yellow/20 hover:brightness-110'
-                                 : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'}`}
-                  >
-                    Улучшить гараж — {formatNumber(nextLevelCost)} ₽
-                  </button>
-                )}
+              {/* Кнопка сброса */}
+              <div className="flex justify-end items-center gap-2">
 
                 <button
                   onClick={resetGame}
@@ -438,6 +424,21 @@ function App() {
         isOpen={showWelcomeBack}
         onClose={handleWelcomeBackClose}
       />
+
+      {/* ========== МОДАЛКА: Milestone Upgrade ========== */}
+      {pendingMilestoneLevel !== null && MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel] && (
+        <MilestoneUpgradeModal
+          isOpen={showMilestoneModal}
+          onClose={closeMilestoneModal}
+          onPurchase={() => purchaseMilestone(pendingMilestoneLevel)}
+          currentLevel={pendingMilestoneLevel - 1}
+          nextLevel={pendingMilestoneLevel}
+          upgradeCost={MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].cost}
+          currentBalance={balance}
+          unlocks={MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].unlocks}
+          canAfford={balance >= MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].cost}
+        />
+      )}
 
       {/* ========== DEBUG INFO (только в dev режиме) ========== */}
       {import.meta.env.DEV && (

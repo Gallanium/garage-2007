@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { useGameStore, GARAGE_LEVEL_THRESHOLDS } from './store/gameStore'
+import { useGameStore, GARAGE_LEVEL_THRESHOLDS, MILESTONE_UPGRADES, type MilestoneLevel } from './store/gameStore'
 import { STORAGE_KEY } from './utils/storageService'
 
 // ============================================
@@ -33,8 +33,13 @@ if (import.meta.env.DEV) {
         totalEarned: s.totalEarned,
         'workers.apprentice': s.workers.apprentice.count,
         'workers.mechanic': s.workers.mechanic.count,
+        'workers.master': s.workers.master.count,
+        'workers.manager': s.workers.manager.count,
+        'workers.foreman': s.workers.foreman.count,
+        'workers.director': s.workers.director.count,
         'upgrades.clickPower': s.upgrades.clickPower.level,
         'upgrades.workSpeed': s.upgrades.workSpeed.level,
+        'milestones': s.milestonesPurchased.join(', ') || 'нет',
       })
     },
 
@@ -92,7 +97,7 @@ if (import.meta.env.DEV) {
     },
 
     /** Установить количество работников */
-    setWorkers: (type: 'apprentice' | 'mechanic', count: number) => {
+    setWorkers: (type: 'apprentice' | 'mechanic' | 'master' | 'manager' | 'foreman' | 'director', count: number) => {
       const s = store.getState()
       const worker = s.workers[type]
       if (count < 0 || count > worker.maxCount) {
@@ -123,22 +128,46 @@ if (import.meta.env.DEV) {
 
     // --- Быстрые действия для тестирования ---
 
-    /** Добавить деньги (по умолчанию 10000) */
+    /** Добавить деньги (по умолчанию 10000). Авто-левелинг применяется автоматически. */
     addMoney: (amount: number = 10_000) => {
-      store.setState((s) => ({
-        balance: s.balance + amount,
-        totalEarned: s.totalEarned + amount,
-      }))
-      console.log(`✅ +${amount} ₽ (баланс: ${store.getState().balance})`)
+      store.setState((s) => {
+        const newBalance = s.balance + amount
+        // Авто-левелинг: проверяем пороги
+        let newLevel = s.garageLevel
+        while (newLevel < 20) {
+          const nextThreshold = GARAGE_LEVEL_THRESHOLDS[newLevel + 1]
+          if (nextThreshold === undefined || newBalance < nextThreshold) break
+          newLevel++
+        }
+        return {
+          balance: newBalance,
+          totalEarned: s.totalEarned + amount,
+          garageLevel: newLevel,
+        }
+      })
+      const s = store.getState()
+      console.log(`✅ +${amount} ₽ (баланс: ${s.balance}, уровень: ${s.garageLevel})`)
     },
 
     /** Установить баланс, достаточный для следующего уровня гаража */
     readyForUpgrade: () => {
       const s = store.getState()
-      const cost = GARAGE_LEVEL_THRESHOLDS[s.garageLevel]
+      const nextLevel = s.garageLevel + 1
+      const cost = GARAGE_LEVEL_THRESHOLDS[nextLevel]
       if (!cost) { console.log('🏆 Максимальный уровень!'); return }
-      store.setState({ balance: cost })
-      console.log(`✅ balance = ${cost} (готов к уровню ${s.garageLevel + 1})`)
+      store.setState({ balance: cost, garageLevel: nextLevel })
+      console.log(`✅ balance = ${cost}, garageLevel = ${nextLevel}`)
+    },
+
+    /** Купить milestone-апгрейд (уровни 5, 10, 15, 20) */
+    buyUpgrade: (level: number) => {
+      const success = store.getState().purchaseMilestone(level)
+      if (success) {
+        const upgrade = MILESTONE_UPGRADES[level as MilestoneLevel]
+        console.log(`✅ Куплен milestone ур.${level}: ${upgrade?.workerNames.join(', ')}`)
+      } else {
+        console.error(`❌ Не удалось купить milestone ур.${level}`)
+      }
     },
 
     /** Принудительно сохранить прогресс */
@@ -160,14 +189,23 @@ if (import.meta.env.DEV) {
       console.log(JSON.parse(raw))
     },
 
-    /** Имитировать оффлайн-доход: установить timestamp сохранения в прошлое */
+    /**
+     * Имитировать оффлайн-доход: сдвинуть timestamp и перезагрузить состояние.
+     *
+     * Почему без location.reload():
+     * При reload срабатывает beforeunload → saveProgress() → saveGame(),
+     * который безусловно ставит timestamp = Date.now(), затирая подменённое значение.
+     * Поэтому вместо reload вызываем loadProgress() напрямую.
+     */
     simulateOffline: (minutes: number = 30) => {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) { console.error('❌ Нет сохранения в localStorage'); return }
       const data = JSON.parse(raw)
       data.timestamp = Date.now() - minutes * 60 * 1000
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-      console.log(`✅ Timestamp сдвинут на ${minutes} мин назад. Перезагрузите страницу для проверки оффлайн-дохода.`)
+      // Загружаем прогресс напрямую — beforeunload не затрёт timestamp
+      store.getState().loadProgress()
+      console.log(`✅ Симуляция: ${minutes} мин отсутствия. Модалка должна появиться.`)
     },
 
     // --- Справка ---
@@ -202,12 +240,15 @@ if (import.meta.env.DEV) {
 ║                                                          ║
 ║  👷 РАБОТНИКИ И АПГРЕЙДЫ                                ║
 ║  game.setPassiveIncome(N)                                ║
-║  game.setWorkers('apprentice'|'mechanic', count)         ║
+║  game.setWorkers(type, count)   — все 6 типов            ║
+║    types: apprentice, mechanic, master,                  ║
+║           manager, foreman, director                     ║
 ║  game.setUpgradeLevel('clickPower'|'workSpeed', level)   ║
+║  game.buyUpgrade(5|10|15|20) — milestone-апгрейд гаража  ║
 ║                                                          ║
 ║  💾 СОХРАНЕНИЕ                                           ║
 ║  game.save()             — принудительное сохранение      ║
-║  game.simulateOffline(N) — сдвинуть timestamp на N мин   ║
+║  game.simulateOffline(N) — симуляция N мин оффлайна      ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
       `)

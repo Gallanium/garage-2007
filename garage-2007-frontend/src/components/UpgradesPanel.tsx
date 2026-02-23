@@ -3,30 +3,70 @@ import {
   useBalance,
   useUpgrades,
   useWorkers,
+  useMilestonesPurchased,
+  isWorkerUnlocked,
+  type WorkerType,
 } from '../store/gameStore'
 import UpgradeCard from './UpgradeCard'
+
+// ============================================
+// ОПРЕДЕЛЕНИЯ РАБОТНИКОВ ДЛЯ РЕНДЕРА
+// ============================================
+
+/**
+ * Массив описаний всех типов работников.
+ * Порядок определяет порядок отображения в UI.
+ *
+ * requiredMilestone — уровень milestone-апгрейда, необходимый
+ * для разблокировки работника. null = доступен всегда.
+ * Должен совпадать с WORKER_UNLOCK_LEVELS в gameStore.ts.
+ */
+const WORKER_DEFS: Array<{
+  type: WorkerType
+  icon: string
+  title: string
+  incomeLabel: string
+  requiredMilestone: number | null
+}> = [
+  { type: 'apprentice', icon: '👷', title: 'Нанять подмастерье', incomeLabel: '0.5 ₽/сек', requiredMilestone: null },
+  { type: 'mechanic',   icon: '⚙️', title: 'Нанять механика',    incomeLabel: '5 ₽/сек',   requiredMilestone: 5 },
+  { type: 'master',     icon: '🔧', title: 'Нанять мастера',     incomeLabel: '50 ₽/сек',  requiredMilestone: 10 },
+  { type: 'manager',    icon: '📋', title: 'Нанять менеджера',   incomeLabel: '5 000 ₽/сек', requiredMilestone: 15 },
+  { type: 'foreman',    icon: '👔', title: 'Нанять бригадира',   incomeLabel: '500 ₽/сек',  requiredMilestone: 15 },
+  { type: 'director',   icon: '🏢', title: 'Нанять директора',   incomeLabel: '50 000 ₽/сек', requiredMilestone: 20 },
+]
+
+// ============================================
+// КОМПОНЕНТ
+// ============================================
 
 /**
  * Панель апгрейдов и найма работников.
  *
  * Две секции:
- * 1. УЛУЧШЕНИЯ — апгрейд дохода за клик
- * 2. РАБОТНИКИ — найм подмастерья и механика
+ * 1. УЛУЧШЕНИЯ — апгрейд дохода за клик и скорости работы
+ * 2. РАБОТНИКИ — найм работников (гейтинг через milestone-апгрейды гаража)
  *
- * Все данные берутся из Zustand store, действия вызываются напрямую.
- * Компонент скроллится по вертикали, если контент не помещается.
+ * Разблокированные работники показываются как обычные карточки (UpgradeCard).
+ * Заблокированные — как заглушки с иконкой замка и указанием требуемого уровня.
+ *
+ * Порядок разблокировки:
+ * - Подмастерье: всегда доступен
+ * - Механик: после milestone уровня 5
+ * - Мастер: после milestone уровня 10
+ * - Менеджер: после milestone уровня 15
+ * - Бригадир: после milestone уровня 15
+ * - Директор: после milestone уровня 20
  */
 const UpgradesPanel: React.FC = () => {
   const balance = useBalance()
   const upgrades = useUpgrades()
   const workers = useWorkers()
+  const purchasedUpgrades = useMilestonesPurchased()
 
   const purchaseClickUpgrade = useGameStore((s) => s.purchaseClickUpgrade)
   const purchaseWorkSpeedUpgrade = useGameStore((s) => s.purchaseWorkSpeedUpgrade)
   const hireWorker = useGameStore((s) => s.hireWorker)
-
-  const apprenticeMaxed = workers.apprentice.count >= workers.apprentice.maxCount
-  const mechanicMaxed = workers.mechanic.count >= workers.mechanic.maxCount
 
   return (
     <div className="flex flex-col gap-6 p-4 overflow-y-auto h-full">
@@ -67,25 +107,52 @@ const UpgradesPanel: React.FC = () => {
         </h2>
 
         <div className="grid grid-cols-1 gap-3">
-          <UpgradeCard
-            icon="👷"
-            title="Нанять подмастерье"
-            description={`Доход: 0.5 ₽/сек (${workers.apprentice.count}/${workers.apprentice.maxCount})`}
-            currentLevel={workers.apprentice.count}
-            cost={workers.apprentice.cost}
-            canAfford={!apprenticeMaxed && balance >= workers.apprentice.cost}
-            onPurchase={() => hireWorker('apprentice')}
-          />
+          {WORKER_DEFS.map((def) => {
+            const unlocked = isWorkerUnlocked(def.type, purchasedUpgrades)
 
-          <UpgradeCard
-            icon="⚙️"
-            title="Нанять механика"
-            description={`Доход: 5 ₽/сек (${workers.mechanic.count}/${workers.mechanic.maxCount})`}
-            currentLevel={workers.mechanic.count}
-            cost={workers.mechanic.cost}
-            canAfford={!mechanicMaxed && balance >= workers.mechanic.cost}
-            onPurchase={() => hireWorker('mechanic')}
-          />
+            // --- Заблокированный работник: заглушка ---
+            if (!unlocked) {
+              return (
+                <div
+                  key={def.type}
+                  className="bg-gray-800/50 rounded-lg p-4
+                             border-2 border-dashed border-gray-700"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl opacity-30">{def.icon}</span>
+                    <div>
+                      <p className="text-gray-500 font-mono font-bold text-sm">
+                        {def.title}
+                      </p>
+                      <p className="text-gray-600 font-mono text-xs">
+                        {def.incomeLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-center mt-3 font-mono text-sm">
+                    🔒 Разблокируется на уровне {def.requiredMilestone}
+                  </p>
+                </div>
+              )
+            }
+
+            // --- Разблокированный работник: полная карточка ---
+            const worker = workers[def.type]
+            const isMaxed = worker.count >= worker.maxCount
+
+            return (
+              <UpgradeCard
+                key={def.type}
+                icon={def.icon}
+                title={def.title}
+                description={`Доход: ${def.incomeLabel} (${worker.count}/${worker.maxCount})`}
+                currentLevel={worker.count}
+                cost={worker.cost}
+                canAfford={!isMaxed && balance >= worker.cost}
+                onPurchase={() => hireWorker(def.type)}
+              />
+            )
+          })}
         </div>
       </section>
     </div>

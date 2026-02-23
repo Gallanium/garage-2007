@@ -27,13 +27,19 @@ export const STORAGE_KEY = 'garage2007_save_data'
  * При изменении структуры SaveData — инкрементируй и добавляй
  * миграцию в loadGame(), чтобы старые сохранения корректно обновлялись.
  */
-export const SAVE_VERSION = 1
+export const SAVE_VERSION = 3
 
 /** Минимальный интервал оффлайна для начисления дохода (60 секунд) */
 const MIN_OFFLINE_SECONDS = 60
 
 /** Количество секунд в одном часе */
 const SECONDS_PER_HOUR = 3600
+
+/** Часы полной (100%) эффективности оффлайн-дохода */
+const FULL_SPEED_HOURS = 8
+
+/** Коэффициент эффективности после FULL_SPEED_HOURS */
+const REDUCED_EFFICIENCY = 0.5
 
 // ============================================
 // ТИПЫ
@@ -45,6 +51,8 @@ export interface PlayerData {
   nuts: number
   totalClicks: number
   garageLevel: number
+  /** Список уровней, на которых куплены milestone-апгрейды гаража */
+  milestonesPurchased: number[]
 }
 
 /** Сохраняемое состояние апгрейдов */
@@ -57,6 +65,10 @@ export interface SavedUpgrades {
 export interface SavedWorkers {
   apprentice: { count: number; cost: number }
   mechanic: { count: number; cost: number }
+  master: { count: number; cost: number }
+  manager: { count: number; cost: number }
+  foreman: { count: number; cost: number }
+  director: { count: number; cost: number }
 }
 
 /** Агрегированная статистика игрока */
@@ -102,6 +114,7 @@ const DEFAULT_SAVE_DATA: SaveData = {
     nuts: 0,
     totalClicks: 0,
     garageLevel: 1,
+    milestonesPurchased: [],
   },
   upgrades: {
     clickPower: { level: 0, cost: 100 },
@@ -110,6 +123,10 @@ const DEFAULT_SAVE_DATA: SaveData = {
   workers: {
     apprentice: { count: 0, cost: 500 },
     mechanic: { count: 0, cost: 5_000 },
+    master: { count: 0, cost: 50_000 },
+    manager: { count: 0, cost: 5_000_000 },
+    foreman: { count: 0, cost: 500_000 },
+    director: { count: 0, cost: 50_000_000 },
   },
   stats: {
     totalEarned: 0,
@@ -294,6 +311,17 @@ export function loadGame(): SaveData | null {
     // в старых версиях сохранения (forward-compatibility)
     const merged = deepMerge(DEFAULT_SAVE_DATA, parsed) as SaveData
 
+    // --- Миграция v2 → v3: functionalUpgradesPurchased → milestonesPurchased ---
+    if (merged.version < 3) {
+      const oldData = parsed as Record<string, unknown>
+      const oldPlayerData = oldData.playerData as Record<string, unknown> | undefined
+      if (oldPlayerData && Array.isArray(oldPlayerData.functionalUpgradesPurchased)) {
+        merged.playerData.milestonesPurchased = oldPlayerData.functionalUpgradesPurchased as number[]
+      }
+      merged.version = 3
+      console.log('[StorageService] Миграция v2 → v3: functionalUpgradesPurchased → milestonesPurchased')
+    }
+
     console.log(
       `[StorageService] Сохранение загружено (v${merged.version}, ` +
         `${new Date(merged.timestamp).toLocaleString('ru-RU')})`,
@@ -356,18 +384,23 @@ export function getLastSaveTime(): number | null {
  * Берёт timestamp из последнего сохранения, вычисляет разницу
  * с текущим моментом и умножает на пассивный доход в секунду.
  *
+ * Двухступенчатая система эффективности:
+ * - 0–8 часов: 100% пассивного дохода
+ * - 8–24 часа: 50% пассивного дохода
+ *
  * Ограничения:
  * - Начисление только если прошло >= 1 минуты (защита от эксплойтов)
  * - Максимум `maxOfflineHours` часов (по умолчанию 24, GDD раздел 6)
  * - Возвращает 0 если нет сохранения или пассивный доход <= 0
  *
  * @param passiveIncomePerSec - текущий пассивный доход (₽/сек)
+ * @param lastSaveTimestamp   - Unix-timestamp последнего сохранения (мс)
  * @param maxOfflineHours     - лимит оффлайн-начисления в часах (по умолчанию 24)
  * @returns сумма оффлайн-дохода в рублях, округлённая до 2 знаков
  *
  * @example
  * ```ts
- * const earnings = calculateOfflineEarnings(5.5) // 5.5 ₽/сек
+ * const earnings = calculateOfflineEarnings(5.5, saveData.timestamp)
  * if (earnings > 0) {
  *   showOfflinePopup(earnings)
  * }
@@ -375,28 +408,36 @@ export function getLastSaveTime(): number | null {
  */
 export function calculateOfflineEarnings(
   passiveIncomePerSec: number,
+  lastSaveTimestamp: number,
   maxOfflineHours: number = 24,
 ): number {
   if (passiveIncomePerSec <= 0) return 0
-
-  const lastTimestamp = getLastSaveTime()
-  if (lastTimestamp === null || lastTimestamp === 0) return 0
+  if (lastSaveTimestamp <= 0) return 0
 
   const now = Date.now()
-  const elapsedSeconds = (now - lastTimestamp) / 1000
+  const elapsedSeconds = (now - lastSaveTimestamp) / 1000
 
   // Минимальный порог — 1 минута
   if (elapsedSeconds < MIN_OFFLINE_SECONDS) return 0
 
-  // Ограничиваем максимальным временем
+  // Ограничиваем максимальным временем (cap 24 часа)
   const maxSeconds = maxOfflineHours * SECONDS_PER_HOUR
   const clampedSeconds = Math.min(elapsedSeconds, maxSeconds)
 
-  const earnings = clampedSeconds * passiveIncomePerSec
+  // Двухступенчатая эффективность:
+  // Первые 8 часов — 100%, остальное время — 50%
+  const fullSpeedSeconds = FULL_SPEED_HOURS * SECONDS_PER_HOUR
+  const fullSpeedTime = Math.min(clampedSeconds, fullSpeedSeconds)
+  const halfSpeedTime = Math.max(0, clampedSeconds - fullSpeedTime)
+
+  const earnings =
+    passiveIncomePerSec * fullSpeedTime +
+    passiveIncomePerSec * REDUCED_EFFICIENCY * halfSpeedTime
 
   console.log(
     `[StorageService] Оффлайн-доход: ${earnings.toFixed(2)} ₽ ` +
-      `(${(clampedSeconds / 60).toFixed(0)} мин × ${passiveIncomePerSec} ₽/сек)`,
+      `(${(fullSpeedTime / 3600).toFixed(1)}ч×100% + ${(halfSpeedTime / 3600).toFixed(1)}ч×50%, ` +
+      `${passiveIncomePerSec} ₽/сек)`,
   )
 
   return parseFloat(earnings.toFixed(2))
