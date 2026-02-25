@@ -17,6 +17,7 @@ import {
   usePurchaseMilestone,
   useCloseMilestoneModal,
   useCheckForMilestone,
+  usePendingMilestoneInfo,
   GARAGE_LEVEL_NAMES,
   MILESTONE_UPGRADES,
   type MilestoneLevel,
@@ -89,6 +90,7 @@ function App() {
   const purchaseMilestone = usePurchaseMilestone()
   const closeMilestoneModal = useCloseMilestoneModal()
   const checkForMilestone = useCheckForMilestone()
+  const milestoneInfo = usePendingMilestoneInfo()
 
   // --- Действия из store ---
   const handleClick = useGameStore((s) => s.handleClick)
@@ -382,9 +384,11 @@ function App() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1 font-mono">
-                  {nextLevelCost
-                    ? `До уровня ${garageLevel + 1}: ${formatNumber(Math.max(0, nextLevelCost - balance))} ₽ (${Math.round(garageProgress * 100)}%)`
-                    : 'Максимальный уровень!'}
+                  {milestoneInfo
+                    ? `🔒 Milestone «${GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» доступен!`
+                    : nextLevelCost
+                      ? `До уровня ${garageLevel + 1}: ${formatNumber(Math.max(0, nextLevelCost - balance))} ₽ (${Math.round(garageProgress * 100)}%)`
+                      : 'Максимальный уровень!'}
                 </p>
               </div>
 
@@ -434,7 +438,6 @@ function App() {
           currentLevel={pendingMilestoneLevel - 1}
           nextLevel={pendingMilestoneLevel}
           upgradeCost={MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].cost}
-          currentBalance={balance}
           unlocks={MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].unlocks}
           canAfford={balance >= MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].cost}
         />

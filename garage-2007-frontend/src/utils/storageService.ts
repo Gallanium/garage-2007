@@ -27,7 +27,7 @@ export const STORAGE_KEY = 'garage2007_save_data'
  * При изменении структуры SaveData — инкрементируй и добавляй
  * миграцию в loadGame(), чтобы старые сохранения корректно обновлялись.
  */
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 
 /** Минимальный интервал оффлайна для начисления дохода (60 секунд) */
 const MIN_OFFLINE_SECONDS = 60
@@ -61,13 +61,12 @@ export interface SavedUpgrades {
   workSpeed: { level: number; cost: number }
 }
 
-/** Сохраняемое состояние работников */
+/** Сохраняемое состояние работников (GBD v1.1: 5 типов) */
 export interface SavedWorkers {
   apprentice: { count: number; cost: number }
   mechanic: { count: number; cost: number }
   master: { count: number; cost: number }
-  manager: { count: number; cost: number }
-  foreman: { count: number; cost: number }
+  brigadier: { count: number; cost: number }
   director: { count: number; cost: number }
 }
 
@@ -124,9 +123,8 @@ const DEFAULT_SAVE_DATA: SaveData = {
     apprentice: { count: 0, cost: 500 },
     mechanic: { count: 0, cost: 5_000 },
     master: { count: 0, cost: 50_000 },
-    manager: { count: 0, cost: 5_000_000 },
-    foreman: { count: 0, cost: 500_000 },
-    director: { count: 0, cost: 50_000_000 },
+    brigadier: { count: 0, cost: 500_000 },
+    director: { count: 0, cost: 5_000_000 },
   },
   stats: {
     totalEarned: 0,
@@ -320,6 +318,20 @@ export function loadGame(): SaveData | null {
       }
       merged.version = 3
       console.log('[StorageService] Миграция v2 → v3: functionalUpgradesPurchased → milestonesPurchased')
+    }
+
+    // --- Миграция v3 → v4: foreman → brigadier, удаление manager ---
+    if (merged.version < 4) {
+      const oldWorkers = (parsed as Record<string, unknown>).workers as Record<string, unknown> | undefined
+      if (oldWorkers) {
+        // Переносим foreman → brigadier
+        const foreman = oldWorkers.foreman as { count: number; cost: number } | undefined
+        if (foreman && !oldWorkers.brigadier) {
+          merged.workers.brigadier = { count: foreman.count, cost: foreman.cost }
+        }
+      }
+      merged.version = 4
+      console.log('[StorageService] Миграция v3 → v4: foreman → brigadier, удалён manager')
     }
 
     console.log(

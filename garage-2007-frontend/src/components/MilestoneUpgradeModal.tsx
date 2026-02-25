@@ -32,8 +32,6 @@ interface MilestoneUpgradeModalProps {
   nextLevel: number
   /** Стоимость апгрейда (₽) */
   upgradeCost: number
-  /** Текущий баланс игрока (₽) */
-  currentBalance: number
   /** Что разблокируется при повышении */
   unlocks: {
     workers: string[]
@@ -56,7 +54,6 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
   currentLevel,
   nextLevel,
   upgradeCost,
-  currentBalance,
   unlocks,
   canAfford,
 }) => {
@@ -90,7 +87,6 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
   // --- Вычисляемые значения ---
 
-  const balanceAfterPurchase = currentBalance - upgradeCost
   const levelName = GARAGE_LEVEL_NAMES[nextLevel as keyof typeof GARAGE_LEVEL_NAMES] || 'Неизвестно'
 
   // ============================================
@@ -99,7 +95,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center
                  animate-[fadeIn_300ms_ease-out]"
       onClick={handleOverlayClick}
       role="dialog"
@@ -108,13 +104,25 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
     >
       {/* --- Карточка модалки --- */}
       <div
-        className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-6
-                   max-w-md w-[90%] mx-auto mt-32
+        className="relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-6
+                   max-w-md w-[90%] mx-auto
                    border border-garage-rust/50 shadow-2xl
                    text-center
                    animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
+        {/* X-кнопка закрытия */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center
+                     rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50
+                     transition-colors duration-200"
+          aria-label="Закрыть"
+        >
+          ✕
+        </button>
+
         {/* 1. Заголовок */}
         <h2 className="text-2xl font-bold text-yellow-400 mb-2 font-mono">
           🏆 ПОВЫШЕНИЕ КЛАССА ГАРАЖА
@@ -165,34 +173,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           </ul>
         </div>
 
-        {/* 6. Блок «Стоимость» */}
-        <div className="border-t border-gray-700 mb-4 pt-4">
-          <p className="text-sm font-bold text-yellow-400 mb-2 font-mono">
-            💰 СТОИМОСТЬ:
-          </p>
-          <div className="space-y-1 text-sm font-mono text-left">
-            <p className="text-gray-300">
-              Цена:{' '}
-              <span className="text-white font-bold">
-                {formatLargeNumber(upgradeCost)} ₽
-              </span>
-            </p>
-            <p className="text-gray-300">
-              Баланс:{' '}
-              <span className={`font-bold ${canAfford ? 'text-green-400' : 'text-red-400'}`}>
-                {formatLargeNumber(currentBalance)} ₽
-              </span>
-            </p>
-            <p className="text-gray-300">
-              После покупки:{' '}
-              <span className={`font-bold ${canAfford ? 'text-green-400' : 'text-red-400'}`}>
-                {canAfford ? `${formatLargeNumber(balanceAfterPurchase)} ₽` : '—'}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        {/* 7. Мотивационный текст (FOMO) */}
+        {/* 6. Мотивационный текст (FOMO) */}
         <p className="text-sm italic text-yellow-300 mb-4 font-mono">
           🔥 Новый уровень — новые возможности!
         </p>
@@ -214,17 +195,6 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           ПОВЫСИТЬ КЛАСС ЗА {formatLargeNumber(upgradeCost)} ₽
         </button>
 
-        {/* 9. Кнопка «Закрыть» */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full py-2 px-6 rounded-lg font-mono text-sm
-                     text-gray-400 hover:text-gray-300
-                     transition-colors duration-200
-                     active:scale-95 transform"
-        >
-          Закрыть
-        </button>
       </div>
     </div>
   )

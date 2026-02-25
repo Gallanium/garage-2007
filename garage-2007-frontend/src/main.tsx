@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { useGameStore, GARAGE_LEVEL_THRESHOLDS, MILESTONE_UPGRADES, type MilestoneLevel } from './store/gameStore'
+import { useGameStore, GARAGE_LEVEL_THRESHOLDS, MILESTONE_UPGRADES, WORKER_LIMITS, type MilestoneLevel, checkAutoLevel } from './store/gameStore'
 import { STORAGE_KEY } from './utils/storageService'
 
 // ============================================
@@ -34,8 +34,7 @@ if (import.meta.env.DEV) {
         'workers.apprentice': s.workers.apprentice.count,
         'workers.mechanic': s.workers.mechanic.count,
         'workers.master': s.workers.master.count,
-        'workers.manager': s.workers.manager.count,
-        'workers.foreman': s.workers.foreman.count,
+        'workers.brigadier': s.workers.brigadier.count,
         'workers.director': s.workers.director.count,
         'upgrades.clickPower': s.upgrades.clickPower.level,
         'upgrades.workSpeed': s.upgrades.workSpeed.level,
@@ -53,10 +52,13 @@ if (import.meta.env.DEV) {
 
     // --- Установка отдельных параметров ---
 
-    /** Установить баланс */
+    /** Установить баланс (с авто-левелингом и milestone-проверкой) */
     setBalance: (v: number) => {
-      store.setState({ balance: v })
-      console.log(`✅ balance = ${v}`)
+      const s = store.getState()
+      const newLevel = checkAutoLevel(v, s.garageLevel, s.milestonesPurchased)
+      store.setState({ balance: v, garageLevel: newLevel })
+      store.getState().checkForMilestone()
+      console.log(`✅ balance = ${v}, garageLevel = ${newLevel}`)
     },
 
     /** Установить доход за клик */
@@ -97,11 +99,12 @@ if (import.meta.env.DEV) {
     },
 
     /** Установить количество работников */
-    setWorkers: (type: 'apprentice' | 'mechanic' | 'master' | 'manager' | 'foreman' | 'director', count: number) => {
+    setWorkers: (type: 'apprentice' | 'mechanic' | 'master' | 'brigadier' | 'director', count: number) => {
       const s = store.getState()
       const worker = s.workers[type]
-      if (count < 0 || count > worker.maxCount) {
-        console.error(`❌ count должен быть 0-${worker.maxCount}`)
+      const limit = WORKER_LIMITS[type]
+      if (count < 0 || count > limit) {
+        console.error(`❌ count должен быть 0-${limit}`)
         return
       }
       store.setState({
@@ -128,35 +131,32 @@ if (import.meta.env.DEV) {
 
     // --- Быстрые действия для тестирования ---
 
-    /** Добавить деньги (по умолчанию 10000). Авто-левелинг применяется автоматически. */
+    /** Добавить деньги (по умолчанию 10000). Авто-левелинг с milestone-гейтингом. */
     addMoney: (amount: number = 10_000) => {
       store.setState((s) => {
         const newBalance = s.balance + amount
-        // Авто-левелинг: проверяем пороги
-        let newLevel = s.garageLevel
-        while (newLevel < 20) {
-          const nextThreshold = GARAGE_LEVEL_THRESHOLDS[newLevel + 1]
-          if (nextThreshold === undefined || newBalance < nextThreshold) break
-          newLevel++
-        }
+        const newLevel = checkAutoLevel(newBalance, s.garageLevel, s.milestonesPurchased)
         return {
           balance: newBalance,
           totalEarned: s.totalEarned + amount,
           garageLevel: newLevel,
         }
       })
+      store.getState().checkForMilestone()
       const s = store.getState()
       console.log(`✅ +${amount} ₽ (баланс: ${s.balance}, уровень: ${s.garageLevel})`)
     },
 
-    /** Установить баланс, достаточный для следующего уровня гаража */
+    /** Установить баланс, достаточный для следующего уровня гаража (с milestone-гейтингом) */
     readyForUpgrade: () => {
       const s = store.getState()
       const nextLevel = s.garageLevel + 1
       const cost = GARAGE_LEVEL_THRESHOLDS[nextLevel]
       if (!cost) { console.log('🏆 Максимальный уровень!'); return }
-      store.setState({ balance: cost, garageLevel: nextLevel })
-      console.log(`✅ balance = ${cost}, garageLevel = ${nextLevel}`)
+      const newLevel = checkAutoLevel(cost, s.garageLevel, s.milestonesPurchased)
+      store.setState({ balance: cost, garageLevel: newLevel })
+      store.getState().checkForMilestone()
+      console.log(`✅ balance = ${cost}, garageLevel = ${newLevel}`)
     },
 
     /** Купить milestone-апгрейд (уровни 5, 10, 15, 20) */
@@ -240,9 +240,9 @@ if (import.meta.env.DEV) {
 ║                                                          ║
 ║  👷 РАБОТНИКИ И АПГРЕЙДЫ                                ║
 ║  game.setPassiveIncome(N)                                ║
-║  game.setWorkers(type, count)   — все 6 типов            ║
+║  game.setWorkers(type, count)   — все 5 типов            ║
 ║    types: apprentice, mechanic, master,                  ║
-║           manager, foreman, director                     ║
+║           brigadier, director                            ║
 ║  game.setUpgradeLevel('clickPower'|'workSpeed', level)   ║
 ║  game.buyUpgrade(5|10|15|20) — milestone-апгрейд гаража  ║
 ║                                                          ║

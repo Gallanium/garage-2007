@@ -11,3 +11,11 @@
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(250, 204, 21, 0.4); }
+  50% { border-color: rgba(250, 204, 21, 0.9); }
+}
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}

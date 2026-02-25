@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import {
   saveGame,
   loadGame,
@@ -10,41 +11,66 @@ import {
 // КОНСТАНТЫ ЭКОНОМИКИ (из GDD раздел 6.3)
 // ============================================
 
-/** Множитель роста стоимости апгрейдов: Cost(n) = floor(BaseCost × 1.324^n) — GDD v2.2 */
-const UPGRADE_COST_GROWTH = 1.324
+// ЭКОНОМИЧЕСКИЕ КОНСТАНТЫ (из game balance document v1.1)
 
-/** Множитель роста стоимости найма работников: Cost(n) = round(BaseCost × 1.15^n) */
-const WORKER_COST_GROWTH = 1.15
+/** Базовые стоимости всех систем */
+export const BASE_COSTS = {
+  clickUpgrade: 100,      // Первый апгрейд клика
+  apprentice: 500,        // Первый подмастерье
+  mechanic: 5_000,        // Первый механик (milestone 5)
+  master: 50_000,         // Первый мастер (milestone 10)
+  brigadier: 500_000,     // Первый бригадир (milestone 15)
+  director: 5_000_000,    // Первый директор (milestone 20)
+  workSpeed: 500,         // Первый уровень скорости
+} as const
+
+/**
+ * Доход работников (₽/сек) от одного экземпляра.
+ * GBD v1.1: Увеличен в 4 раза для компенсации малых лимитов.
+ */
+export const WORKER_INCOME = {
+  apprentice: 2,          // Подмастерье: 2₽/сек
+  mechanic: 20,           // Механик: 20₽/сек
+  master: 200,            // Мастер: 200₽/сек
+  brigadier: 2_000,       // Бригадир: 2,000₽/сек
+  director: 20_000,       // Директор: 20,000₽/сек
+} as const
+
+/**
+ * ЖЁСТКИЕ ЛИМИТЫ количества работников.
+ * GBD v1.1: Реалистичные значения.
+ *
+ * Обоснование:
+ * - 3 подмастерья: ученики на подхвате
+ * - 5 механиков: основная бригада
+ * - 3 мастера: узкие специалисты
+ * - 2 бригадира: управление сменами
+ * - 1 директор: ты сам!
+ *
+ * ИТОГО: 14 человек = реалистичный автосервис
+ */
+export const WORKER_LIMITS = {
+  apprentice: 3,
+  mechanic: 5,
+  master: 3,
+  brigadier: 2,
+  director: 1,
+} as const
+
+/** Единый множитель роста стоимости для ВСЕХ систем (апгрейды, работники, скорость) */
+export const COST_MULTIPLIER = 1.15
+
+/**
+ * Эффект апгрейда «Скорость работы».
+ * Каждый уровень = +10% к пассивному доходу.
+ */
+export const WORK_SPEED_BONUS_PER_LEVEL = 0.1
 
 /** Шанс критического клика (GDD раздел 4.1): 5% = 0.05 */
 const CRITICAL_CLICK_CHANCE = 0.05
 
 /** Множитель дохода при критическом клике (GDD раздел 4.1): x2 */
 const CRITICAL_CLICK_MULTIPLIER = 2
-
-/** Базовая стоимость апгрейда клика (GDD раздел 4.2A) */
-const CLICK_UPGRADE_BASE_COST = 100
-
-/** Базовая стоимость апгрейда скорости работы (GDD раздел 4.2C) */
-const WORK_SPEED_BASE_COST = 500
-
-/** Бонус скорости работы за каждый уровень: +10% (GDD раздел 4.2C) */
-const WORK_SPEED_BONUS_PER_LEVEL = 0.10
-
-/**
- * Таблица дохода за клик по уровням (GDD v2.2, раздел 4.2A).
- * Контрольные точки из GDD: 0:1, 1:2, ..., 10:27, 15:89, 20:293, 25:965, 30:3176, 40:33051, 50:343993.
- * Промежуточные значения — геометрическая интерполяция между контрольными точками.
- * Индекс = уровень апгрейда (0 = базовый, без покупок).
- */
-const CLICK_INCOME_TABLE: number[] = [
-  1, 2, 3, 4, 5, 7, 9, 12, 16, 21,                                       // 0-9
-  27, 34, 44, 55, 70, 89, 113, 143, 182, 231,                             // 10-19
-  293, 372, 472, 599, 760, 965, 1225, 1554, 1972, 2503,                   // 20-29
-  3176, 4014, 5074, 6413, 8106, 10245, 12950, 16368, 20688, 26149,        // 30-39
-  33051, 41775, 52803, 66741, 84359, 106627, 134773, 170349, 215316, 272153, // 40-49
-  343993,                                                                   // 50
-]
 
 /**
  * Пороги стоимости улучшения гаража (GDD раздел 5).
@@ -127,10 +153,10 @@ export const MILESTONE_UPGRADES: Record<MilestoneLevel, {
     workerTypes: ['mechanic'],
     workerNames: ['Механик'],
     unlocks: {
-      workers: ['Механик (5₽/сек, макс. 10 шт)'],
-      upgrades: ['Скорость работы уровни 1-10'],
-      decorations: ['Профессиональные инструменты'],
-      visual: 'Пневматика, покрашенные стены, верстак',
+      workers: ['Механик (20 ₽/сек, макс. 5)'],
+      upgrades: ['Скорость работы (+10% к доходу работников)'],
+      decorations: [],
+      visual: '',
     },
   },
   10: {
@@ -138,21 +164,21 @@ export const MILESTONE_UPGRADES: Record<MilestoneLevel, {
     workerTypes: ['master'],
     workerNames: ['Мастер'],
     unlocks: {
-      workers: ['Мастер (50₽/сек, макс. 10 шт)'],
-      upgrades: ['Скорость работы уровни 21-30'],
-      decorations: ['Неоновая вывеска, подъёмник'],
-      visual: 'Современное оборудование, техцентр',
+      workers: ['Мастер (200 ₽/сек, макс. 3)'],
+      upgrades: [],
+      decorations: [],
+      visual: '',
     },
   },
   15: {
     cost: 1_000_000_000_000,
-    workerTypes: ['manager', 'foreman'],
-    workerNames: ['Менеджер', 'Бригадир'],
+    workerTypes: ['brigadier'],
+    workerNames: ['Бригадир'],
     unlocks: {
-      workers: ['Бригадир (500₽/сек)', 'Менеджер (доп. бонусы)'],
-      upgrades: ['Скорость работы уровни 41-50'],
-      decorations: ['Окрасочная камера'],
-      visual: 'Премиум-сервис, VIP-зона',
+      workers: ['Бригадир (2 000 ₽/сек, макс. 2)'],
+      upgrades: [],
+      decorations: [],
+      visual: '',
     },
   },
   20: {
@@ -160,10 +186,10 @@ export const MILESTONE_UPGRADES: Record<MilestoneLevel, {
     workerTypes: ['director'],
     workerNames: ['Директор'],
     unlocks: {
-      workers: ['Директор (50,000₽/сек)'],
-      upgrades: ['ВСЕ улучшения до максимума'],
-      decorations: ['ВСЕ элементы декора'],
-      visual: 'Элитная автомобильная империя',
+      workers: ['Директор (20 000 ₽/сек, макс. 1)'],
+      upgrades: [],
+      decorations: [],
+      visual: '',
     },
   },
 }
@@ -176,8 +202,7 @@ const WORKER_UNLOCK_LEVELS: Record<WorkerType, number | null> = {
   apprentice: null,  // Всегда доступен
   mechanic: 5,
   master: 10,
-  manager: 15,
-  foreman: 15,
+  brigadier: 15,
   director: 20,
 }
 
@@ -206,11 +231,11 @@ export const formatLargeNumber = (num: number): string => {
   if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;   // Миллиард
   if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;   // Миллион
   if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;   // Тысяча
-  return num.toFixed(0);
+  return num.toLocaleString();
 };
 
 /** Идентификаторы типов работников */
-export type WorkerType = 'apprentice' | 'mechanic' | 'master' | 'manager' | 'foreman' | 'director'
+export type WorkerType = 'apprentice' | 'mechanic' | 'master' | 'brigadier' | 'director'
 
 /** Идентификаторы типов апгрейдов */
 export type UpgradeType = 'clickPower' | 'workSpeed'
@@ -225,18 +250,12 @@ export interface UpgradeData {
   baseCost: number
 }
 
-/** Данные одного типа работника */
+/** Данные одного типа работника (GBD v1.1: упрощённая структура) */
 export interface WorkerData {
   /** Количество нанятых работников данного типа */
   count: number
   /** Стоимость найма следующего работника */
   cost: number
-  /** Базовая стоимость для пересчёта формулы */
-  baseCost: number
-  /** Базовый доход в секунду одного работника (до бонусов скорости) */
-  baseIncomePerSec: number
-  /** Максимальное количество работников данного типа (GDD раздел 4.2B) */
-  maxCount: number
 }
 
 /** Слайс состояния апгрейдов */
@@ -245,13 +264,12 @@ export interface UpgradesState {
   workSpeed: UpgradeData
 }
 
-/** Слайс состояния работников */
+/** Слайс состояния работников (GBD v1.1: 5 типов) */
 export interface WorkersState {
   apprentice: WorkerData
   mechanic: WorkerData
   master: WorkerData
-  manager: WorkerData
-  foreman: WorkerData
+  brigadier: WorkerData
   director: WorkerData
 }
 
@@ -275,6 +293,8 @@ interface GameState {
   showMilestoneModal: boolean
   /** Уровень milestone, ожидающего покупки (5, 10, 15 или 20) */
   pendingMilestoneLevel: number | null
+  /** Была ли модалка milestone закрыта игроком (чтобы не спамить повторно) */
+  milestoneModalDismissed: boolean
   /** Суммарный пассивный доход в секунду (с учётом бонуса скорости) */
   passiveIncomePerSecond: number
   /** Состояние апгрейдов */
@@ -320,11 +340,11 @@ interface GameActions {
   /** Покупка улучшения дохода за клик */
   purchaseClickUpgrade: () => boolean
 
-  /** Покупка улучшения скорости работы (+10% к пассивному доходу) */
-  purchaseWorkSpeedUpgrade: () => boolean
+  /** Покупка улучшения скорости работы (GBD v1.1: +10% за уровень, milestone 5) */
+  purchaseWorkSpeedUpgrade: () => void
 
-  /** Найм работника указанного типа */
-  hireWorker: (workerType: WorkerType) => boolean
+  /** Найм работника указанного типа (GBD v1.1: с проверкой лимитов и milestone) */
+  hireWorker: (workerType: WorkerType) => void
 
   /** Запуск интервала пассивного дохода. Возвращает cleanup */
   startPassiveIncome: () => () => void
@@ -380,59 +400,126 @@ type GameStore = GameState & GameActions
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================
 
-/** Стоимость апгрейда клика: floor(100 × 1.324^level) — GDD v2.2 раздел 4.2A */
-function calculateClickUpgradeCost(level: number): number {
-  return Math.floor(CLICK_UPGRADE_BASE_COST * Math.pow(UPGRADE_COST_GROWTH, level))
-}
+// ============================================
+// ФОРМУЛЫ РАСЧЁТА (GBD v1.1)
+// ============================================
 
-/** Доход за клик на уровне level из lookup-таблицы GDD v2.2 — раздел 4.2A */
-function calculateClickIncome(level: number): number {
-  if (level < CLICK_INCOME_TABLE.length) return CLICK_INCOME_TABLE[level]
-  // Fallback для уровней >50: экстраполяция по коэффициенту последних двух уровней
-  const lastIdx = CLICK_INCOME_TABLE.length - 1
-  const ratio = CLICK_INCOME_TABLE[lastIdx] / CLICK_INCOME_TABLE[lastIdx - 1]
-  return Math.floor(CLICK_INCOME_TABLE[lastIdx] * Math.pow(ratio, level - lastIdx))
-}
-
-/** Стоимость апгрейда скорости работы: floor(500 × 1.324^level) — GDD v2.2 раздел 4.2C */
-function calculateWorkSpeedUpgradeCost(level: number): number {
-  return Math.floor(WORK_SPEED_BASE_COST * Math.pow(UPGRADE_COST_GROWTH, level))
-}
-
-/** Стоимость найма работника: round(baseCost × 1.15^count) — GDD раздел 4.2B */
-function calculateWorkerHireCost(baseCost: number, count: number): number {
-  return Math.round(baseCost * Math.pow(WORKER_COST_GROWTH, count))
+/**
+ * Расчёт стоимости N-го уровня апгрейда.
+ * Формула: Cost(n) = floor(BaseCost × 1.15^n)
+ *
+ * @example
+ * calculateUpgradeCost(100, 0) // 100₽ (первый уровень)
+ * calculateUpgradeCost(100, 1) // 115₽ (второй уровень)
+ * calculateUpgradeCost(100, 10) // 404₽ (одиннадцатый уровень)
+ */
+function calculateUpgradeCost(baseCost: number, level: number): number {
+  return Math.floor(baseCost * Math.pow(COST_MULTIPLIER, level))
 }
 
 /**
- * Вычисляет суммарный пассивный доход в секунду с учётом бонуса скорости.
- * Формула: сумма(count × baseIncomePerSec) × (1 + workSpeedLevel × 0.10)
+ * Расчёт стоимости N-го экземпляра работника.
+ * Стоимость растёт с каждым нанятым работником.
+ * Формула: Cost(n) = floor(BaseCost × 1.15^count)
+ *
+ * @example
+ * calculateWorkerCost(500, 0) // 500₽ (первый подмастерье)
+ * calculateWorkerCost(500, 1) // 575₽ (второй подмастерье)
+ * calculateWorkerCost(500, 2) // 661₽ (третий подмастерье)
  */
-function calculatePassiveIncome(workers: WorkersState, workSpeedLevel: number): number {
-  const baseIncome =
-    workers.apprentice.count * workers.apprentice.baseIncomePerSec +
-    workers.mechanic.count * workers.mechanic.baseIncomePerSec +
-    workers.master.count * workers.master.baseIncomePerSec +
-    workers.manager.count * workers.manager.baseIncomePerSec +
-    workers.foreman.count * workers.foreman.baseIncomePerSec +
-    workers.director.count * workers.director.baseIncomePerSec
+function calculateWorkerCost(baseCost: number, count: number): number {
+  return Math.floor(baseCost * Math.pow(COST_MULTIPLIER, count))
+}
 
-  const speedMultiplier = 1 + workSpeedLevel * WORK_SPEED_BONUS_PER_LEVEL
+/**
+ * Расчёт дохода за клик на уровне N.
+ * GBD v1.1: УПРОЩЁННАЯ ФОРМУЛА — каждый уровень добавляет ровно +1₽.
+ *
+ * Формула: Income(n) = n + 1
+ *
+ * @example
+ * calculateClickIncome(0) // 1₽/клик (без апгрейдов)
+ * calculateClickIncome(1) // 2₽/клик
+ * calculateClickIncome(10) // 11₽/клик
+ * calculateClickIncome(50) // 51₽/клик
+ */
+function calculateClickIncome(level: number): number {
+  return level + 1
+}
 
-  return parseFloat((baseIncome * speedMultiplier).toFixed(2))
+/**
+ * Расчёт множителя скорости работы.
+ * Формула: Multiplier = 1.0 + (level × 0.1)
+ *
+ * @example
+ * calculateWorkSpeedMultiplier(0)  // 1.0 (×1.0 = 100%)
+ * calculateWorkSpeedMultiplier(5)  // 1.5 (×1.5 = 150%)
+ * calculateWorkSpeedMultiplier(10) // 2.0 (×2.0 = 200%)
+ * calculateWorkSpeedMultiplier(20) // 3.0 (×3.0 = 300%)
+ */
+function calculateWorkSpeedMultiplier(level: number): number {
+  return 1.0 + (level * WORK_SPEED_BONUS_PER_LEVEL)
+}
+
+/**
+ * Расчёт общего пассивного дохода от всех работников.
+ * Учитывает количество каждого типа и множитель скорости.
+ *
+ * Формула:
+ * BaseIncome = Σ(worker_count × worker_income)
+ * TotalIncome = BaseIncome × WorkSpeedMultiplier
+ *
+ * @example
+ * // 3 подмастерья + 5 механиков, скорость 5
+ * // Результат: (3×2 + 5×20) × 1.5 = 159₽/сек
+ */
+function calculateTotalPassiveIncome(
+  workers: Record<string, { count: number }>,
+  workSpeedLevel: number,
+): number {
+  let baseIncome = 0
+
+  // Суммируем доход от всех типов работников
+  for (const [type, data] of Object.entries(workers)) {
+    const incomePerWorker = WORKER_INCOME[type as keyof typeof WORKER_INCOME] || 0
+    baseIncome += data.count * incomePerWorker
+  }
+
+  // Применяем множитель скорости
+  const multiplier = calculateWorkSpeedMultiplier(workSpeedLevel)
+  return parseFloat((baseIncome * multiplier).toFixed(2))
 }
 
 /**
  * Проверяет, достиг ли баланс порога следующего уровня гаража,
  * и возвращает новый уровень. НЕ списывает деньги — чисто визуальная прогрессия.
  * Может перескочить несколько уровней за один вызов (напр. оффлайн-доход).
+ *
+ * MILESTONE-ГЕЙТИНГ: Уровень останавливается ПЕРЕД milestone (5/10/15/20),
+ * пока milestone не куплен. Модалка показывается через checkForMilestone()
+ * по проверке баланса >= порог milestone.
+ *
+ * Пример: баланс 1.5M, milestones=[] → уровень 4 (не 5).
+ * После покупки milestone 5 → уровень прыгает до 5+.
  */
-function checkAutoLevel(balance: number, currentLevel: number): number {
+export function checkAutoLevel(
+  balance: number,
+  currentLevel: number,
+  milestonesPurchased: number[],
+): number {
   let newLevel = currentLevel
   while (newLevel < 20) {
-    const nextThreshold = GARAGE_LEVEL_THRESHOLDS[newLevel + 1]
+    const nextLevel = newLevel + 1
+    const nextThreshold = GARAGE_LEVEL_THRESHOLDS[nextLevel]
     if (nextThreshold === undefined || balance < nextThreshold) break
-    newLevel++
+    // Если следующий уровень — непокупленный milestone, стоп ПЕРЕД ним
+    if (
+      (MILESTONE_LEVELS as readonly number[]).includes(nextLevel) &&
+      !milestonesPurchased.includes(nextLevel)
+    ) {
+      break
+    }
+    newLevel = nextLevel
   }
   return newLevel
 }
@@ -451,62 +538,41 @@ const initialState: GameState = {
   upgrades: {
     clickPower: {
       level: 0,
-      cost: CLICK_UPGRADE_BASE_COST,
-      baseCost: CLICK_UPGRADE_BASE_COST,
+      cost: BASE_COSTS.clickUpgrade,
+      baseCost: BASE_COSTS.clickUpgrade,
     },
     workSpeed: {
       level: 0,
-      cost: WORK_SPEED_BASE_COST,
-      baseCost: WORK_SPEED_BASE_COST,
+      cost: BASE_COSTS.workSpeed,
+      baseCost: BASE_COSTS.workSpeed,
     },
   },
 
   milestonesPurchased: [],
   showMilestoneModal: false,
   pendingMilestoneLevel: null,
+  milestoneModalDismissed: false,
 
   workers: {
     apprentice: {
       count: 0,
-      cost: 500,
-      baseCost: 500,
-      baseIncomePerSec: 0.5,
-      maxCount: 10,
+      cost: BASE_COSTS.apprentice,        // 500₽
     },
     mechanic: {
       count: 0,
-      cost: 5_000,
-      baseCost: 5_000,
-      baseIncomePerSec: 5,
-      maxCount: 10,
+      cost: BASE_COSTS.mechanic,          // 5,000₽
     },
     master: {
       count: 0,
-      cost: 50_000,
-      baseCost: 50_000,
-      baseIncomePerSec: 50,
-      maxCount: 10,
+      cost: BASE_COSTS.master,            // 50,000₽
     },
-    manager: {
+    brigadier: {
       count: 0,
-      cost: 5_000_000,
-      baseCost: 5_000_000,
-      baseIncomePerSec: 5_000,
-      maxCount: 5,
-    },
-    foreman: {
-      count: 0,
-      cost: 500_000,
-      baseCost: 500_000,
-      baseIncomePerSec: 500,
-      maxCount: 5,
+      cost: BASE_COSTS.brigadier,         // 500,000₽
     },
     director: {
       count: 0,
-      cost: 50_000_000,
-      baseCost: 50_000_000,
-      baseIncomePerSec: 50_000,
-      maxCount: 3,
+      cost: BASE_COSTS.director,          // 5,000,000₽
     },
   },
 
@@ -532,7 +598,7 @@ const initialState: GameState = {
  * Архитектурные решения:
  * - Формулы экономики строго по GDD (раздел 6.3)
  * - passiveIncomePerSecond пересчитывается при изменении работников / скорости
- * - baseCost хранится отдельно для корректного Cost(n) = BaseCost × 1.15^n
+ * - BaseCost берётся из констант BASE_COSTS для Cost(n) = BaseCost × 1.15^n
  * - startPassiveIncome возвращает cleanup для useEffect
  * - saveProgress / loadProgress интегрируют storageService
  * - totalEarned обновляется при каждом начислении дохода (клик, пассив, оффлайн)
@@ -551,7 +617,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set((state) => {
       const newBalance = state.balance + income
-      const newLevel = checkAutoLevel(newBalance, state.garageLevel)
+      const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
       const result: Partial<GameState> = {
         balance: newBalance,
         totalClicks: state.totalClicks + 1,
@@ -564,6 +630,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       return result
     })
+
+    // Проверяем milestone: баланс мог пересечь порог,
+    // а garageLevel остался на месте (стоп перед milestone)
+    get().checkForMilestone()
 
     return isCritical
   },
@@ -592,13 +662,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { clickPower } = upgrades
 
     if (balance < clickPower.cost) {
-      console.warn(`[ClickUpgrade] Недостаточно средств: нужно ${clickPower.cost} ₽, есть ${balance} ₽`)
+      console.warn(
+        `[ClickUpgrade] Недостаточно средств: нужно ${formatLargeNumber(clickPower.cost)} ₽, есть ${formatLargeNumber(balance)} ₽`,
+      )
       return false
     }
 
     const newLevel = clickPower.level + 1
-    const newCost = calculateClickUpgradeCost(newLevel)
+    const newCost = calculateUpgradeCost(BASE_COSTS.clickUpgrade, newLevel)
     const newClickValue = calculateClickIncome(newLevel)
+
+    console.log(`[ClickUpgrade] Покупка: уровень ${clickPower.level} → ${newLevel}`)
+    console.log(`[ClickUpgrade] Стоимость: ${formatLargeNumber(clickPower.cost)} ₽`)
+    console.log(`[ClickUpgrade] Новый доход: ${newClickValue} ₽/клик`)
+    console.log(`[ClickUpgrade] След. стоимость: ${formatLargeNumber(newCost)} ₽`)
 
     set((state) => ({
       balance: state.balance - clickPower.cost,
@@ -613,7 +690,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     }))
 
-    console.log(`[ClickUpgrade] Уровень ${newLevel}, доход ${newClickValue} ₽/клик, след. стоимость: ${newCost} ₽`)
+    get().saveProgress()
     return true
   },
 
@@ -621,78 +698,156 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ПОКУПКА АПГРЕЙДА СКОРОСТИ РАБОТЫ
   // ============================================
 
+  /**
+   * Покупка апгрейда "Скорость работы"
+   * GBD v1.1: Каждый уровень = +10% к пассивному доходу
+   * Разблокируется на milestone 5
+   */
   purchaseWorkSpeedUpgrade: () => {
-    const { balance, upgrades, workers } = get()
-    const { workSpeed } = upgrades
+    const state = get()
+    const currentLevel = state.upgrades.workSpeed.level
+    const currentCost = state.upgrades.workSpeed.cost
 
-    if (balance < workSpeed.cost) {
-      console.warn(`[WorkSpeed] Недостаточно средств: нужно ${workSpeed.cost} ₽, есть ${balance} ₽`)
-      return false
+    // ═══ ПРОВЕРКА 1: Разблокирован ли апгрейд ═══
+    if (!state.milestonesPurchased.includes(5)) {
+      console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован')
+      console.log('  Требуется milestone уровня 5')
+      return
     }
 
-    const newLevel = workSpeed.level + 1
-    const newCost = calculateWorkSpeedUpgradeCost(newLevel)
-    const newPassiveIncome = calculatePassiveIncome(workers, newLevel)
+    // ═══ ПРОВЕРКА 2: Достаточность средств ═══
+    if (state.balance < currentCost) {
+      console.warn('[Purchase] 💰 Недостаточно средств для апгрейда скорости')
+      console.log(`  Требуется: ${formatLargeNumber(currentCost)}₽`)
+      console.log(`  Доступно: ${formatLargeNumber(state.balance)}₽`)
+      return
+    }
 
-    set((state) => ({
-      balance: state.balance - workSpeed.cost,
+    // ═══ РАСЧЁТЫ ═══
+    const newLevel = currentLevel + 1
+    const newCost = calculateUpgradeCost(BASE_COSTS.workSpeed, newLevel)
+    const newMultiplier = calculateWorkSpeedMultiplier(newLevel)
+
+    // Пересчёт пассивного дохода с новым множителем
+    const newPassiveIncome = calculateTotalPassiveIncome(
+      state.workers,
+      newLevel,
+    )
+
+    // ═══ ПРИМЕНЯЕМ ИЗМЕНЕНИЯ ═══
+    set((s) => ({
+      balance: s.balance - currentCost,
       passiveIncomePerSecond: newPassiveIncome,
       upgrades: {
-        ...state.upgrades,
+        ...s.upgrades,
         workSpeed: {
-          ...state.upgrades.workSpeed,
           level: newLevel,
           cost: newCost,
         },
       },
     }))
 
-    console.log(`[WorkSpeed] Уровень ${newLevel}, пассивный доход: ${newPassiveIncome} ₽/сек`)
-    return true
+    console.log(`[Purchase] ✅ Апгрейд скорости → Уровень ${newLevel}`)
+    console.log(`  Множитель: ×${newMultiplier.toFixed(1)} (${(newMultiplier * 100).toFixed(0)}%)`)
+    console.log(`  Пассивный доход: ${newPassiveIncome.toFixed(2)}₽/сек`)
+    console.log(`  След. стоимость: ${formatLargeNumber(newCost)}₽`)
+    console.log(`  Баланс: ${formatLargeNumber(state.balance - currentCost)}₽`)
+
+    // Сохраняем прогресс
+    get().saveProgress()
   },
 
   // ============================================
   // НАЙМ РАБОТНИКА
   // ============================================
 
+  /**
+   * Наём работника с проверкой лимитов и milestone
+   * GBD v1.1: Жёсткие лимиты 3-5-3-2-1
+   */
   hireWorker: (workerType: WorkerType) => {
-    const { balance, workers, upgrades } = get()
-    const worker = workers[workerType]
+    const state = get()
+    const worker = state.workers[workerType]
 
-    if (worker.count >= worker.maxCount) {
-      console.warn(`[HireWorker] Достигнут лимит для ${workerType}: ${worker.maxCount}`)
-      return false
+    if (!worker) {
+      console.error(`[Hire] Неизвестный тип работника: ${workerType}`)
+      return
     }
 
-    if (balance < worker.cost) {
-      console.warn(`[HireWorker] Недостаточно средств: нужно ${worker.cost} ₽, есть ${balance} ₽`)
-      return false
+    const workerIncome = WORKER_INCOME[workerType]
+    const workerLimit = WORKER_LIMITS[workerType]
+
+    // ═══ ПРОВЕРКА 1: Лимит количества ═══
+    if (worker.count >= workerLimit) {
+      console.warn(`[Hire] 🚫 Достигнут лимит для ${workerType}`)
+      console.log(`  Текущее: ${worker.count}/${workerLimit}`)
+      console.log(`  Это максимум для данного типа работников`)
+      return
     }
 
+    // ═══ ПРОВЕРКА 2: Разблокирован ли работник ═══
+    const requiredMilestone: Record<WorkerType, number> = {
+      apprentice: 0,
+      mechanic: 5,
+      master: 10,
+      brigadier: 15,
+      director: 20,
+    }
+
+    const milestone = requiredMilestone[workerType]
+    if (milestone > 0 && !state.milestonesPurchased.includes(milestone)) {
+      console.warn(`[Hire] 🔒 ${workerType} не разблокирован`)
+      console.log(`  Требуется milestone уровня ${milestone}`)
+      return
+    }
+
+    // ═══ ПРОВЕРКА 3: Достаточность средств ═══
+    if (state.balance < worker.cost) {
+      console.warn(`[Hire] 💰 Недостаточно средств для найма ${workerType}`)
+      console.log(`  Требуется: ${formatLargeNumber(worker.cost)}₽`)
+      console.log(`  Доступно: ${formatLargeNumber(state.balance)}₽`)
+      return
+    }
+
+    // ═══ РАСЧЁТЫ ═══
     const newCount = worker.count + 1
-    const newCost = calculateWorkerHireCost(worker.baseCost, newCount)
+    const newCost = calculateWorkerCost(
+      BASE_COSTS[workerType as keyof typeof BASE_COSTS] as number,
+      newCount,
+    )
 
-    const updatedWorkers: WorkersState = {
-      ...workers,
-      [workerType]: {
-        ...worker,
-        count: newCount,
-        cost: newCost,
-      },
+    // Пересчёт пассивного дохода
+    const workersAfterHire = {
+      ...state.workers,
+      [workerType]: { count: newCount, cost: newCost },
     }
+    const newPassiveIncome = calculateTotalPassiveIncome(
+      workersAfterHire,
+      state.upgrades.workSpeed.level,
+    )
 
-    const newPassiveIncome = calculatePassiveIncome(updatedWorkers, upgrades.workSpeed.level)
-
-    set((state) => ({
-      balance: state.balance - worker.cost,
+    // ═══ ПРИМЕНЯЕМ ИЗМЕНЕНИЯ ═══
+    set((s) => ({
+      balance: s.balance - worker.cost,
       passiveIncomePerSecond: newPassiveIncome,
-      workers: updatedWorkers,
+      workers: {
+        ...s.workers,
+        [workerType]: {
+          count: newCount,
+          cost: newCost,
+        },
+      },
     }))
 
-    console.log(
-      `[HireWorker] ${workerType} #${newCount}, следующий стоит: ${newCost} ₽, пассивный доход: ${newPassiveIncome} ₽/сек`,
-    )
-    return true
+    console.log(`[Hire] ✅ Нанят ${workerType} #${newCount}`)
+    console.log(`  Доход: ${workerIncome}₽/сек`)
+    console.log(`  Общий пассив: ${newPassiveIncome.toFixed(2)}₽/сек`)
+    console.log(`  След. стоимость: ${formatLargeNumber(newCost)}₽`)
+    console.log(`  Осталось слотов: ${workerLimit - newCount}/${workerLimit}`)
+    console.log(`  Баланс: ${formatLargeNumber(state.balance - worker.cost)}₽`)
+
+    // Сохраняем прогресс
+    get().saveProgress()
   },
 
   // ============================================
@@ -706,7 +861,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       set((state) => {
         const newBalance = parseFloat((state.balance + passiveIncomePerSecond).toFixed(2))
-        const newLevel = checkAutoLevel(newBalance, state.garageLevel)
+        const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
         const result: Partial<GameState> = {
           balance: newBalance,
           totalEarned: parseFloat((state.totalEarned + passiveIncomePerSecond).toFixed(2)),
@@ -716,6 +871,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
         return result
       })
+
+      // Проверяем milestone после каждого тика пассивного дохода
+      get().checkForMilestone()
     }, 1000)
 
     return () => {
@@ -746,8 +904,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         apprentice: { count: state.workers.apprentice.count, cost: state.workers.apprentice.cost },
         mechanic: { count: state.workers.mechanic.count, cost: state.workers.mechanic.cost },
         master: { count: state.workers.master.count, cost: state.workers.master.cost },
-        manager: { count: state.workers.manager.count, cost: state.workers.manager.cost },
-        foreman: { count: state.workers.foreman.count, cost: state.workers.foreman.cost },
+        brigadier: { count: state.workers.brigadier.count, cost: state.workers.brigadier.cost },
         director: { count: state.workers.director.count, cost: state.workers.director.cost },
       },
       stats: {
@@ -803,48 +960,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
       console.log('[Load] Backward compat: сброс механиков (апгрейд ур.5 не куплен)')
     }
 
-    // --- Восстанавливаем работников с полными данными ---
-    // SaveData хранит только count и cost, остальные поля берём из initialState
-    // Для новых типов работников: если нет в сейве → берём дефолт
+    // --- Восстанавливаем работников (GBD v1.1: упрощённая структура) ---
+    // SaveData хранит count и cost. baseCost/income/limit берём из констант.
+    // Backward compat: foreman → brigadier, manager — удалён.
 
     const savedWorkers = saveData.workers as unknown as Record<string, { count?: number; cost?: number }>
 
+    // Backward compat: если в сейве есть foreman (старое имя) → используем для brigadier
+    const savedBrigadier = savedWorkers.brigadier ?? savedWorkers.foreman
+
     const restoredWorkers: WorkersState = {
       apprentice: {
-        ...initialState.workers.apprentice,
         count: saveData.workers.apprentice.count,
         cost: saveData.workers.apprentice.cost,
       },
       mechanic: {
-        ...initialState.workers.mechanic,
         count: shouldResetMechanics ? 0 : (mechanicSaveData?.count ?? 0),
         cost: shouldResetMechanics
-          ? initialState.workers.mechanic.baseCost
-          : (mechanicSaveData?.cost ?? initialState.workers.mechanic.cost),
+          ? BASE_COSTS.mechanic
+          : (mechanicSaveData?.cost ?? BASE_COSTS.mechanic),
       },
       master: {
-        ...initialState.workers.master,
         count: savedWorkers.master?.count ?? 0,
-        cost: savedWorkers.master?.cost ?? initialState.workers.master.cost,
+        cost: savedWorkers.master?.cost ?? BASE_COSTS.master,
       },
-      manager: {
-        ...initialState.workers.manager,
-        count: savedWorkers.manager?.count ?? 0,
-        cost: savedWorkers.manager?.cost ?? initialState.workers.manager.cost,
-      },
-      foreman: {
-        ...initialState.workers.foreman,
-        count: savedWorkers.foreman?.count ?? 0,
-        cost: savedWorkers.foreman?.cost ?? initialState.workers.foreman.cost,
+      brigadier: {
+        count: savedBrigadier?.count ?? 0,
+        cost: savedBrigadier?.cost ?? BASE_COSTS.brigadier,
       },
       director: {
-        ...initialState.workers.director,
         count: savedWorkers.director?.count ?? 0,
-        cost: savedWorkers.director?.cost ?? initialState.workers.director.cost,
+        cost: savedWorkers.director?.cost ?? BASE_COSTS.director,
       },
     }
 
-    // --- Восстанавливаем апгрейды с baseCost ---
+    // --- Восстанавливаем апгрейды ---
 
     const restoredUpgrades: UpgradesState = {
       clickPower: {
@@ -861,7 +1011,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // --- Пересчитываем пассивный доход на основе загруженных данных ---
 
-    const passiveIncome = calculatePassiveIncome(
+    const passiveIncome = calculateTotalPassiveIncome(
       restoredWorkers,
       restoredUpgrades.workSpeed.level,
     )
@@ -882,14 +1032,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     console.log(`[Load] Рассчитанный оффлайн-доход: ${offlineEarnings.toFixed(2)} ₽`)
 
     // --- Восстанавливаем clickValue из уровня апгрейда ---
-    // clickValue = значение из lookup-таблицы GDD v2.2
+    // clickValue = level + 1 (GBD v1.1)
 
     const restoredClickValue = calculateClickIncome(restoredUpgrades.clickPower.level)
 
     // --- Авто-левелинг: пересчитываем уровень гаража из баланса ---
     // Баланс — источник истины для визуальной прогрессии
 
-    const autoLevel = checkAutoLevel(saveData.playerData.balance, 1)
+    const autoLevel = checkAutoLevel(saveData.playerData.balance, 1, restoredPurchased)
 
     console.log(`[Load] Авто-уровень из баланса: ${autoLevel} (сохранённый: ${saveData.playerData.garageLevel})`)
 
@@ -933,7 +1083,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   addOfflineEarnings: (amount: number) => {
     set((state) => {
       const newBalance = parseFloat((state.balance + amount).toFixed(2))
-      const newLevel = checkAutoLevel(newBalance, state.garageLevel)
+      const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
       const result: Partial<GameState> = {
         balance: newBalance,
         totalEarned: parseFloat((state.totalEarned + amount).toFixed(2)),
@@ -945,6 +1095,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
 
     console.log(`[Offline] Начислен оффлайн-доход: ${amount.toFixed(2)} ₽`)
+
+    // Проверяем milestone после начисления оффлайн-дохода
+    get().checkForMilestone()
   },
 
   // ============================================
@@ -980,12 +1133,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return false
     }
 
-    set((state) => ({
-      balance: state.balance - upgrade.cost,
-      milestonesPurchased: [...state.milestonesPurchased, level],
-      showMilestoneModal: false,
-      pendingMilestoneLevel: null,
-    }))
+    set((state) => {
+      const newBalance = state.balance - upgrade.cost
+      const newPurchased = [...state.milestonesPurchased, level]
+      // Уровень прыгает минимум до milestone, затем checkAutoLevel продолжает
+      const baseLevel = Math.max(state.garageLevel, level)
+      const newLevel = checkAutoLevel(newBalance, baseLevel, newPurchased)
+      return {
+        balance: newBalance,
+        milestonesPurchased: newPurchased,
+        garageLevel: newLevel,
+        showMilestoneModal: false,
+        pendingMilestoneLevel: null,
+        milestoneModalDismissed: false,  // Сброс для следующего milestone
+      }
+    })
 
     console.log(
       `[Milestone] Куплен апгрейд уровня ${level}: разблокирован ${upgrade.workerNames.join(', ')}`,
@@ -995,16 +1157,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   checkForMilestone: () => {
     const state = get()
+    // Не показываем если модалка уже открыта или была закрыта игроком
+    if (state.showMilestoneModal || state.milestoneModalDismissed) return
+
     for (const level of MILESTONE_LEVELS) {
-      if (state.garageLevel >= level && !state.milestonesPurchased.includes(level)) {
-        set({ showMilestoneModal: true, pendingMilestoneLevel: level })
+      if (!state.milestonesPurchased.includes(level)) {
+        // Проверяем по балансу, а не по garageLevel:
+        // уровень стоит ПЕРЕД milestone, но баланс уже достаточен
+        const threshold = GARAGE_LEVEL_THRESHOLDS[level]
+        if (threshold !== undefined && state.balance >= threshold) {
+          set({ showMilestoneModal: true, pendingMilestoneLevel: level })
+        }
+        // Первый непокупленный milestone найден — дальше не проверяем
         return
       }
     }
   },
 
   closeMilestoneModal: () => {
-    set({ showMilestoneModal: false, pendingMilestoneLevel: null })
+    set({
+      showMilestoneModal: false,
+      pendingMilestoneLevel: null,
+      milestoneModalDismissed: true,  // Не показывать до покупки milestone
+    })
   },
 
   // ============================================
@@ -1091,3 +1266,40 @@ export const usePurchaseMilestone = () =>
 /** Действие: закрыть модалку milestone */
 export const useCloseMilestoneModal = () =>
   useGameStore((s) => s.closeMilestoneModal)
+
+/** Информация о milestone, доступном для покупки (null = нет доступных).
+ *  Используется в UpgradesPanel для карточки milestone и в App.tsx для прогресс-бара. */
+export const usePendingMilestoneInfo = () =>
+  useGameStore(
+    useShallow((s) => {
+      for (const level of MILESTONE_LEVELS) {
+        if (!s.milestonesPurchased.includes(level)) {
+          const threshold = GARAGE_LEVEL_THRESHOLDS[level]
+          if (threshold !== undefined && s.balance >= threshold) {
+            return { level, upgrade: MILESTONE_UPGRADES[level] }
+          }
+          return null // Первый непокупленный milestone, баланс не дотянул
+        }
+      }
+      return null // Все milestones куплены
+    })
+  )
+
+// ============================================
+// СЕЛЕКТОРЫ СКОРОСТИ РАБОТЫ
+// ============================================
+
+/** Действие: купить апгрейд скорости */
+export const usePurchaseWorkSpeedUpgrade = () =>
+  useGameStore((s) => s.purchaseWorkSpeedUpgrade)
+
+/** Текущий уровень апгрейда скорости работы */
+export const useWorkSpeedLevel = () =>
+  useGameStore((s) => s.upgrades.workSpeed.level)
+
+/** Текущий множитель скорости работы (1.0 + level × 0.1) */
+export const useWorkSpeedMultiplier = () =>
+  useGameStore((s) => {
+    const level = s.upgrades.workSpeed.level
+    return calculateWorkSpeedMultiplier(level)
+  })
