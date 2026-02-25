@@ -78,6 +78,10 @@ export interface PlayerStats {
   sessionCount: number
   /** ISO-строка даты последней сессии */
   lastSessionDate: string
+  /** Рекорд моментального дохода от кликов (₽/сек) */
+  peakClickIncome: number
+  /** Общее время в игре (секунды) */
+  totalPlayTimeSeconds: number
 }
 
 /**
@@ -130,6 +134,8 @@ const DEFAULT_SAVE_DATA: SaveData = {
     totalEarned: 0,
     sessionCount: 0,
     lastSessionDate: '',
+    peakClickIncome: 0,
+    totalPlayTimeSeconds: 0,
   },
 }
 

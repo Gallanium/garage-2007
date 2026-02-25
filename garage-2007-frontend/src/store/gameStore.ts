@@ -321,6 +321,20 @@ interface GameState {
   lastOfflineEarnings: number
   /** Время отсутствия в секундах (для отображения в модалке) */
   lastOfflineTimeAway: number
+
+  // --- Моментальный доход от кликов (сессионные данные, не сохраняются) ---
+
+  /** Моментальный доход от кликов (₽/сек, обновляется каждую секунду) */
+  momentaryClickIncome: number
+  /** Внутренний аккумулятор дохода от кликов за текущую секунду */
+  _clickIncomeThisTick: number
+
+  // --- Статистика (сохраняется) ---
+
+  /** Рекорд моментального дохода от кликов (₽/сек) — личный рекорд */
+  peakClickIncome: number
+  /** Общее время в игре (секунды) — накапливается каждую секунду */
+  totalPlayTimeSeconds: number
 }
 
 /**
@@ -586,6 +600,14 @@ const initialState: GameState = {
   // Данные оффлайн-дохода
   lastOfflineEarnings: 0,
   lastOfflineTimeAway: 0,
+
+  // Моментальный доход от кликов
+  momentaryClickIncome: 0,
+  _clickIncomeThisTick: 0,
+
+  // Статистика
+  peakClickIncome: 0,
+  totalPlayTimeSeconds: 0,
 }
 
 // ============================================
@@ -611,7 +633,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ============================================
 
   handleClick: () => {
-    const { clickValue } = get()
+    const { clickValue, garageLevel: prevLevel } = get()
     const isCritical = Math.random() < CRITICAL_CLICK_CHANCE
     const income = isCritical ? clickValue * CRITICAL_CLICK_MULTIPLIER : clickValue
 
@@ -622,6 +644,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         balance: newBalance,
         totalClicks: state.totalClicks + 1,
         totalEarned: state.totalEarned + income,
+        _clickIncomeThisTick: state._clickIncomeThisTick + income,
       }
       // Устанавливаем garageLevel только при реальном изменении,
       // чтобы не триггерить лишние ре-рендеры
@@ -634,6 +657,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Проверяем milestone: баланс мог пересечь порог,
     // а garageLevel остался на месте (стоп перед milestone)
     get().checkForMilestone()
+
+    // Немедленное сохранение при повышении уровня
+    if (get().garageLevel !== prevLevel) {
+      get().saveProgress()
+    }
 
     return isCritical
   },
@@ -856,24 +884,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   startPassiveIncome: () => {
     const intervalId = setInterval(() => {
-      const { passiveIncomePerSecond } = get()
-      if (passiveIncomePerSecond <= 0) return
+      const { passiveIncomePerSecond, garageLevel: prevLevel } = get()
 
       set((state) => {
-        const newBalance = parseFloat((state.balance + passiveIncomePerSecond).toFixed(2))
-        const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
         const result: Partial<GameState> = {
-          balance: newBalance,
-          totalEarned: parseFloat((state.totalEarned + passiveIncomePerSecond).toFixed(2)),
+          // Ротация моментального дохода от кликов (каждую секунду)
+          momentaryClickIncome: state._clickIncomeThisTick,
+          _clickIncomeThisTick: 0,
+          // Рекорд моментального дохода (личный рекорд)
+          peakClickIncome: Math.max(state.peakClickIncome, state._clickIncomeThisTick),
+          // Время в игре +1 сек
+          totalPlayTimeSeconds: state.totalPlayTimeSeconds + 1,
         }
-        if (newLevel !== state.garageLevel) {
-          result.garageLevel = newLevel
+
+        // Пассивный доход (если есть работники)
+        if (passiveIncomePerSecond > 0) {
+          const newBalance = parseFloat((state.balance + passiveIncomePerSecond).toFixed(2))
+          const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
+          result.balance = newBalance
+          result.totalEarned = parseFloat((state.totalEarned + passiveIncomePerSecond).toFixed(2))
+          if (newLevel !== state.garageLevel) {
+            result.garageLevel = newLevel
+          }
         }
+
         return result
       })
 
-      // Проверяем milestone после каждого тика пассивного дохода
-      get().checkForMilestone()
+      // Проверяем milestone после тика пассивного дохода
+      if (passiveIncomePerSecond > 0) {
+        get().checkForMilestone()
+      }
+
+      // Немедленное сохранение при повышении уровня
+      if (get().garageLevel !== prevLevel) {
+        get().saveProgress()
+      }
     }, 1000)
 
     return () => {
@@ -911,6 +957,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         totalEarned: state.totalEarned,
         sessionCount: state.sessionCount,
         lastSessionDate: state.lastSessionDate,
+        peakClickIncome: state.peakClickIncome,
+        totalPlayTimeSeconds: state.totalPlayTimeSeconds,
       },
     })
 
@@ -1061,6 +1109,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isLoaded: true,
       lastOfflineEarnings: offlineEarnings,
       lastOfflineTimeAway: offlineTimeAway,
+      peakClickIncome: saveData.stats.peakClickIncome ?? 0,
+      totalPlayTimeSeconds: saveData.stats.totalPlayTimeSeconds ?? 0,
     })
 
     // --- Начисляем оффлайн-доход после set ---
@@ -1152,6 +1202,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     console.log(
       `[Milestone] Куплен апгрейд уровня ${level}: разблокирован ${upgrade.workerNames.join(', ')}`,
     )
+    get().saveProgress()
     return true
   },
 
@@ -1202,6 +1253,7 @@ export const useClickValue = () => useGameStore((s) => s.clickValue)
 export const useTotalClicks = () => useGameStore((s) => s.totalClicks)
 export const useGarageLevel = () => useGameStore((s) => s.garageLevel)
 export const usePassiveIncome = () => useGameStore((s) => s.passiveIncomePerSecond)
+export const useMomentaryClickIncome = () => useGameStore((s) => s.momentaryClickIncome)
 export const useUpgrades = () => useGameStore((s) => s.upgrades)
 export const useWorkers = () => useGameStore((s) => s.workers)
 export const useNuts = () => useGameStore((s) => s.nuts)
@@ -1210,6 +1262,8 @@ export const useIsLoaded = () => useGameStore((s) => s.isLoaded)
 export const useSessionCount = () => useGameStore((s) => s.sessionCount)
 export const useLastOfflineEarnings = () => useGameStore((s) => s.lastOfflineEarnings)
 export const useLastOfflineTimeAway = () => useGameStore((s) => s.lastOfflineTimeAway)
+export const usePeakClickIncome = () => useGameStore((s) => s.peakClickIncome)
+export const useTotalPlayTime = () => useGameStore((s) => s.totalPlayTimeSeconds)
 
 // ============================================
 // СЕЛЕКТОРЫ УРОВНЯ ГАРАЖА (автоматическая прогрессия)

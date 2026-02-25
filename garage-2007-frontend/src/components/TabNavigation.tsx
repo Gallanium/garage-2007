@@ -51,7 +51,8 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
             type="button"
             onClick={handleClick(tab.id)}
             className={`
-              px-4 py-2 rounded text-sm font-mono font-medium
+              flex-1 flex flex-col items-center gap-0.5
+              px-2 py-2 rounded text-xs font-mono font-medium
               transition-colors duration-200
               ${
                 isActive
@@ -60,8 +61,8 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               }
             `}
           >
-            {tab.icon && <span className="mr-1">{tab.icon}</span>}
-            {tab.label}
+            {tab.icon && <span className="text-base">{tab.icon}</span>}
+            <span>{tab.label}</span>
           </button>
         )
       })}

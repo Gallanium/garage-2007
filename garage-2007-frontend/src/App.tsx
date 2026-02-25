@@ -3,9 +3,9 @@ import {
   useGameStore,
   useBalance,
   useClickValue,
-  useTotalClicks,
   useGarageLevel,
   usePassiveIncome,
+  useMomentaryClickIncome,
   useNuts,
   useIsLoaded,
   useLastOfflineEarnings,
@@ -25,6 +25,7 @@ import {
 import PhaserGame from './game/PhaserGame'
 import TabNavigation from './components/TabNavigation'
 import UpgradesPanel from './components/UpgradesPanel'
+import StatsPanel from './components/StatsPanel'
 import WelcomeBackModal from './components/WelcomeBackModal'
 import MilestoneUpgradeModal from './components/MilestoneUpgradeModal'
 
@@ -36,6 +37,7 @@ import MilestoneUpgradeModal from './components/MilestoneUpgradeModal'
 const tabs = [
   { id: 'game', label: 'Игра', icon: '🏠' },
   { id: 'upgrades', label: 'Улучшения', icon: '⬆️' },
+  { id: 'stats', label: 'Статистика', icon: '📊' },
 ]
 
 /** Интервал автосохранения в миллисекундах (30 секунд) */
@@ -76,9 +78,9 @@ function App() {
   // --- Данные из store (оптимизированные селекторы) ---
   const balance = useBalance()
   const clickValue = useClickValue()
-  const totalClicks = useTotalClicks()
   const garageLevel = useGarageLevel()
   const passiveIncomePerSecond = usePassiveIncome()
+  const momentaryClickIncome = useMomentaryClickIncome()
   const nuts = useNuts()
   const isLoaded = useIsLoaded()
   const offlineEarnings = useLastOfflineEarnings()
@@ -351,22 +353,25 @@ function App() {
                 </div>
               </div>
 
-              {/* Всего кликов */}
+              {/* Моментальный доход от кликов */}
               <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-3 border border-blue-400/30 shadow-md">
-                <p className="text-xs text-gray-400 mb-1 font-mono uppercase">Кликов</p>
-                <p className="text-xl font-bold text-blue-300 font-mono">
-                  {formatNumber(totalClicks)}
-                </p>
+                <p className="text-xs text-gray-400 mb-1 font-mono uppercase">Момент.</p>
+                <div className="flex items-baseline gap-1">
+                  <p className="text-xl font-bold text-blue-300 font-mono">
+                    {formatNumber(momentaryClickIncome)}
+                  </p>
+                  <span className="text-xs text-blue-300/70 font-mono">₽/с</span>
+                </div>
               </div>
 
               {/* Пассивный доход */}
               <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-3 border border-green-400/30 shadow-md">
-                <p className="text-xs text-gray-400 mb-1 font-mono uppercase">Доход/сек</p>
+                <p className="text-xs text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
                 <div className="flex items-baseline gap-1">
                   <p className="text-xl font-bold text-green-300 font-mono">
                     {passiveIncomePerSecond.toFixed(1)}
                   </p>
-                  <span className="text-xs text-green-300/70 font-mono">₽</span>
+                  <span className="text-xs text-green-300/70 font-mono">₽/с</span>
                 </div>
               </div>
 
@@ -421,6 +426,13 @@ function App() {
         <UpgradesPanel />
       </div>
 
+      <div
+        className="flex-grow overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900"
+        style={{ display: activeTab === 'stats' ? 'block' : 'none' }}
+      >
+        <StatsPanel />
+      </div>
+
       {/* ========== МОДАЛКА: Welcome Back ========== */}
       <WelcomeBackModal
         offlineEarnings={offlineEarnings}
@@ -449,7 +461,7 @@ function App() {
           <p>DEV MODE</p>
           <p>Balance: {balance}</p>
           <p>Level: {garageLevel}</p>
-          <p>Clicks: {totalClicks}</p>
+          <p>Click ₽/s: {momentaryClickIncome.toFixed(1)}</p>
           <p>Passive: {passiveIncomePerSecond.toFixed(1)}/s</p>
           <p>Tab: {activeTab}</p>
         </div>
