@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import {
-  saveGame,
+  saveGameFull,
   loadGame,
   calculateOfflineEarnings,
   clearSave,
+  SAVE_VERSION,
 } from '../utils/storageService'
+import { roundCurrency } from '../utils/math'
 
 // ============================================
 // КОНСТАНТЫ ЭКОНОМИКИ (из GDD раздел 6.3)
@@ -59,6 +61,9 @@ export const WORKER_LIMITS = {
 
 /** Единый множитель роста стоимости для ВСЕХ систем (апгрейды, работники, скорость) */
 export const COST_MULTIPLIER = 1.15
+
+/** Максимальный уровень улучшения клика */
+export const CLICK_UPGRADE_MAX_LEVEL = 200
 
 /**
  * Эффект апгрейда «Скорость работы».
@@ -273,6 +278,64 @@ export interface WorkersState {
   director: WorkerData
 }
 
+// ============================================
+// СИСТЕМА ДОСТИЖЕНИЙ (GDD v3.0 раздел 2.7)
+// ============================================
+
+/** Категории достижений */
+export type AchievementCategory =
+  | 'progression'   // Прогрессия гаража
+  | 'earnings'      // Накопления
+  | 'clicks'        // Клики
+  | 'workers'       // Работники
+  | 'special'       // Особые задачи
+
+/** ID достижений (уникальные идентификаторы) */
+export type AchievementId =
+  // Прогрессия (5 шт)
+  | 'garage_level_2'
+  | 'garage_level_5'
+  | 'garage_level_10'
+  | 'garage_level_15'
+  | 'garage_level_20'
+  // Накопления (3 шт)
+  | 'earned_10k'
+  | 'earned_1m'
+  | 'earned_1b'
+  // Клики (3 шт)
+  | 'clicks_100'
+  | 'clicks_1000'
+  | 'clicks_10000'
+  // Работники (3 шт)
+  | 'workers_1'
+  | 'workers_5'
+  | 'workers_10'
+  // Особые (1 шт)
+  | 'all_milestones'
+
+/** Определение достижения */
+export interface AchievementDefinition {
+  id: AchievementId
+  category: AchievementCategory
+  title: string
+  description: string
+  icon: string
+  targetValue: number
+  nutsReward: number
+  /** Функция проверки прогресса (возвращает текущее значение) */
+  progressGetter: (state: GameState) => number
+}
+
+/** Состояние достижения у игрока */
+export interface PlayerAchievement {
+  /** Разблокировано ли достижение */
+  unlocked: boolean
+  /** Забрана ли награда */
+  claimed: boolean
+  /** Timestamp разблокировки (для статистики) */
+  unlockedAt?: number
+}
+
 /**
  * Интерфейс состояния игры.
  * Содержит все данные о прогрессе игрока, включая мета-поля
@@ -293,8 +356,8 @@ interface GameState {
   showMilestoneModal: boolean
   /** Уровень milestone, ожидающего покупки (5, 10, 15 или 20) */
   pendingMilestoneLevel: number | null
-  /** Была ли модалка milestone закрыта игроком (чтобы не спамить повторно) */
-  milestoneModalDismissed: boolean
+  /** Уровень milestone, модалку которого игрок закрыл без покупки (null = не закрывал) */
+  dismissedMilestoneLevel: number | null
   /** Суммарный пассивный доход в секунду (с учётом бонуса скорости) */
   passiveIncomePerSecond: number
   /** Состояние апгрейдов */
@@ -335,6 +398,18 @@ interface GameState {
   peakClickIncome: number
   /** Общее время в игре (секунды) — накапливается каждую секунду */
   totalPlayTimeSeconds: number
+
+  /** Состояние всех достижений игрока */
+  achievements: Record<AchievementId, PlayerAchievement>
+
+  /** Флаг «новое достижение разблокировано» (для UI анимации) */
+  hasNewAchievements: boolean
+
+  /** Состояние ежедневных наград */
+  dailyRewards: DailyRewardsState
+
+  /** Показывать ли модалку Daily Rewards */
+  showDailyRewardsModal: boolean
 }
 
 /**
@@ -344,12 +419,6 @@ interface GameState {
 interface GameActions {
   /** Обработчик клика по гаражу. Возвращает true при критическом клике */
   handleClick: () => boolean
-
-  /**
-   * Покупка апгрейда дохода за клик (устаревший)
-   * @deprecated Используй purchaseClickUpgrade()
-   */
-  purchaseUpgrade: (cost: number, newClickValue: number) => boolean
 
   /** Покупка улучшения дохода за клик */
   purchaseClickUpgrade: () => boolean
@@ -405,6 +474,31 @@ interface GameActions {
 
   /** Закрывает модалку milestone-апгрейда (игрок решил не покупать) */
   closeMilestoneModal: () => void
+
+  // --- Система достижений ---
+
+  /** Проверяет все достижения и разблокирует выполненные */
+  checkAchievements: () => AchievementId[]
+
+  /** Забрать награду за достижение */
+  claimAchievement: (achievementId: AchievementId) => boolean
+
+  /** Сбросить флаг «новое достижение» */
+  clearNewAchievementsFlag: () => void
+
+  // --- Ежедневные награды ---
+
+  /** Проверяет доступность ежедневной награды (вызывается при загрузке) */
+  checkDailyReward: () => void
+
+  /** Забрать ежедневную награду */
+  claimDailyReward: () => void
+
+  /** Закрыть модалку Daily Rewards (отложить) */
+  closeDailyRewardsModal: () => void
+
+  /** Открыть модалку Daily Rewards вручную (кнопка на экране) */
+  openDailyRewardsModal: () => void
 }
 
 /** Полный тип хранилища */
@@ -413,6 +507,255 @@ type GameStore = GameState & GameActions
 // ============================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================
+
+// roundCurrency импортирована из ../utils/math
+
+/**
+ * Подсчитывает общее количество нанятых работников всех типов.
+ * Используется для достижений «Наймите N работников».
+ */
+export function getTotalWorkerCount(workers: WorkersState): number {
+  return (
+    workers.apprentice.count +
+    workers.mechanic.count +
+    workers.master.count +
+    workers.brigadier.count +
+    workers.director.count
+  )
+}
+
+// ============================================
+// КАТАЛОГ ДОСТИЖЕНИЙ (GDD v3.0)
+// ============================================
+
+/**
+ * Каталог всех достижений игры (GDD v3.0)
+ * 15 достижений для MVP, награды 5-100 гаек
+ * Итого можно заработать: 500 гаек
+ */
+export const ACHIEVEMENTS: Record<AchievementId, AchievementDefinition> = {
+  // ═════════════════════════════════════════
+  // ПРОГРЕССИЯ ГАРАЖА (5 достижений, 205 гаек)
+  // ═════════════════════════════════════════
+
+  garage_level_2: {
+    id: 'garage_level_2',
+    category: 'progression',
+    title: 'Первые шаги',
+    description: 'Достигните 2 уровня гаража',
+    icon: '🏗️',
+    targetValue: 2,
+    nutsReward: 5,
+    progressGetter: (state) => state.garageLevel,
+  },
+
+  garage_level_5: {
+    id: 'garage_level_5',
+    category: 'progression',
+    title: 'Любительская мастерская',
+    description: 'Достигните 5 уровня гаража',
+    icon: '🔧',
+    targetValue: 5,
+    nutsReward: 20,
+    progressGetter: (state) => state.garageLevel,
+  },
+
+  garage_level_10: {
+    id: 'garage_level_10',
+    category: 'progression',
+    title: 'Профессионал',
+    description: 'Достигните 10 уровня гаража',
+    icon: '⚙️',
+    targetValue: 10,
+    nutsReward: 50,
+    progressGetter: (state) => state.garageLevel,
+  },
+
+  garage_level_15: {
+    id: 'garage_level_15',
+    category: 'progression',
+    title: 'Элитный сервис',
+    description: 'Достигните 15 уровня гаража',
+    icon: '🏢',
+    targetValue: 15,
+    nutsReward: 80,
+    progressGetter: (state) => state.garageLevel,
+  },
+
+  garage_level_20: {
+    id: 'garage_level_20',
+    category: 'progression',
+    title: 'Автомобильная империя',
+    description: 'Достигните 20 уровня гаража',
+    icon: '👑',
+    targetValue: 20,
+    nutsReward: 50,
+    progressGetter: (state) => state.garageLevel,
+  },
+
+  // ═════════════════════════════════════════
+  // НАКОПЛЕНИЯ (3 достижения, 75 гаек)
+  // ═════════════════════════════════════════
+
+  earned_10k: {
+    id: 'earned_10k',
+    category: 'earnings',
+    title: 'Первые деньги',
+    description: 'Заработайте 10,000₽',
+    icon: '💵',
+    targetValue: 10_000,
+    nutsReward: 10,
+    progressGetter: (state) => state.totalEarned,
+  },
+
+  earned_1m: {
+    id: 'earned_1m',
+    category: 'earnings',
+    title: 'Миллионер',
+    description: 'Заработайте 1,000,000₽',
+    icon: '💰',
+    targetValue: 1_000_000,
+    nutsReward: 25,
+    progressGetter: (state) => state.totalEarned,
+  },
+
+  earned_1b: {
+    id: 'earned_1b',
+    category: 'earnings',
+    title: 'Миллиардер',
+    description: 'Заработайте 1,000,000,000₽',
+    icon: '💎',
+    targetValue: 1_000_000_000,
+    nutsReward: 40,
+    progressGetter: (state) => state.totalEarned,
+  },
+
+  // ═════════════════════════════════════════
+  // КЛИКИ (3 достижения, 60 гаек)
+  // ═════════════════════════════════════════
+
+  clicks_100: {
+    id: 'clicks_100',
+    category: 'clicks',
+    title: 'Кликер-новичок',
+    description: 'Совершите 100 кликов',
+    icon: '👆',
+    targetValue: 100,
+    nutsReward: 10,
+    progressGetter: (state) => state.totalClicks,
+  },
+
+  clicks_1000: {
+    id: 'clicks_1000',
+    category: 'clicks',
+    title: 'Кликер-мастер',
+    description: 'Совершите 1,000 кликов',
+    icon: '🖱️',
+    targetValue: 1_000,
+    nutsReward: 20,
+    progressGetter: (state) => state.totalClicks,
+  },
+
+  clicks_10000: {
+    id: 'clicks_10000',
+    category: 'clicks',
+    title: 'Кликер-легенда',
+    description: 'Совершите 10,000 кликов',
+    icon: '⚡',
+    targetValue: 10_000,
+    nutsReward: 30,
+    progressGetter: (state) => state.totalClicks,
+  },
+
+  // ═════════════════════════════════════════
+  // РАБОТНИКИ (3 достижения, 60 гаек)
+  // ═════════════════════════════════════════
+
+  workers_1: {
+    id: 'workers_1',
+    category: 'workers',
+    title: 'Первый сотрудник',
+    description: 'Наймите первого работника',
+    icon: '👷',
+    targetValue: 1,
+    nutsReward: 10,
+    progressGetter: (state) => getTotalWorkerCount(state.workers),
+  },
+
+  workers_5: {
+    id: 'workers_5',
+    category: 'workers',
+    title: 'Маленькая команда',
+    description: 'Наймите 5 работников',
+    icon: '👥',
+    targetValue: 5,
+    nutsReward: 20,
+    progressGetter: (state) => getTotalWorkerCount(state.workers),
+  },
+
+  workers_10: {
+    id: 'workers_10',
+    category: 'workers',
+    title: 'Большая команда',
+    description: 'Наймите 10 работников',
+    icon: '👨‍👩‍👧‍👦',
+    targetValue: 10,
+    nutsReward: 30,
+    progressGetter: (state) => getTotalWorkerCount(state.workers),
+  },
+
+  // ═════════════════════════════════════════
+  // ОСОБЫЕ (1 достижение, 100 гаек)
+  // ═════════════════════════════════════════
+
+  all_milestones: {
+    id: 'all_milestones',
+    category: 'special',
+    title: 'Покоритель вершин',
+    description: 'Купите все доступные апгрейды',
+    icon: '🏆',
+    targetValue: 4, // Всего 4 milestone (5, 10, 15, 20)
+    nutsReward: 100,
+    progressGetter: (state) => state.milestonesPurchased.length,
+  },
+} as const
+
+/**
+ * Общее количество гаек из достижений
+ */
+export const TOTAL_ACHIEVEMENT_NUTS =
+  Object.values(ACHIEVEMENTS).reduce((sum, ach) => sum + ach.nutsReward, 0) // 500 гаек
+
+// ============================================
+// ЕЖЕДНЕВНЫЙ ВХОД (GDD v3.0)
+// ============================================
+
+/** Состояние ежедневных наград */
+export interface DailyRewardsState {
+  /** Timestamp последнего забора награды (мс) */
+  lastClaimTimestamp: number
+  /** Текущая серия (streak) дней */
+  currentStreak: number
+  /** Какие дни забраны в текущем цикле [1,2,3...] */
+  claimedDays: number[]
+}
+
+/** Награды за каждый день (гайки) */
+export const DAILY_REWARDS = [
+  5,   // День 1
+  5,   // День 2
+  5,   // День 3
+  5,   // День 4
+  5,   // День 5
+  5,   // День 6
+  50,  // День 7 (БОНУС!)
+] as const
+
+/** Общее количество гаек за полный цикл */
+export const DAILY_REWARDS_TOTAL = DAILY_REWARDS.reduce((sum, r) => sum + r, 0) // 80 гаек
+
+/** Период streak: 24 часа в миллисекундах */
+const DAILY_STREAK_GRACE_PERIOD_MS = 24 * 60 * 60 * 1000
 
 // ============================================
 // ФОРМУЛЫ РАСЧЁТА (GBD v1.1)
@@ -501,7 +844,7 @@ function calculateTotalPassiveIncome(
 
   // Применяем множитель скорости
   const multiplier = calculateWorkSpeedMultiplier(workSpeedLevel)
-  return parseFloat((baseIncome * multiplier).toFixed(2))
+  return roundCurrency(baseIncome * multiplier)
 }
 
 /**
@@ -565,7 +908,7 @@ const initialState: GameState = {
   milestonesPurchased: [],
   showMilestoneModal: false,
   pendingMilestoneLevel: null,
-  milestoneModalDismissed: false,
+  dismissedMilestoneLevel: null,
 
   workers: {
     apprentice: {
@@ -608,6 +951,21 @@ const initialState: GameState = {
   // Статистика
   peakClickIncome: 0,
   totalPlayTimeSeconds: 0,
+
+  // Достижения
+  achievements: Object.keys(ACHIEVEMENTS).reduce((acc, id) => {
+    acc[id as AchievementId] = { unlocked: false, claimed: false }
+    return acc
+  }, {} as Record<AchievementId, PlayerAchievement>),
+  hasNewAchievements: false,
+
+  // Ежедневные награды
+  dailyRewards: {
+    lastClaimTimestamp: 0,
+    currentStreak: 0,
+    claimedDays: [],
+  },
+  showDailyRewardsModal: false,
 }
 
 // ============================================
@@ -663,22 +1021,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().saveProgress()
     }
 
+    // Проверяем достижения после клика
+    get().checkAchievements()
+
     return isCritical
-  },
-
-  // ============================================
-  // LEGACY-МЕТОД (обратная совместимость)
-  // ============================================
-
-  purchaseUpgrade: (cost: number, newClickValue: number) => {
-    const { balance } = get()
-    if (balance < cost) return false
-
-    set((state) => ({
-      balance: state.balance - cost,
-      clickValue: newClickValue,
-    }))
-    return true
   },
 
   // ============================================
@@ -688,6 +1034,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   purchaseClickUpgrade: () => {
     const { balance, upgrades } = get()
     const { clickPower } = upgrades
+
+    if (clickPower.level >= CLICK_UPGRADE_MAX_LEVEL) {
+      console.warn(`[ClickUpgrade] Достигнут максимальный уровень: ${CLICK_UPGRADE_MAX_LEVEL}`)
+      return false
+    }
 
     if (balance < clickPower.cost) {
       console.warn(
@@ -699,11 +1050,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newLevel = clickPower.level + 1
     const newCost = calculateUpgradeCost(BASE_COSTS.clickUpgrade, newLevel)
     const newClickValue = calculateClickIncome(newLevel)
-
-    console.log(`[ClickUpgrade] Покупка: уровень ${clickPower.level} → ${newLevel}`)
-    console.log(`[ClickUpgrade] Стоимость: ${formatLargeNumber(clickPower.cost)} ₽`)
-    console.log(`[ClickUpgrade] Новый доход: ${newClickValue} ₽/клик`)
-    console.log(`[ClickUpgrade] След. стоимость: ${formatLargeNumber(newCost)} ₽`)
 
     set((state) => ({
       balance: state.balance - clickPower.cost,
@@ -738,16 +1084,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // ═══ ПРОВЕРКА 1: Разблокирован ли апгрейд ═══
     if (!state.milestonesPurchased.includes(5)) {
-      console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован')
-      console.log('  Требуется milestone уровня 5')
+      console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован (milestone 5)')
       return
     }
 
     // ═══ ПРОВЕРКА 2: Достаточность средств ═══
     if (state.balance < currentCost) {
-      console.warn('[Purchase] 💰 Недостаточно средств для апгрейда скорости')
-      console.log(`  Требуется: ${formatLargeNumber(currentCost)}₽`)
-      console.log(`  Доступно: ${formatLargeNumber(state.balance)}₽`)
+      console.warn(`[Purchase] 💰 Недостаточно средств: нужно ${formatLargeNumber(currentCost)}₽, есть ${formatLargeNumber(state.balance)}₽`)
       return
     }
 
@@ -769,17 +1112,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       upgrades: {
         ...s.upgrades,
         workSpeed: {
+          ...s.upgrades.workSpeed,  // сохраняет baseCost
           level: newLevel,
           cost: newCost,
         },
       },
     }))
-
-    console.log(`[Purchase] ✅ Апгрейд скорости → Уровень ${newLevel}`)
-    console.log(`  Множитель: ×${newMultiplier.toFixed(1)} (${(newMultiplier * 100).toFixed(0)}%)`)
-    console.log(`  Пассивный доход: ${newPassiveIncome.toFixed(2)}₽/сек`)
-    console.log(`  След. стоимость: ${formatLargeNumber(newCost)}₽`)
-    console.log(`  Баланс: ${formatLargeNumber(state.balance - currentCost)}₽`)
 
     // Сохраняем прогресс
     get().saveProgress()
@@ -807,9 +1145,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // ═══ ПРОВЕРКА 1: Лимит количества ═══
     if (worker.count >= workerLimit) {
-      console.warn(`[Hire] 🚫 Достигнут лимит для ${workerType}`)
-      console.log(`  Текущее: ${worker.count}/${workerLimit}`)
-      console.log(`  Это максимум для данного типа работников`)
+      console.warn(`[Hire] 🚫 Достигнут лимит для ${workerType}: ${worker.count}/${workerLimit}`)
       return
     }
 
@@ -824,16 +1160,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const milestone = requiredMilestone[workerType]
     if (milestone > 0 && !state.milestonesPurchased.includes(milestone)) {
-      console.warn(`[Hire] 🔒 ${workerType} не разблокирован`)
-      console.log(`  Требуется milestone уровня ${milestone}`)
+      console.warn(`[Hire] 🔒 ${workerType} не разблокирован (milestone ${milestone})`)
       return
     }
 
     // ═══ ПРОВЕРКА 3: Достаточность средств ═══
     if (state.balance < worker.cost) {
-      console.warn(`[Hire] 💰 Недостаточно средств для найма ${workerType}`)
-      console.log(`  Требуется: ${formatLargeNumber(worker.cost)}₽`)
-      console.log(`  Доступно: ${formatLargeNumber(state.balance)}₽`)
+      console.warn(`[Hire] 💰 Недостаточно средств для найма ${workerType}: нужно ${formatLargeNumber(worker.cost)}₽, есть ${formatLargeNumber(state.balance)}₽`)
       return
     }
 
@@ -867,15 +1200,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     }))
 
-    console.log(`[Hire] ✅ Нанят ${workerType} #${newCount}`)
-    console.log(`  Доход: ${workerIncome}₽/сек`)
-    console.log(`  Общий пассив: ${newPassiveIncome.toFixed(2)}₽/сек`)
-    console.log(`  След. стоимость: ${formatLargeNumber(newCost)}₽`)
-    console.log(`  Осталось слотов: ${workerLimit - newCount}/${workerLimit}`)
-    console.log(`  Баланс: ${formatLargeNumber(state.balance - worker.cost)}₽`)
-
     // Сохраняем прогресс
     get().saveProgress()
+
+    // Проверяем достижения после найма
+    get().checkAchievements()
   },
 
   // ============================================
@@ -883,7 +1212,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ============================================
 
   startPassiveIncome: () => {
+    let tickCount = 0
+
     const intervalId = setInterval(() => {
+      tickCount++
       const { passiveIncomePerSecond, garageLevel: prevLevel } = get()
 
       set((state) => {
@@ -899,10 +1231,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         // Пассивный доход (если есть работники)
         if (passiveIncomePerSecond > 0) {
-          const newBalance = parseFloat((state.balance + passiveIncomePerSecond).toFixed(2))
+          const newBalance = roundCurrency(state.balance + passiveIncomePerSecond)
           const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
           result.balance = newBalance
-          result.totalEarned = parseFloat((state.totalEarned + passiveIncomePerSecond).toFixed(2))
+          result.totalEarned = roundCurrency(state.totalEarned + passiveIncomePerSecond)
           if (newLevel !== state.garageLevel) {
             result.garageLevel = newLevel
           }
@@ -920,6 +1252,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (get().garageLevel !== prevLevel) {
         get().saveProgress()
       }
+
+      // Проверяем достижения каждые 60 секунд (не каждый тик)
+      if (tickCount % 60 === 0) {
+        get().checkAchievements()
+      }
     }, 1000)
 
     return () => {
@@ -934,7 +1271,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   saveProgress: () => {
     const state = get()
 
-    const success = saveGame({
+    const success = saveGameFull({
+      version: SAVE_VERSION,
+      timestamp: 0, // перезаписывается внутри saveGameFull
       playerData: {
         balance: state.balance,
         nuts: state.nuts,
@@ -960,11 +1299,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         peakClickIncome: state.peakClickIncome,
         totalPlayTimeSeconds: state.totalPlayTimeSeconds,
       },
+      achievements: state.achievements as Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }>,
+      dailyRewards: state.dailyRewards,
     })
 
-    if (success) {
-      console.log('[Save] Прогресс сохранён')
-    } else {
+    if (!success) {
       console.error('[Save] Ошибка сохранения')
     }
   },
@@ -977,7 +1316,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const saveData = loadGame()
 
     if (!saveData) {
-      console.log('[Load] Сохранение не найдено, начинаем новую игру')
       set({
         isLoaded: true,
         sessionCount: 1,
@@ -985,8 +1323,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       })
       return
     }
-
-    console.log('[Load] Загружаем сохранённый прогресс...')
 
     // --- Восстанавливаем milestonesPurchased ---
     // Backward compat: в старых сейвах этого поля нет → []
@@ -1003,10 +1339,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       mechanicSaveData &&
       mechanicSaveData.count > 0 &&
       !restoredPurchased.includes(5)
-
-    if (shouldResetMechanics) {
-      console.log('[Load] Backward compat: сброс механиков (апгрейд ур.5 не куплен)')
-    }
 
     // --- Восстанавливаем работников (GBD v1.1: упрощённая структура) ---
     // SaveData хранит count и cost. baseCost/income/limit берём из констант.
@@ -1075,10 +1407,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? Math.floor((now - saveData.timestamp) / 1000)
       : 0
 
-    console.log(`[Load] timestamp сохранения: ${new Date(saveData.timestamp).toLocaleString('ru-RU')}`)
-    console.log(`[Load] Время отсутствия: ${offlineTimeAway} сек, пассивный доход: ${passiveIncome} ₽/сек`)
-    console.log(`[Load] Рассчитанный оффлайн-доход: ${offlineEarnings.toFixed(2)} ₽`)
-
     // --- Восстанавливаем clickValue из уровня апгрейда ---
     // clickValue = level + 1 (GBD v1.1)
 
@@ -1089,7 +1417,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const autoLevel = checkAutoLevel(saveData.playerData.balance, 1, restoredPurchased)
 
-    console.log(`[Load] Авто-уровень из баланса: ${autoLevel} (сохранённый: ${saveData.playerData.garageLevel})`)
+    // --- Восстанавливаем достижения ---
+    // Backward compat: в старых сейвах поля нет → {}
+    // Мерджим с initialState.achievements, чтобы новые достижения получили дефолтные значения
+    const savedAchievements = (saveData.achievements ?? {}) as Record<string, PlayerAchievement>
+    const restoredAchievements: Record<AchievementId, PlayerAchievement> = {
+      ...initialState.achievements,
+    }
+    for (const key of Object.keys(savedAchievements)) {
+      if (key in restoredAchievements) {
+        restoredAchievements[key as AchievementId] = savedAchievements[key]
+      }
+    }
+
+    // --- Восстанавливаем ежедневные награды ---
+    // Backward compat: в старых сейвах поля нет → используем initialState
+    const restoredDailyRewards = saveData.dailyRewards ?? initialState.dailyRewards
 
     // --- Применяем всё разом ---
 
@@ -1111,19 +1454,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastOfflineTimeAway: offlineTimeAway,
       peakClickIncome: saveData.stats.peakClickIncome ?? 0,
       totalPlayTimeSeconds: saveData.stats.totalPlayTimeSeconds ?? 0,
+      achievements: restoredAchievements,
+      dailyRewards: restoredDailyRewards,
     })
 
-    // --- Начисляем оффлайн-доход после set ---
-
-    if (offlineEarnings > 0) {
-      get().addOfflineEarnings(offlineEarnings)
-    }
-
-    console.log('[Load] Прогресс загружен!')
-    console.log(`[Load] Оффлайн-доход: ${offlineEarnings.toFixed(2)} ₽`)
+    // --- Оффлайн-доход НЕ начисляем здесь ---
+    // Начисление происходит в App.tsx при нажатии «Забрать» (handleWelcomeBackClose).
+    // Сумма сохранена в lastOfflineEarnings для отображения в модалке.
 
     // --- Проверяем milestone после загрузки ---
     get().checkForMilestone()
+
+    // --- Проверяем достижения после загрузки ---
+    get().checkAchievements()
+
+    // --- Проверяем ежедневную награду после загрузки ---
+    get().checkDailyReward()
   },
 
   // ============================================
@@ -1132,19 +1478,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   addOfflineEarnings: (amount: number) => {
     set((state) => {
-      const newBalance = parseFloat((state.balance + amount).toFixed(2))
+      const newBalance = roundCurrency(state.balance + amount)
       const newLevel = checkAutoLevel(newBalance, state.garageLevel, state.milestonesPurchased)
       const result: Partial<GameState> = {
         balance: newBalance,
-        totalEarned: parseFloat((state.totalEarned + amount).toFixed(2)),
+        totalEarned: roundCurrency(state.totalEarned + amount),
       }
       if (newLevel !== state.garageLevel) {
         result.garageLevel = newLevel
       }
       return result
     })
-
-    console.log(`[Offline] Начислен оффлайн-доход: ${amount.toFixed(2)} ₽`)
 
     // Проверяем milestone после начисления оффлайн-дохода
     get().checkForMilestone()
@@ -1195,24 +1539,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
         garageLevel: newLevel,
         showMilestoneModal: false,
         pendingMilestoneLevel: null,
-        milestoneModalDismissed: false,  // Сброс для следующего milestone
+        dismissedMilestoneLevel: null,  // Сброс для следующего milestone
       }
     })
 
-    console.log(
-      `[Milestone] Куплен апгрейд уровня ${level}: разблокирован ${upgrade.workerNames.join(', ')}`,
-    )
     get().saveProgress()
+
+    // Проверяем достижения после покупки milestone
+    get().checkAchievements()
     return true
   },
 
   checkForMilestone: () => {
     const state = get()
-    // Не показываем если модалка уже открыта или была закрыта игроком
-    if (state.showMilestoneModal || state.milestoneModalDismissed) return
+    // Не показываем если модалка уже открыта
+    if (state.showMilestoneModal) return
 
     for (const level of MILESTONE_LEVELS) {
       if (!state.milestonesPurchased.includes(level)) {
+        // Этот конкретный milestone был закрыт без покупки — не спамим
+        if (state.dismissedMilestoneLevel === level) return
+
         // Проверяем по балансу, а не по garageLevel:
         // уровень стоит ПЕРЕД milestone, но баланс уже достаточен
         const threshold = GARAGE_LEVEL_THRESHOLDS[level]
@@ -1226,11 +1573,207 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   closeMilestoneModal: () => {
-    set({
+    set((s) => ({
       showMilestoneModal: false,
+      dismissedMilestoneLevel: s.pendingMilestoneLevel,  // Запоминаем КАКОЙ milestone закрыт
       pendingMilestoneLevel: null,
-      milestoneModalDismissed: true,  // Не показывать до покупки milestone
-    })
+    }))
+  },
+
+  // ============================================
+  // СИСТЕМА ДОСТИЖЕНИЙ
+  // ============================================
+
+  /**
+   * Проверяет все достижения и разблокирует выполненные.
+   * Вызывается после каждого значимого действия игрока.
+   *
+   * @returns Массив ID новых разблокированных достижений
+   */
+  checkAchievements: () => {
+    const state = get()
+    const newlyUnlocked: AchievementId[] = []
+
+    for (const [id, definition] of Object.entries(ACHIEVEMENTS)) {
+      const achievementId = id as AchievementId
+      const playerAch = state.achievements[achievementId]
+
+      // Пропускаем уже разблокированные
+      if (playerAch.unlocked) continue
+
+      // Проверяем прогресс
+      const currentProgress = definition.progressGetter(state)
+
+      if (currentProgress >= definition.targetValue) {
+        newlyUnlocked.push(achievementId)
+        console.log(`[Achievement] 🏆 Разблокировано: "${definition.title}"`)
+        console.log(`  Награда: ${definition.nutsReward} гаек`)
+      }
+    }
+
+    // Применяем разблокировки
+    if (newlyUnlocked.length > 0) {
+      set((state) => {
+        const updatedAchievements = { ...state.achievements }
+
+        for (const id of newlyUnlocked) {
+          updatedAchievements[id] = {
+            ...updatedAchievements[id],
+            unlocked: true,
+            unlockedAt: Date.now(),
+          }
+        }
+
+        return {
+          achievements: updatedAchievements,
+          hasNewAchievements: true,
+        }
+      })
+
+      console.log(`[Achievement] 🎉 Разблокировано достижений: ${newlyUnlocked.length}`)
+      get().saveProgress()
+    }
+
+    return newlyUnlocked
+  },
+
+  /**
+   * Забрать награду за достижение.
+   *
+   * @param achievementId - ID достижения
+   * @returns true если награда забрана успешно
+   */
+  claimAchievement: (achievementId: AchievementId) => {
+    const state = get()
+    const playerAch = state.achievements[achievementId]
+    const definition = ACHIEVEMENTS[achievementId]
+
+    if (!definition) {
+      console.error(`[Achievement] Неизвестное достижение: ${achievementId}`)
+      return false
+    }
+
+    if (!playerAch.unlocked) {
+      console.warn(`[Achievement] Достижение "${definition.title}" ещё не разблокировано`)
+      return false
+    }
+
+    if (playerAch.claimed) {
+      console.warn(`[Achievement] Награда за "${definition.title}" уже забрана`)
+      return false
+    }
+
+    // Начисляем гайки
+    set((state) => ({
+      nuts: state.nuts + definition.nutsReward,
+      achievements: {
+        ...state.achievements,
+        [achievementId]: {
+          ...state.achievements[achievementId],
+          claimed: true,
+        },
+      },
+    }))
+
+    console.log(`[Achievement] ✅ Забрана награда: ${definition.nutsReward} гаек`)
+    console.log(`  "${definition.title}"`)
+    console.log(`  Баланс гаек: ${get().nuts}`)
+
+    get().saveProgress()
+    return true
+  },
+
+  /** Сбросить флаг «новое достижение» */
+  clearNewAchievementsFlag: () => {
+    set({ hasNewAchievements: false })
+  },
+
+  // ============================================
+  // ЕЖЕДНЕВНЫЕ НАГРАДЫ
+  // ============================================
+
+  /**
+   * Проверяет доступность ежедневной награды.
+   * Вызывается при загрузке игры (loadProgress).
+   */
+  checkDailyReward: () => {
+    const state = get()
+    const now = Date.now()
+    const timeSinceLastClaim = now - state.dailyRewards.lastClaimTimestamp
+
+    // Первый запуск — награда всегда доступна
+    if (state.dailyRewards.lastClaimTimestamp === 0) {
+      set({ showDailyRewardsModal: true })
+      return
+    }
+
+    // Прошло меньше 24 часов — награда уже забрана сегодня
+    if (timeSinceLastClaim < DAILY_STREAK_GRACE_PERIOD_MS) {
+      console.log('[Daily] Награда уже забрана сегодня')
+      return
+    }
+
+    // Прошло больше 48 часов — сброс streak
+    if (timeSinceLastClaim > DAILY_STREAK_GRACE_PERIOD_MS * 2) {
+      console.log('[Daily] Streak сброшен (пропущен день)')
+      set({
+        dailyRewards: {
+          lastClaimTimestamp: 0,
+          currentStreak: 0,
+          claimedDays: [],
+        },
+        showDailyRewardsModal: true,
+      })
+      return
+    }
+
+    // 24–48 часов — можно забрать награду
+    set({ showDailyRewardsModal: true })
+  },
+
+  /**
+   * Забрать ежедневную награду.
+   * Начисляет гайки, обновляет streak и закрывает модалку.
+   */
+  claimDailyReward: () => {
+    const state = get()
+    const now = Date.now()
+
+    // Вычисляем следующий день
+    const nextDay = state.dailyRewards.currentStreak + 1
+
+    // День 8 = сброс на день 1 (новый цикл)
+    const dayIndex = nextDay > 7 ? 1 : nextDay
+    const reward = DAILY_REWARDS[dayIndex - 1]
+
+    const newStreak = nextDay > 7 ? 1 : nextDay
+    const newClaimedDays = nextDay > 7 ? [1] : [...state.dailyRewards.claimedDays, dayIndex]
+
+    set((s) => ({
+      nuts: s.nuts + reward,
+      dailyRewards: {
+        lastClaimTimestamp: now,
+        currentStreak: newStreak,
+        claimedDays: newClaimedDays,
+      },
+      showDailyRewardsModal: false,
+    }))
+
+    console.log(`[Daily] ✅ Забрана награда за день ${dayIndex}: ${reward} гаек`)
+    console.log(`[Daily] Streak: ${newStreak}/7`)
+
+    get().saveProgress()
+  },
+
+  /**
+   * Закрыть модалку Daily Rewards без забора (отложить).
+   */
+  closeDailyRewardsModal: () => {
+    set({ showDailyRewardsModal: false })
+  },
+
+  openDailyRewardsModal: () => {
+    set({ showDailyRewardsModal: true })
   },
 
   // ============================================
@@ -1240,7 +1783,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   resetGame: () => {
     clearSave()
     set({ ...initialState, isLoaded: true })
-    console.log('[Game] Сброшена к начальным значениям, сохранение удалено')
   },
 }))
 
@@ -1357,3 +1899,12 @@ export const useWorkSpeedMultiplier = () =>
     const level = s.upgrades.workSpeed.level
     return calculateWorkSpeedMultiplier(level)
   })
+
+// ============================================
+// СЕЛЕКТОРЫ ДОСТИЖЕНИЙ
+// ============================================
+
+export const useAchievements = () => useGameStore((s) => s.achievements)
+export const useHasNewAchievements = () => useGameStore((s) => s.hasNewAchievements)
+export const useClaimAchievement = () => useGameStore((s) => s.claimAchievement)
+export const useClearNewAchievementsFlag = () => useGameStore((s) => s.clearNewAchievementsFlag)
