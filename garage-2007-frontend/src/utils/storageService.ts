@@ -15,6 +15,8 @@
 //   копия, которая синхронизируется с бэкендом каждые 30 секунд.
 // ============================================
 
+import { roundCurrency } from './math'
+
 // ============================================
 // КОНСТАНТЫ
 // ============================================
@@ -82,6 +84,8 @@ export interface PlayerStats {
   peakClickIncome: number
   /** Общее время в игре (секунды) */
   totalPlayTimeSeconds: number
+  /** Рекорд серии ежедневных наград (дни подряд) */
+  bestStreak: number
 }
 
 /**
@@ -98,6 +102,13 @@ export interface SaveData {
   upgrades: SavedUpgrades
   workers: SavedWorkers
   stats: PlayerStats
+  /** Состояние достижений (backward compat: может отсутствовать в старых сейвах) */
+  achievements?: Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }>
+  /** Ежедневные награды (backward compat: может отсутствовать в старых сейвах) */
+  dailyRewards?: {
+    lastClaimTimestamp: number
+    currentStreak: number
+  }
 }
 
 // ============================================
@@ -136,6 +147,12 @@ const DEFAULT_SAVE_DATA: SaveData = {
     lastSessionDate: '',
     peakClickIncome: 0,
     totalPlayTimeSeconds: 0,
+    bestStreak: 0,
+  },
+  achievements: {},
+  dailyRewards: {
+    lastClaimTimestamp: 0,
+    currentStreak: 0,
   },
 }
 
@@ -251,6 +268,32 @@ function isValidSaveData(data: unknown): data is SaveData {
  * })
  * ```
  */
+/**
+ * Сохраняет ПОЛНЫЙ объект SaveData напрямую, без чтения предыдущего.
+ *
+ * В отличие от {@link saveGame}, не вызывает loadGame() и не делает merge.
+ * Используется из saveProgress(), который уже формирует полный объект.
+ * Это исключает race condition при одновременных сохранениях.
+ *
+ * @param data - полный объект SaveData
+ * @returns `true` при успешной записи, `false` при ошибке
+ */
+export function saveGameFull(data: SaveData): boolean {
+  try {
+    const toSave = { ...data, version: SAVE_VERSION, timestamp: Date.now() }
+    const json = JSON.stringify(toSave)
+    localStorage.setItem(STORAGE_KEY, json)
+    return true
+  } catch (error) {
+    console.error('[StorageService] Ошибка сохранения:', error)
+    return false
+  }
+}
+
+/**
+ * @deprecated Используй {@link saveGameFull} из saveProgress().
+ * Оставлен для обратной совместимости.
+ */
 export function saveGame(data: Partial<SaveData>): boolean {
   try {
     // Берём текущее сохранение как базу (или дефолт)
@@ -265,10 +308,6 @@ export function saveGame(data: Partial<SaveData>): boolean {
 
     const json = JSON.stringify(merged)
     localStorage.setItem(STORAGE_KEY, json)
-
-    console.log(
-      `[StorageService] Игра сохранена (${(json.length / 1024).toFixed(1)} KB)`,
-    )
     return true
   } catch (error) {
     console.error('[StorageService] Ошибка сохранения:', error)
@@ -298,7 +337,6 @@ export function loadGame(): SaveData | null {
     const raw = localStorage.getItem(STORAGE_KEY)
 
     if (raw === null) {
-      console.log('[StorageService] Сохранение не найдено')
       return null
     }
 
@@ -323,7 +361,6 @@ export function loadGame(): SaveData | null {
         merged.playerData.milestonesPurchased = oldPlayerData.functionalUpgradesPurchased as number[]
       }
       merged.version = 3
-      console.log('[StorageService] Миграция v2 → v3: functionalUpgradesPurchased → milestonesPurchased')
     }
 
     // --- Миграция v3 → v4: foreman → brigadier, удаление manager ---
@@ -337,13 +374,7 @@ export function loadGame(): SaveData | null {
         }
       }
       merged.version = 4
-      console.log('[StorageService] Миграция v3 → v4: foreman → brigadier, удалён manager')
     }
-
-    console.log(
-      `[StorageService] Сохранение загружено (v${merged.version}, ` +
-        `${new Date(merged.timestamp).toLocaleString('ru-RU')})`,
-    )
 
     return merged
   } catch (error) {
@@ -361,7 +392,6 @@ export function loadGame(): SaveData | null {
 export function clearSave(): void {
   try {
     localStorage.removeItem(STORAGE_KEY)
-    console.log('[StorageService] Сохранение удалено')
   } catch (error) {
     console.error('[StorageService] Ошибка удаления сохранения:', error)
   }
@@ -452,13 +482,7 @@ export function calculateOfflineEarnings(
     passiveIncomePerSec * fullSpeedTime +
     passiveIncomePerSec * REDUCED_EFFICIENCY * halfSpeedTime
 
-  console.log(
-    `[StorageService] Оффлайн-доход: ${earnings.toFixed(2)} ₽ ` +
-      `(${(fullSpeedTime / 3600).toFixed(1)}ч×100% + ${(halfSpeedTime / 3600).toFixed(1)}ч×50%, ` +
-      `${passiveIncomePerSec} ₽/сек)`,
-  )
-
-  return parseFloat(earnings.toFixed(2))
+  return roundCurrency(earnings)
 }
 
 // ============================================
@@ -478,6 +502,7 @@ export function calculateOfflineEarnings(
  */
 const storageService = {
   saveGame,
+  saveGameFull,
   loadGame,
   clearSave,
   hasSave,

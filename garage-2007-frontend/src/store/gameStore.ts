@@ -398,6 +398,8 @@ interface GameState {
   peakClickIncome: number
   /** Общее время в игре (секунды) — накапливается каждую секунду */
   totalPlayTimeSeconds: number
+  /** Рекорд серии ежедневных наград (дни подряд) */
+  bestStreak: number
 
   /** Состояние всех достижений игрока */
   achievements: Record<AchievementId, PlayerAchievement>
@@ -734,10 +736,8 @@ export const TOTAL_ACHIEVEMENT_NUTS =
 export interface DailyRewardsState {
   /** Timestamp последнего забора награды (мс) */
   lastClaimTimestamp: number
-  /** Текущая серия (streak) дней */
+  /** Непрерывная серия (streak) дней. НЕ сбрасывается на 7 — только при пропуске >48ч */
   currentStreak: number
-  /** Какие дни забраны в текущем цикле [1,2,3...] */
-  claimedDays: number[]
 }
 
 /** Награды за каждый день (гайки) */
@@ -755,7 +755,7 @@ export const DAILY_REWARDS = [
 export const DAILY_REWARDS_TOTAL = DAILY_REWARDS.reduce((sum, r) => sum + r, 0) // 80 гаек
 
 /** Период streak: 24 часа в миллисекундах */
-const DAILY_STREAK_GRACE_PERIOD_MS = 24 * 60 * 60 * 1000
+export const DAILY_STREAK_GRACE_PERIOD_MS = 24 * 60 * 60 * 1000
 
 // ============================================
 // ФОРМУЛЫ РАСЧЁТА (GBD v1.1)
@@ -951,6 +951,7 @@ const initialState: GameState = {
   // Статистика
   peakClickIncome: 0,
   totalPlayTimeSeconds: 0,
+  bestStreak: 0,
 
   // Достижения
   achievements: Object.keys(ACHIEVEMENTS).reduce((acc, id) => {
@@ -963,7 +964,6 @@ const initialState: GameState = {
   dailyRewards: {
     lastClaimTimestamp: 0,
     currentStreak: 0,
-    claimedDays: [],
   },
   showDailyRewardsModal: false,
 }
@@ -1298,6 +1298,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lastSessionDate: state.lastSessionDate,
         peakClickIncome: state.peakClickIncome,
         totalPlayTimeSeconds: state.totalPlayTimeSeconds,
+        bestStreak: state.bestStreak,
       },
       achievements: state.achievements as Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }>,
       dailyRewards: state.dailyRewards,
@@ -1454,6 +1455,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastOfflineTimeAway: offlineTimeAway,
       peakClickIncome: saveData.stats.peakClickIncome ?? 0,
       totalPlayTimeSeconds: saveData.stats.totalPlayTimeSeconds ?? 0,
+      bestStreak: saveData.stats.bestStreak ?? 0,
       achievements: restoredAchievements,
       dailyRewards: restoredDailyRewards,
     })
@@ -1713,21 +1715,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
 
-    // Прошло больше 48 часов — сброс streak
-    if (timeSinceLastClaim > DAILY_STREAK_GRACE_PERIOD_MS * 2) {
+    // Прошло >= 48 часов — сброс streak (пропущен день)
+    if (timeSinceLastClaim >= DAILY_STREAK_GRACE_PERIOD_MS * 2) {
       console.log('[Daily] Streak сброшен (пропущен день)')
       set({
-        dailyRewards: {
-          lastClaimTimestamp: 0,
-          currentStreak: 0,
-          claimedDays: [],
-        },
+        dailyRewards: { lastClaimTimestamp: 0, currentStreak: 0 },
         showDailyRewardsModal: true,
       })
       return
     }
 
-    // 24–48 часов — можно забрать награду
+    // 24–48 часов — можно забрать награду (streak продолжается)
     set({ showDailyRewardsModal: true })
   },
 
@@ -1739,28 +1737,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     const now = Date.now()
 
-    // Вычисляем следующий день
-    const nextDay = state.dailyRewards.currentStreak + 1
+    // Guard: 24-часовой кулдаун (первый запуск lastClaimTimestamp===0 — разрешено)
+    if (
+      state.dailyRewards.lastClaimTimestamp !== 0 &&
+      now - state.dailyRewards.lastClaimTimestamp < DAILY_STREAK_GRACE_PERIOD_MS
+    ) {
+      const hoursLeft = Math.ceil(
+        (DAILY_STREAK_GRACE_PERIOD_MS - (now - state.dailyRewards.lastClaimTimestamp)) / 3600000,
+      )
+      console.warn(`[Daily] ⛔ Награда уже забрана. Следующая через ${hoursLeft} ч`)
+      return
+    }
 
-    // День 8 = сброс на день 1 (новый цикл)
-    const dayIndex = nextDay > 7 ? 1 : nextDay
-    const reward = DAILY_REWARDS[dayIndex - 1]
-
-    const newStreak = nextDay > 7 ? 1 : nextDay
-    const newClaimedDays = nextDay > 7 ? [1] : [...state.dailyRewards.claimedDays, dayIndex]
+    // Награда циклически из DAILY_REWARDS по позиции в неделе
+    const reward = DAILY_REWARDS[state.dailyRewards.currentStreak % 7]
+    const newStreak = state.dailyRewards.currentStreak + 1
 
     set((s) => ({
       nuts: s.nuts + reward,
       dailyRewards: {
         lastClaimTimestamp: now,
         currentStreak: newStreak,
-        claimedDays: newClaimedDays,
       },
-      showDailyRewardsModal: false,
+      bestStreak: Math.max(s.bestStreak, newStreak),
     }))
 
-    console.log(`[Daily] ✅ Забрана награда за день ${dayIndex}: ${reward} гаек`)
-    console.log(`[Daily] Streak: ${newStreak}/7`)
+    console.log(`[Daily] ✅ Забрана награда за день ${newStreak}: ${reward} гаек`)
+    console.log(`[Daily] Streak: ${newStreak}`)
 
     get().saveProgress()
   },
@@ -1806,6 +1809,7 @@ export const useLastOfflineEarnings = () => useGameStore((s) => s.lastOfflineEar
 export const useLastOfflineTimeAway = () => useGameStore((s) => s.lastOfflineTimeAway)
 export const usePeakClickIncome = () => useGameStore((s) => s.peakClickIncome)
 export const useTotalPlayTime = () => useGameStore((s) => s.totalPlayTimeSeconds)
+export const useBestStreak = () => useGameStore((s) => s.bestStreak)
 
 // ============================================
 // СЕЛЕКТОРЫ УРОВНЯ ГАРАЖА (автоматическая прогрессия)

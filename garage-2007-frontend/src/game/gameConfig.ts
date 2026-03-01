@@ -13,11 +13,11 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   width: GAME_DIMENSIONS.width,
   height: GAME_DIMENSIONS.height,
   // parent: 'phaser-container', <-- УДАЛЕНО: parent устанавливается в PhaserGame.tsx
-  backgroundColor: 'transparent',
+  transparent: true,
   scale: {
-  mode: Phaser.Scale.NONE,          // было: FIT
-  autoCenter: Phaser.Scale.NO_CENTER,  // было: CENTER_BOTH
-},
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   scene: [MainScene],
   // Дополнительная настройка для точного позиционирования
   render: {

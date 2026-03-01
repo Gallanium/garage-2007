@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import type { SceneData } from './types'
+import type { SceneData, GarageClickEvent, LevelTransitionEvent } from './types'
 import {
   DEPTH_LAYERS,
   EFFECT_COLORS,
@@ -22,7 +22,7 @@ export default class MainScene extends Phaser.Scene {
 
   // Контейнер для эффектов частиц
   private particlesContainer?: Phaser.GameObjects.Container
-  
+
   // Цвета для разных уровней гаража (20 уровней по GDD)
   private readonly LEVEL_COLORS: Record<number, number> = {
     1: 0x8B4513,  // Ржавая ракушка - тёмно-коричневый
@@ -56,18 +56,14 @@ export default class MainScene extends Phaser.Scene {
    * Пока пустой, позже здесь будут загружаться реальные спрайты
    */
   preload(): void {
-    console.log('MainScene: Preload начат...')
-    
     // TODO: Загрузка спрайтов гаража
     // this.load.image('garage-level-1', 'assets/sprites/garage-1.png')
     // this.load.image('garage-level-2', 'assets/sprites/garage-2.png')
     // ...
-    
+
     // TODO: Загрузка звуковых эффектов
     // this.load.audio('click-sound', 'assets/sounds/click.mp3')
     // this.load.audio('upgrade-sound', 'assets/sounds/upgrade.mp3')
-    
-    console.log('MainScene: Preload завершён')
   }
 
   /**
@@ -75,8 +71,6 @@ export default class MainScene extends Phaser.Scene {
    * Вызывается один раз после загрузки ассетов
    */
   create(): void {
-    console.log('MainScene: Create начат...')
-
     // Создаём контейнер для частиц
     this.particlesContainer = this.add.container(0, 0)
     this.particlesContainer.setDepth(DEPTH_LAYERS.EFFECTS)
@@ -86,8 +80,6 @@ export default class MainScene extends Phaser.Scene {
 
     // Подписываемся на события изменения данных
     this.setupEventListeners()
-
-    console.log('MainScene: Create завершён, сцена готова!')
   }
 
   /**
@@ -145,28 +137,24 @@ export default class MainScene extends Phaser.Scene {
     this.levelText = this.add.text(
       centerX,
       centerY,
-      `Уровень ${this.currentLevel}`,
+      `Ур. ${this.currentLevel}`,
       {
-        fontSize: '24px',
+        fontSize: '18px',
         color: '#ffffff',
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: '"Press Start 2P", cursive',
         align: 'center',
         stroke: '#000000',
-        strokeThickness: 4,
+        strokeThickness: 3,
       }
     )
     this.levelText.setOrigin(0.5)
     this.levelText.setDepth(DEPTH_LAYERS.UI)
-
-    console.log('Placeholder гаража создан для уровня:', this.currentLevel)
   }
 
   /**
    * Обработчик клика по гаражу
    */
   private handleGarageClick(pointer: Phaser.Input.Pointer): void {
-    console.log('Клик по гаражу в точке:', pointer.x, pointer.y)
-
     // Создаём визуальный эффект в точке клика
     this.createClickEffect(pointer.x, pointer.y)
 
@@ -181,11 +169,12 @@ export default class MainScene extends Phaser.Scene {
 
     // Отправляем событие в React (через события Phaser)
     // React компонент будет слушать это событие
-    this.events.emit('garageClicked', {
+    const clickEvent: GarageClickEvent = {
       x: pointer.x,
       y: pointer.y,
       timestamp: Date.now(),
-    })
+    }
+    this.events.emit('garageClicked', clickEvent)
   }
 
   /**
@@ -234,22 +223,18 @@ export default class MainScene extends Phaser.Scene {
         },
       })
     }
-
-    console.log(`Создано ${particleCount} частиц в точке (${x}, ${y})`)
   }
 
   /**
    * Обновление уровня гаража
    * Вызывается из React когда игрок достигает нового уровня
-   * @param level - новый уровень (1-5)
+   * @param level - новый уровень (1-20)
    */
   public updateGarageLevel(level: number): void {
     if (level < 1) {
       console.warn('Недопустимый уровень:', level)
       return
     }
-
-    console.log(`Обновление уровня гаража: ${this.currentLevel} → ${level}`)
 
     this.currentLevel = level
 
@@ -278,10 +263,9 @@ export default class MainScene extends Phaser.Scene {
         this.garageSprite?.setFillStyle(newColor)
       },
       onComplete: () => {
-        console.log('Анимация смены уровня завершена')
-        
         // Отправляем событие о завершении анимации
-        this.events.emit('levelTransitionComplete', { level })
+        const transitionEvent: LevelTransitionEvent = { level }
+        this.events.emit('levelTransitionComplete', transitionEvent)
       },
     })
 
@@ -290,7 +274,7 @@ export default class MainScene extends Phaser.Scene {
 
     // Обновляем текст уровня через сохранённую ссылку
     if (this.levelText) {
-      this.levelText.setText(`Уровень ${level}`)
+      this.levelText.setText(`Ур. ${level}`)
     }
   }
 
@@ -329,10 +313,10 @@ export default class MainScene extends Phaser.Scene {
     for (let i = 0; i < particleCount; i++) {
       const angle = (360 / particleCount) * i
       const startDistance = 50
-      
+
       const startX = centerX + Math.cos(Phaser.Math.DegToRad(angle)) * startDistance
       const startY = centerY + Math.sin(Phaser.Math.DegToRad(angle)) * startDistance
-      
+
       const particle = this.add.circle(startX, startY, 4, 0xFFD700, 1.0)
       particle.setDepth(DEPTH_LAYERS.EFFECTS)
 
@@ -351,19 +335,14 @@ export default class MainScene extends Phaser.Scene {
         onComplete: () => particle.destroy(),
       })
     }
-
-    console.log('Эффект повышения уровня создан')
   }
 
   /**
    * Настройка слушателей событий
    */
   private setupEventListeners(): void {
-    // Можно добавить слушателей для событий из React
-    // Например, для триггера специальных эффектов
-    
-    this.events.on('playSpecialEffect', (data: any) => {
-      console.log('Получен запрос на спецэффект:', data)
+    // Слушатели для событий из React (триггеры специальных эффектов)
+    this.events.on('playSpecialEffect', () => {
       // TODO: Обработка специальных эффектов
     })
   }
@@ -374,8 +353,6 @@ export default class MainScene extends Phaser.Scene {
    * @param data - данные из React/Zustand store
    */
   public syncGameData(data: SceneData): void {
-    console.log('Синхронизация данных сцены:', data)
-
     // Обновляем уровень, если он изменился
     if (data.garageLevel !== this.currentLevel) {
       this.updateGarageLevel(data.garageLevel)
@@ -389,12 +366,13 @@ export default class MainScene extends Phaser.Scene {
    * Cleanup при уничтожении сцены
    */
   shutdown(): void {
-    console.log('MainScene: Shutdown вызван')
-    
-    // Очищаем слушателей событий
+    // Очищаем слушателей событий сцены
     this.events.off('garageClicked')
     this.events.off('playSpecialEffect')
-    
+
+    // Очищаем pointer-слушатели на спрайте
+    this.garageSprite?.removeAllListeners()
+
     // Уничтожаем контейнеры
     this.particlesContainer?.destroy()
   }

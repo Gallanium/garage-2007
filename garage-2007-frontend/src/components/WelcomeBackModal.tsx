@@ -1,20 +1,14 @@
 import { useCallback } from 'react'
+import { formatLargeNumber } from '../store/gameStore'
 
 // ============================================
 // ТИПЫ
 // ============================================
 
-/**
- * Пропсы модального окна приветствия.
- */
 interface WelcomeBackModalProps {
-  /** Сумма заработанных денег за время отсутствия (₽) */
   offlineEarnings: number
-  /** Время отсутствия в секундах */
   offlineTime: number
-  /** Коллбэк при закрытии модального окна */
   onClose: () => void
-  /** Флаг видимости */
   isOpen: boolean
 }
 
@@ -22,15 +16,6 @@ interface WelcomeBackModalProps {
 // УТИЛИТЫ
 // ============================================
 
-/**
- * Возвращает правильное склонение русского слова
- * для числительных (1 день, 2 дня, 5 дней).
- *
- * @param n     - число
- * @param one   - форма для 1 (день)
- * @param few   - форма для 2-4 (дня)
- * @param many  - форма для 5-20 (дней)
- */
 function pluralize(n: number, one: string, few: string, many: string): string {
   const abs = Math.abs(n) % 100
   const lastDigit = abs % 10
@@ -41,17 +26,6 @@ function pluralize(n: number, one: string, few: string, many: string): string {
   return many
 }
 
-/**
- * Форматирует длительность в секундах в читаемую строку.
- *
- * Примеры:
- * - 90       → "1 минуту"
- * - 3700     → "1 час 1 минуту"
- * - 90000    → "1 день 1 час"
- *
- * @param seconds - время в секундах
- * @returns отформатированная строка
- */
 function formatOfflineTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
   const hours = Math.floor(minutes / 60)
@@ -83,92 +57,67 @@ function formatOfflineTime(seconds: number): string {
 // КОМПОНЕНТ
 // ============================================
 
-/**
- * Модальное окно «С возвращением!»
- *
- * Показывается при возвращении игрока после оффлайна,
- * если за время отсутствия был начислен пассивный доход.
- * Закрывается по кнопке «Забрать!» или клику на оверлей.
- */
 const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
   offlineEarnings,
   offlineTime,
   onClose,
   isOpen,
 }) => {
-  /** Клик по оверлею (вне карточки) — закрываем */
-  const handleOverlayClick = useCallback(() => {
-    onClose()
-  }, [onClose])
-
-  /** Предотвращаем всплытие клика из карточки в оверлей */
-  const handleCardClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-  }, [])
+  const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
+  const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
 
   if (!isOpen) return null
 
-  const formattedEarnings = offlineEarnings.toLocaleString('ru-RU', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })
-
+  const formattedEarnings = formatLargeNumber(offlineEarnings)
   const formattedTime = formatOfflineTime(offlineTime)
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 z-50 flex items-start justify-center
+      className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center
                  animate-[fadeIn_300ms_ease-out]"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-label="С возвращением"
     >
-      {/* Карточка модального окна */}
       <div
-        className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-8
-                   max-w-md w-[90%] mx-auto mt-32
+        className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-6
+                   max-w-sm w-[90%] mx-auto
                    border border-garage-rust/50 shadow-2xl
                    text-center
                    animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
-        {/* Иконка */}
-        <div className="text-5xl mb-3">🔧</div>
+        <div className="text-4xl mb-2">🔧</div>
 
-        {/* Заголовок */}
-        <h2 className="text-3xl font-bold text-yellow-400 mb-4 font-mono">
+        <h2 className="text-base sm:text-lg font-bold text-yellow-400 mb-3 font-mono">
           С возвращением!
         </h2>
 
-        {/* Время отсутствия */}
-        <p className="text-gray-300 mb-6 font-mono">
+        <p className="text-[10px] sm:text-xs text-gray-300 mb-4 font-mono">
           Вас не было <span className="text-white font-semibold">{formattedTime}</span>
         </p>
 
-        {/* Разделитель */}
-        <div className="border-t border-gray-700 mb-6" />
+        <div className="border-t border-gray-700 mb-4" />
 
-        {/* Заработок */}
-        <p className="text-sm text-gray-400 mb-2 font-mono uppercase tracking-wider">
-          Ваши работники заработали
+        <p className="text-[9px] sm:text-[11px] text-gray-400 mb-2 font-mono uppercase tracking-wider">
+          Работники заработали
         </p>
 
-        <p className="text-5xl font-bold text-green-400 mb-2 font-mono">
+        <p className="text-2xl sm:text-3xl font-bold text-green-400 mb-1 font-mono">
           {formattedEarnings}
-          <span className="text-3xl text-green-400/70 ml-1">₽</span>
+          <span className="text-lg sm:text-xl text-green-400/70 ml-1">₽</span>
         </p>
 
-        <p className="text-xs text-gray-500 mb-8 font-mono">
-          Пассивный доход за время отсутствия
+        <p className="text-[9px] sm:text-[11px] text-gray-500 mb-6 font-mono">
+          Пассивный доход за оффлайн
         </p>
 
-        {/* Кнопка */}
         <button
           type="button"
           onClick={onClose}
           className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold
-                     py-3 px-8 rounded-lg font-mono text-lg
+                     py-2.5 px-6 rounded-lg font-mono text-sm sm:text-base
                      transition-colors duration-200
                      active:scale-95 transform
                      shadow-lg shadow-yellow-500/20

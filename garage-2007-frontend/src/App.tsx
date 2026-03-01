@@ -20,6 +20,7 @@ import {
   usePendingMilestoneInfo,
   GARAGE_LEVEL_NAMES,
   MILESTONE_UPGRADES,
+  DAILY_STREAK_GRACE_PERIOD_MS,
   formatLargeNumber,
   type MilestoneLevel,
 } from './store/gameStore'
@@ -67,6 +68,11 @@ const MODAL_SHOW_DELAY_MS = 500
 // ============================================
 
 function App() {
+  // --- Debug: доступ к store из консоли браузера (только dev) ---
+  if (import.meta.env.DEV) {
+    ;(window as any).__store = useGameStore
+  }
+
   // --- Локальное состояние ---
   const [activeTab, setActiveTab] = useState<string>('game')
   const [showWelcomeBack, setShowWelcomeBack] = useState(false)
@@ -105,9 +111,8 @@ function App() {
   const openDailyRewardsModal = useGameStore((s) => s.openDailyRewardsModal)
 
   // --- Вычисление доступности ежедневной награды ---
-  const DAILY_CLAIM_INTERVAL_MS = 24 * 60 * 60 * 1000
   const canClaimToday = dailyRewards.lastClaimTimestamp === 0
-    || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_CLAIM_INTERVAL_MS
+    || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
 
   // --- Ref для debounce сохранения при изменении данных ---
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -476,6 +481,7 @@ function App() {
       <DailyRewardsModal
         isOpen={showDailyRewardsModal}
         dailyRewards={dailyRewards}
+        canClaim={canClaimToday}
         onClaim={claimDailyReward}
         onClose={closeDailyRewardsModal}
       />

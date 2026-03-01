@@ -15,7 +15,9 @@ export default {
         'garage-brown': '#8B4513',      // Красно-коричневый
       },
       fontFamily: {
-        // Можно добавить пиксельные шрифты позже
+        // Press Start 2P — основной шрифт проекта (пиксельный, ретро)
+        'sans': ['"Press Start 2P"', 'cursive'],
+        'mono': ['"Press Start 2P"', 'cursive'],
         'pixel': ['"Press Start 2P"', 'cursive'],
       },
     },

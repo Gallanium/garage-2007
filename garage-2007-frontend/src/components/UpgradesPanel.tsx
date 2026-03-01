@@ -9,6 +9,7 @@ import {
   isWorkerUnlocked,
   formatLargeNumber,
   WORKER_LIMITS,
+  CLICK_UPGRADE_MAX_LEVEL,
   GARAGE_LEVEL_NAMES,
   type WorkerType,
 } from '../store/gameStore'
@@ -18,14 +19,6 @@ import UpgradeCard from './UpgradeCard'
 // ОПРЕДЕЛЕНИЯ РАБОТНИКОВ ДЛЯ РЕНДЕРА
 // ============================================
 
-/**
- * Массив описаний всех типов работников.
- * Порядок определяет порядок отображения в UI.
- *
- * requiredMilestone — уровень milestone-апгрейда, необходимый
- * для разблокировки работника. null = доступен всегда.
- * Должен совпадать с WORKER_UNLOCK_LEVELS в gameStore.ts.
- */
 const WORKER_DEFS: Array<{
   type: WorkerType
   icon: string
@@ -33,34 +26,17 @@ const WORKER_DEFS: Array<{
   incomeLabel: string
   requiredMilestone: number | null
 }> = [
-  { type: 'apprentice', icon: '👷', title: 'Нанять подмастерье', incomeLabel: '2 ₽/сек',      requiredMilestone: null },
-  { type: 'mechanic',   icon: '⚙️', title: 'Нанять механика',    incomeLabel: '20 ₽/сек',     requiredMilestone: 5 },
-  { type: 'master',     icon: '🔧', title: 'Нанять мастера',     incomeLabel: '200 ₽/сек',    requiredMilestone: 10 },
-  { type: 'brigadier',  icon: '👔', title: 'Нанять бригадира',   incomeLabel: '2 000 ₽/сек',  requiredMilestone: 15 },
-  { type: 'director',   icon: '🏢', title: 'Нанять директора',   incomeLabel: '20 000 ₽/сек', requiredMilestone: 20 },
+  { type: 'apprentice', icon: '👷', title: 'Подмастерье',  incomeLabel: '2 ₽/с',      requiredMilestone: null },
+  { type: 'mechanic',   icon: '⚙️', title: 'Механик',      incomeLabel: '20 ₽/с',     requiredMilestone: 5 },
+  { type: 'master',     icon: '🔧', title: 'Мастер',       incomeLabel: '200 ₽/с',    requiredMilestone: 10 },
+  { type: 'brigadier',  icon: '👔', title: 'Бригадир',     incomeLabel: '2000 ₽/с',   requiredMilestone: 15 },
+  { type: 'director',   icon: '🏢', title: 'Директор',     incomeLabel: '20000 ₽/с',  requiredMilestone: 20 },
 ]
 
 // ============================================
 // КОМПОНЕНТ
 // ============================================
 
-/**
- * Панель апгрейдов и найма работников.
- *
- * Две секции:
- * 1. УЛУЧШЕНИЯ — апгрейд дохода за клик и скорости работы
- * 2. РАБОТНИКИ — найм работников (гейтинг через milestone-апгрейды гаража)
- *
- * Разблокированные работники показываются как обычные карточки (UpgradeCard).
- * Заблокированные — как заглушки с иконкой замка и указанием требуемого уровня.
- *
- * Порядок разблокировки (GBD v1.1):
- * - Подмастерье: всегда доступен (лимит 3)
- * - Механик: после milestone уровня 5 (лимит 5)
- * - Мастер: после milestone уровня 10 (лимит 3)
- * - Бригадир: после milestone уровня 15 (лимит 2)
- * - Директор: после milestone уровня 20 (лимит 1)
- */
 const UpgradesPanel: React.FC = () => {
   const balance = useBalance()
   const upgrades = useUpgrades()
@@ -74,32 +50,32 @@ const UpgradesPanel: React.FC = () => {
   const hireWorker = useGameStore((s) => s.hireWorker)
 
   return (
-    <div className="flex flex-col gap-6 p-4 overflow-y-auto h-full">
+    <div className="flex flex-col gap-4 p-3 overflow-y-auto h-full">
 
       {/* ======== Секция: Milestone апгрейд (если доступен) ======== */}
       {milestoneInfo && (
         <section>
-          <h2 className="text-xl font-bold mb-3 text-yellow-400 font-mono">
-            🏆 ДОСТУПЕН АПГРЕЙД
+          <h2 className="text-sm sm:text-base font-bold mb-2 text-yellow-400 font-mono">
+            🏆 АПГРЕЙД
           </h2>
           <div
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4
+            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
                        border-2 border-yellow-400/70
                        animate-pulse-border shadow-lg shadow-yellow-400/10"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-3xl">🏗️</span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">🏗️</span>
               <div>
-                <p className="text-yellow-400 font-mono font-bold text-lg">
-                  Повышение до ур. {milestoneInfo.level}
+                <p className="text-yellow-400 font-mono font-bold text-sm sm:text-base">
+                  До ур. {milestoneInfo.level}
                 </p>
-                <p className="text-gray-400 font-mono text-sm">
+                <p className="text-gray-400 font-mono text-[10px] sm:text-xs">
                   «{GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}»
                 </p>
               </div>
             </div>
             {/* Что откроется */}
-            <ul className="space-y-1 text-sm text-gray-300 font-mono mb-3">
+            <ul className="space-y-0.5 text-[10px] sm:text-xs text-gray-300 font-mono mb-2">
               {milestoneInfo.upgrade.unlocks.workers.map((w, i) => (
                 <li key={`w-${i}`}>👷 {w}</li>
               ))}
@@ -109,7 +85,7 @@ const UpgradesPanel: React.FC = () => {
             </ul>
             {/* Кнопка покупки */}
             <button
-              className={`w-full py-2 rounded-lg font-mono font-bold text-sm transition-colors
+              className={`w-full py-1.5 rounded-lg font-mono font-bold text-[10px] sm:text-xs transition-colors
                 ${balance >= milestoneInfo.upgrade.cost
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -117,7 +93,7 @@ const UpgradesPanel: React.FC = () => {
               disabled={balance < milestoneInfo.upgrade.cost}
               onClick={() => purchaseMilestone(milestoneInfo.level)}
             >
-              ПОВЫСИТЬ ЗА {formatLargeNumber(milestoneInfo.upgrade.cost)} ₽
+              ПОВЫСИТЬ {formatLargeNumber(milestoneInfo.upgrade.cost)} ₽
             </button>
           </div>
         </section>
@@ -125,42 +101,43 @@ const UpgradesPanel: React.FC = () => {
 
       {/* ======== Секция: Улучшения ======== */}
       <section>
-        <h2 className="text-xl font-bold mb-3 text-yellow-400 font-mono">
+        <h2 className="text-sm sm:text-base font-bold mb-2 text-yellow-400 font-mono">
           УЛУЧШЕНИЯ
         </h2>
 
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-2">
           <UpgradeCard
             icon="🔧"
-            title="Улучшить инструменты"
-            description="Увеличивает доход за клик на 1 ₽"
+            title="Инструменты"
+            description="+1 ₽ за клик"
             currentLevel={upgrades.clickPower.level}
             cost={upgrades.clickPower.cost}
             canAfford={balance >= upgrades.clickPower.cost}
             onPurchase={purchaseClickUpgrade}
+            maxLevel={CLICK_UPGRADE_MAX_LEVEL}
           />
 
           {purchasedUpgrades.includes(5) ? (
             <UpgradeCard
               icon="⚡"
               title="Скорость работы"
-              description="Увеличивает доход работников на 10%"
+              description="+10% доход работников"
               currentLevel={upgrades.workSpeed.level}
               cost={upgrades.workSpeed.cost}
               canAfford={balance >= upgrades.workSpeed.cost}
               onPurchase={purchaseWorkSpeedUpgrade}
             />
           ) : (
-            <div className="bg-gray-800/50 rounded-lg p-4 border-2 border-dashed border-gray-700">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl opacity-30">⚡</span>
+            <div className="bg-gray-800/50 rounded-lg p-3 border-2 border-dashed border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-xl opacity-30">⚡</span>
                 <div>
-                  <p className="text-gray-500 font-mono font-bold text-sm">Скорость работы</p>
-                  <p className="text-gray-600 font-mono text-xs">Увеличивает доход работников на 10%</p>
+                  <p className="text-gray-500 font-mono font-bold text-[10px] sm:text-xs">Скорость работы</p>
+                  <p className="text-gray-600 font-mono text-[9px] sm:text-[11px]">+10% доход работников</p>
                 </div>
               </div>
-              <p className="text-gray-500 text-center mt-3 font-mono text-sm">
-                🔒 Разблокируется на уровне 5
+              <p className="text-gray-500 text-center mt-2 font-mono text-[10px] sm:text-xs">
+                🔒 Уровень 5
               </p>
             </div>
           )}
@@ -169,11 +146,11 @@ const UpgradesPanel: React.FC = () => {
 
       {/* ======== Секция: Работники ======== */}
       <section>
-        <h2 className="text-xl font-bold mb-3 text-yellow-400 font-mono">
+        <h2 className="text-sm sm:text-base font-bold mb-2 text-yellow-400 font-mono">
           РАБОТНИКИ
         </h2>
 
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-2">
           {WORKER_DEFS.map((def) => {
             const unlocked = isWorkerUnlocked(def.type, purchasedUpgrades)
 
@@ -182,28 +159,28 @@ const UpgradesPanel: React.FC = () => {
               return (
                 <div
                   key={def.type}
-                  className="bg-gray-800/50 rounded-lg p-4
+                  className="bg-gray-800/50 rounded-lg p-3
                              border-2 border-dashed border-gray-700"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl opacity-30">{def.icon}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl opacity-30">{def.icon}</span>
                     <div>
-                      <p className="text-gray-500 font-mono font-bold text-sm">
+                      <p className="text-gray-500 font-mono font-bold text-[10px] sm:text-xs">
                         {def.title}
                       </p>
-                      <p className="text-gray-600 font-mono text-xs">
+                      <p className="text-gray-600 font-mono text-[9px] sm:text-[11px]">
                         {def.incomeLabel}
                       </p>
                     </div>
                   </div>
-                  <p className="text-gray-500 text-center mt-3 font-mono text-sm">
-                    🔒 Разблокируется на уровне {def.requiredMilestone}
+                  <p className="text-gray-500 text-center mt-2 font-mono text-[10px] sm:text-xs">
+                    🔒 Уровень {def.requiredMilestone}
                   </p>
                 </div>
               )
             }
 
-            // --- Разблокированный работник: полная карточка ---
+            // --- Разблокированный работник ---
             const worker = workers[def.type]
             const limit = WORKER_LIMITS[def.type]
             const isMaxed = worker.count >= limit
@@ -213,7 +190,7 @@ const UpgradesPanel: React.FC = () => {
                 key={def.type}
                 icon={def.icon}
                 title={def.title}
-                description={`Доход: ${def.incomeLabel} (${worker.count}/${limit})`}
+                description={`${def.incomeLabel} (${worker.count}/${limit})`}
                 currentLevel={worker.count}
                 cost={worker.cost}
                 canAfford={!isMaxed && balance >= worker.cost}

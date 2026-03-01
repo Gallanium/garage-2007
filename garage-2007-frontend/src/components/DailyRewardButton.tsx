@@ -14,6 +14,8 @@ interface DailyRewardButtonProps {
 /**
  * Круглая кнопка в правом верхнем углу canvas-зоны.
  * Показывает стрик дней и сигнализирует о доступной награде.
+ *
+ * Размер: 64px (w-16 h-16), на sm: 72px (sm:w-[72px] sm:h-[72px])
  */
 const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
   streak,
@@ -26,11 +28,11 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
       onClick={onClick}
       className={`
         absolute top-3 right-3 z-20
-        w-11 h-11 rounded-full
+        w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full
         flex flex-col items-center justify-center
         backdrop-blur-sm
         border-2
-        transition-all duration-300
+        transition-colors duration-300
         active:scale-90 transform
         font-mono
         ${canClaim
@@ -41,12 +43,12 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
       aria-label={canClaim ? 'Забрать ежедневную награду' : 'Ежедневные награды'}
     >
       {/* Иконка огня */}
-      <span className={`text-sm leading-none ${canClaim ? '' : 'grayscale opacity-50'}`}>
+      <span className={`text-xl sm:text-2xl leading-none ${canClaim ? '' : 'grayscale opacity-50'}`}>
         🔥
       </span>
 
       {/* Число стрика */}
-      <span className={`text-[7px] sm:text-[8px] font-bold leading-none mt-0.5 ${
+      <span className={`text-[9px] sm:text-[11px] font-bold leading-none mt-0.5 ${
         canClaim ? 'text-amber-300' : 'text-gray-500'
       }`}>
         {streak}
@@ -54,9 +56,9 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
 
       {/* Красный бейдж ! — только когда награда доступна */}
       {canClaim && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full
+        <span className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 rounded-full
                          flex items-center justify-center
-                         text-[7px] font-bold text-white
+                         text-[9px] sm:text-[10px] font-bold text-white
                          border border-red-400
                          animate-bounce">
           !
