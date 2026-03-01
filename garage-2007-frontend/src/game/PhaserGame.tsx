@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
 import { gameConfig } from './gameConfig'
-import  MainScene from './MainScene'
+import MainScene from './MainScene'
+import type { GarageClickEvent, LevelTransitionEvent } from './types'
 
 /**
  * Пропсы компонента PhaserGame
@@ -9,22 +10,25 @@ import  MainScene from './MainScene'
 interface PhaserGameProps {
   /** Коллбэк, вызываемый при клике на гараж */
   onGarageClick: () => void
-  
+
   /** Текущий уровень гаража для синхронизации с Phaser */
   garageLevel: number
+
+  /** Активна ли вкладка «Игра» (блокирует клики если false) */
+  isActive: boolean
 }
 
 /**
  * React компонент для интеграции Phaser 3 в приложение
- * 
+ *
  * Отвечает за:
  * - Создание и уничтожение инстанса Phaser.Game
  * - Синхронизацию состояния между React и Phaser
  * - Передачу событий из Phaser в React
- * 
+ *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -38,6 +42,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
   const onGarageClickRef = useRef(onGarageClick)
   onGarageClickRef.current = onGarageClick
 
+  // Ref для активности вкладки (блокирует клики, когда вкладка «Игра» неактивна)
+  const isActiveRef = useRef(isActive)
+  isActiveRef.current = isActive
+
   // FIX Баг 1: Ref для актуального garageLevel, чтобы синхронизировать при готовности сцены
   const garageLevelRef = useRef(garageLevel)
   garageLevelRef.current = garageLevel
@@ -45,12 +53,16 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
   // Состояние готовности игры (для скрытия индикатора загрузки)
   const [isGameReady, setIsGameReady] = useState(false)
 
+  // Состояние ошибки инициализации Phaser
+  const [gameError, setGameError] = useState<string | null>(null)
+
+  // Ref для таймаута ready-события
+  const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   /**
    * Эффект инициализации Phaser при монтировании компонента
    */
   useEffect(() => {
-    console.log('PhaserGame: Монтирование компонента...')
-
     // Проверяем, что контейнер готов
     if (!containerRef.current) {
       console.error('PhaserGame: Контейнер не найден!')
@@ -63,26 +75,44 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
       return
     }
 
-    console.log('PhaserGame: Создание инстанса Phaser.Game...')
-
-    // Создаём новый инстанс Phaser.Game
-    const game = new Phaser.Game({
-      ...gameConfig,
-      parent: containerRef.current, // Передаём DOM элемент напрямую
-    })
+    // Создаём новый инстанс Phaser.Game с защитой от ошибок
+    let game: Phaser.Game
+    try {
+      game = new Phaser.Game({
+        ...gameConfig,
+        parent: containerRef.current, // Передаём DOM элемент напрямую
+      })
+    } catch (error) {
+      console.error('PhaserGame: Ошибка инициализации', error)
+      setGameError('Не удалось запустить игровой движок')
+      return
+    }
 
     // Сохраняем инстанс в ref
     gameRef.current = game
 
+    // Таймаут на случай, если ready-событие не сработает (WebGL не поддерживается)
+    readyTimeoutRef.current = setTimeout(() => {
+      if (!sceneRef.current) {
+        console.error('PhaserGame: Таймаут инициализации (10 сек)')
+        setGameError('Игра не загрузилась. Проверьте поддержку WebGL.')
+      }
+    }, 10_000)
+
     // Ждём, пока сцена будет готова
     game.events.once('ready', () => {
-      console.log('PhaserGame: Phaser.Game готов!')
+      // Очищаем таймаут — игра загрузилась успешно
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current)
+        readyTimeoutRef.current = null
+      }
 
       // Получаем ссылку на MainScene
       const mainScene = game.scene.getScene('MainScene') as MainScene
 
       if (!mainScene) {
         console.error('PhaserGame: MainScene не найдена!')
+        setGameError('Ошибка загрузки игровой сцены')
         return
       }
 
@@ -94,33 +124,30 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
       // FIX Баг 1: Синхронизируем garageLevel сразу после готовности сцены,
       // чтобы визуал соответствовал текущему уровню из store
       if (garageLevelRef.current > 1) {
-        console.log('PhaserGame: Начальная синхронизация garageLevel:', garageLevelRef.current)
         mainScene.updateGarageLevel(garageLevelRef.current)
       }
 
-      console.log('PhaserGame: Игра полностью готова, индикатор загрузки скрыт')
-
-      console.log('PhaserGame: MainScene получена, настраиваем события...')
-
       // Подписываемся на событие клика по гаражу из Phaser
-      mainScene.events.on('garageClicked', (data: any) => {
-        console.log('PhaserGame: Получено событие garageClicked из Phaser:', data)
-
+      mainScene.events.on('garageClicked', (_data: GarageClickEvent) => {
+        // Блокируем клики, если вкладка «Игра» неактивна
+        if (!isActiveRef.current) return
         // Вызываем коллбэк через ref (защита от stale closure)
         onGarageClickRef.current()
       })
 
       // Подписываемся на событие завершения анимации перехода уровня
-      mainScene.events.on('levelTransitionComplete', (data: any) => {
-        console.log('PhaserGame: Анимация перехода уровня завершена:', data)
+      mainScene.events.on('levelTransitionComplete', (_data: LevelTransitionEvent) => {
+        // Событие используется для возможных будущих обработок
       })
-
-      console.log('PhaserGame: Инициализация завершена успешно!')
     })
 
     // Cleanup функция при размонтировании компонента
     return () => {
-      console.log('PhaserGame: Размонтирование компонента, очистка ресурсов...')
+      // Очищаем таймаут
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current)
+        readyTimeoutRef.current = null
+      }
 
       // Сбрасываем состояние готовности
       setIsGameReady(false)
@@ -134,22 +161,27 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
 
       // Уничтожаем инстанс Phaser
       if (gameRef.current) {
-        console.log('PhaserGame: Уничтожение Phaser.Game...')
         gameRef.current.destroy(true) // true = удалить canvas из DOM
         gameRef.current = null
       }
-
-      console.log('PhaserGame: Очистка завершена')
     }
   }, []) // Пустой массив зависимостей = эффект выполняется только при монтировании/размонтировании
+
+  /**
+   * Эффект блокировки ввода Phaser при открытых модалках / неактивном табе.
+   * Отключает scene.input чтобы предотвратить визуальные эффекты
+   * (bounce, частицы) при кликах сквозь модальные окна.
+   */
+  useEffect(() => {
+    if (!sceneRef.current) return
+    sceneRef.current.input.enabled = isActive
+  }, [isActive])
 
   /**
    * Эффект синхронизации уровня гаража с Phaser сценой
    * Срабатывает при изменении garageLevel prop
    */
   useEffect(() => {
-    console.log('PhaserGame: Обнаружено изменение garageLevel:', garageLevel)
-
     // Проверяем, что сцена доступна
     if (!sceneRef.current) {
       console.warn('PhaserGame: Сцена ещё не готова, пропускаем обновление уровня')
@@ -157,9 +189,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
     }
 
     // Вызываем метод обновления уровня у сцены
-    console.log('PhaserGame: Обновление уровня гаража в Phaser сцене...')
     sceneRef.current.updateGarageLevel(garageLevel)
-    
+
   }, [garageLevel]) // Эффект выполняется при изменении garageLevel
 
   /**
@@ -172,24 +203,39 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel }) =
       style={{
         width: '100%',
         height: '100%',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        maxWidth: '480px',
+        margin: '0 auto',
         backgroundColor: 'transparent',
         position: 'relative',
       }}
     >
       {/* Canvas будет автоматически создан Phaser внутри этого div */}
-      
-      {/* ИСПРАВЛЕНИЕ БАГА 1: Показываем loader только пока игра НЕ готова */}
-      {!isGameReady && (
+
+      {/* Показываем loader только пока игра НЕ готова и нет ошибок */}
+      {!isGameReady && !gameError && (
         <div style={{
           position: 'absolute',
           color: '#E6B800',
-          fontSize: '18px',
+          fontSize: '14px',
           fontWeight: 'bold',
+          fontFamily: '"Press Start 2P", cursive',
         }}>
-          Загрузка игры...
+          Загрузка...
+        </div>
+      )}
+
+      {/* Показываем ошибку, если Phaser не смог инициализироваться */}
+      {gameError && (
+        <div style={{
+          position: 'absolute',
+          color: '#FF4444',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          fontFamily: '"Press Start 2P", cursive',
+          textAlign: 'center',
+          padding: '20px',
+        }}>
+          {gameError}
         </div>
       )}
     </div>

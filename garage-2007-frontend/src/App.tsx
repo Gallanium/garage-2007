@@ -325,7 +325,7 @@ function App() {
               <PhaserGame
                 onGarageClick={handleClick}
                 garageLevel={garageLevel}
-                isActive={activeTab === 'game'}
+                isActive={activeTab === 'game' && !showWelcomeBack && !showMilestoneModal && !showDailyRewardsModal}
               />
             </div>
 
