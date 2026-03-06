@@ -47,7 +47,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
     const newLevel = workSpeed.level + 1
     _set((s: GameState) => ({
       balance: s.balance - workSpeed.cost,
-      passiveIncomePerSecond: calculateTotalPassiveIncome(s.workers, newLevel),
+      passiveIncomePerSecond: calculateTotalPassiveIncome(s.workers as unknown as Record<string, { count: number }>, newLevel),
       upgrades: {
         ...s.upgrades,
         workSpeed: { ...s.upgrades.workSpeed, level: newLevel, cost: calculateUpgradeCost(BASE_COSTS.workSpeed, newLevel) },

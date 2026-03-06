@@ -13,7 +13,6 @@ export class GarageVisualManager {
   private scene: Phaser.Scene
   private sprite: Phaser.GameObjects.Rectangle
   private levelText: Phaser.GameObjects.Text
-  private currentLevel: number = 1
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
@@ -53,8 +52,6 @@ export class GarageVisualManager {
       console.warn('[GarageVisualManager] Недопустимый уровень:', level)
       return
     }
-    this.currentLevel = level
-
     const maxDefined = Math.max(...Object.keys(LEVEL_COLORS).map(Number))
     const colorKey = Math.min(level, maxDefined)
     const newColor = LEVEL_COLORS[colorKey]

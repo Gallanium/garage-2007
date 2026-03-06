@@ -89,7 +89,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       workSpeed:  { ...initialState.upgrades.workSpeed,  level: saveData.upgrades.workSpeed.level,  cost: saveData.upgrades.workSpeed.cost  },
     }
 
-    const passiveIncome = calculateTotalPassiveIncome(restoredWorkers, restoredUpgrades.workSpeed.level)
+    const passiveIncome = calculateTotalPassiveIncome(restoredWorkers as unknown as Record<string, { count: number }>, restoredUpgrades.workSpeed.level)
     const offlineEarnings = calculateOfflineEarnings(passiveIncome, saveData.timestamp, 24)
     const now = Date.now()
     const offlineTimeAway = saveData.timestamp > 0 ? Math.floor((now - saveData.timestamp) / 1000) : 0

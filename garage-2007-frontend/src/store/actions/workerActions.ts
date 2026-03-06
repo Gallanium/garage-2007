@@ -36,7 +36,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     const newCount = worker.count + 1
     const newCost = calculateWorkerCost(BASE_COSTS[workerType as keyof typeof BASE_COSTS] as number, newCount)
     const workersAfter = { ...state.workers, [workerType]: { count: newCount, cost: newCost } }
-    const newPassive = calculateTotalPassiveIncome(workersAfter, state.upgrades.workSpeed.level)
+    const newPassive = calculateTotalPassiveIncome(workersAfter as unknown as Record<string, { count: number }>, state.upgrades.workSpeed.level)
 
     _set((s: GameState) => ({
       balance: s.balance - worker.cost,
