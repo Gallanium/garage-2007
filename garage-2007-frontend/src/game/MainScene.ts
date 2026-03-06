@@ -41,7 +41,7 @@ export default class MainScene extends Phaser.Scene {
     })
   }
 
-  update(_time: number, _delta: number): void {
+  update(): void {
     // Пока пусто — анимации управляются tweens
   }
 

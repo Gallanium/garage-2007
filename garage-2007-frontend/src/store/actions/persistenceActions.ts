@@ -4,8 +4,7 @@ import type { GameStore, GameState, UpgradesState, WorkersState, AchievementId, 
 import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSION } from '../../utils/storageService'
 import { roundCurrency } from '../../utils/math'
 import { BASE_COSTS } from '../constants/economy'
-import { ACHIEVEMENTS } from '../constants/achievements'
-import { checkAutoLevel, formatLargeNumber } from '../formulas/progression'
+import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
 import { checkAutoLevel as _checkAutoLevel } from '../formulas/progression'
@@ -181,6 +180,3 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     _set({ ...initialState, isLoaded: true })
   },
 })
-
-// Suppress unused import warning
-void formatLargeNumber
