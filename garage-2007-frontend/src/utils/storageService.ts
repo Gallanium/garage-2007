@@ -109,6 +109,11 @@ export interface SaveData {
     lastClaimTimestamp: number
     currentStreak: number
   }
+  /** Rewarded video (backward compat: может отсутствовать в старых сейвах) */
+  rewardedVideo?: {
+    lastWatchedTimestamp: number
+    totalWatches: number
+  }
 }
 
 // ============================================
@@ -282,31 +287,6 @@ export function saveGameFull(data: SaveData): boolean {
   try {
     const toSave = { ...data, version: SAVE_VERSION, timestamp: Date.now() }
     const json = JSON.stringify(toSave)
-    localStorage.setItem(STORAGE_KEY, json)
-    return true
-  } catch (error) {
-    console.error('[StorageService] Ошибка сохранения:', error)
-    return false
-  }
-}
-
-/**
- * @deprecated Используй {@link saveGameFull} из saveProgress().
- * Оставлен для обратной совместимости.
- */
-export function saveGame(data: Partial<SaveData>): boolean {
-  try {
-    // Берём текущее сохранение как базу (или дефолт)
-    const existing = loadGame() ?? { ...DEFAULT_SAVE_DATA }
-
-    // Мерджим новые данные поверх существующих
-    const merged = deepMerge(existing, data) as SaveData
-
-    // Проставляем мета-поля
-    merged.version = SAVE_VERSION
-    merged.timestamp = Date.now()
-
-    const json = JSON.stringify(merged)
     localStorage.setItem(STORAGE_KEY, json)
     return true
   } catch (error) {
@@ -501,7 +481,6 @@ export function calculateOfflineEarnings(
  * ```
  */
 const storageService = {
-  saveGame,
   saveGameFull,
   loadGame,
   clearSave,
