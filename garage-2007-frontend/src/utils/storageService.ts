@@ -109,6 +109,11 @@ export interface SaveData {
     lastClaimTimestamp: number
     currentStreak: number
   }
+  /** Rewarded video (backward compat: может отсутствовать в старых сейвах) */
+  rewardedVideo?: {
+    lastWatchedTimestamp: number
+    totalWatches: number
+  }
 }
 
 // ============================================
@@ -153,6 +158,10 @@ const DEFAULT_SAVE_DATA: SaveData = {
   dailyRewards: {
     lastClaimTimestamp: 0,
     currentStreak: 0,
+  },
+  rewardedVideo: {
+    lastWatchedTimestamp: 0,
+    totalWatches: 0,
   },
 }
 

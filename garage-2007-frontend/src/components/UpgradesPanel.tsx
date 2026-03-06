@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   useGameStore,
   useBalance,
@@ -11,6 +12,8 @@ import {
   WORKER_LIMITS,
   CLICK_UPGRADE_MAX_LEVEL,
   GARAGE_LEVEL_NAMES,
+  REWARDED_VIDEO_NUTS,
+  REWARDED_VIDEO_COOLDOWN_MS,
   type WorkerType,
 } from '../store/gameStore'
 import UpgradeCard from './UpgradeCard'
@@ -49,8 +52,77 @@ const UpgradesPanel: React.FC = () => {
   const purchaseWorkSpeedUpgrade = useGameStore((s) => s.purchaseWorkSpeedUpgrade)
   const hireWorker = useGameStore((s) => s.hireWorker)
 
+  // --- Rewarded Video ---
+  const rewardedVideo = useGameStore((s) => s.rewardedVideo)
+  const canWatch = useGameStore((s) => s.canWatchRewardedVideo())
+  const watchVideo = useGameStore((s) => s.watchRewardedVideo)
+
+  const [isWatching, setIsWatching] = useState(false)
+  const [minutesRemaining, setMinutesRemaining] = useState(0)
+
+  // Таймер cooldown — обновляется каждые 10 секунд
+  useEffect(() => {
+    const update = () => {
+      const now = Date.now()
+      const elapsed = now - rewardedVideo.lastWatchedTimestamp
+      const remaining = Math.max(0, REWARDED_VIDEO_COOLDOWN_MS - elapsed)
+      setMinutesRemaining(Math.ceil(remaining / 60000))
+    }
+    update()
+    const id = setInterval(update, 10000)
+    return () => clearInterval(id)
+  }, [rewardedVideo.lastWatchedTimestamp])
+
+  const handleWatchVideo = async () => {
+    setIsWatching(true)
+    await watchVideo()
+    setIsWatching(false)
+  }
+
   return (
     <div className="flex flex-col gap-4 p-3 overflow-y-auto h-full">
+
+      {/* ======== Секция: Бесплатные гайки ======== */}
+      <section>
+        <div className="bg-gradient-to-br from-green-900/30 to-green-800/20 rounded-lg p-3
+                        border-2 border-green-500/50 shadow-lg">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-2xl">📺</span>
+            <div>
+              <p className="text-green-400 font-mono font-bold text-[10px] sm:text-xs">Посмотреть рекламу</p>
+              <p className="text-gray-400 font-mono text-[9px] sm:text-[11px]">
+                Получи {REWARDED_VIDEO_NUTS} гаек за просмотр
+              </p>
+            </div>
+          </div>
+
+          {canWatch ? (
+            <button
+              onClick={handleWatchVideo}
+              disabled={isWatching || rewardedVideo.isWatching}
+              className={`w-full py-1.5 rounded-lg font-mono font-bold text-[10px] sm:text-xs transition-colors
+                ${isWatching || rewardedVideo.isWatching
+                  ? 'bg-gray-700 text-gray-500 cursor-wait'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+            >
+              {isWatching || rewardedVideo.isWatching
+                ? '📺 Просмотр...'
+                : `СМОТРЕТЬ → +${REWARDED_VIDEO_NUTS} 🔩`}
+            </button>
+          ) : (
+            <div className="bg-gray-800/50 rounded-lg p-2 text-center">
+              <p className="text-gray-400 font-mono text-[10px] sm:text-xs">
+                ⏳ Доступно через {minutesRemaining} мин
+              </p>
+            </div>
+          )}
+
+          <p className="text-gray-500 font-mono text-[9px] sm:text-[11px] text-center mt-2">
+            Просмотрено: {rewardedVideo.totalWatches} раз
+          </p>
+        </div>
+      </section>
 
       {/* ======== Секция: Milestone апгрейд (если доступен) ======== */}
       {milestoneInfo && (
@@ -80,7 +152,7 @@ const UpgradesPanel: React.FC = () => {
                 <li key={`w-${i}`}>👷 {w}</li>
               ))}
               {milestoneInfo.upgrade.unlocks.upgrades.map((u, i) => (
-                <li key={`u-${i}`}>⚙️ {u}</li>
+                <li key={`u-${i}`}>⚡ {u}</li>
               ))}
             </ul>
             {/* Кнопка покупки */}
@@ -102,7 +174,7 @@ const UpgradesPanel: React.FC = () => {
       {/* ======== Секция: Улучшения ======== */}
       <section>
         <h2 className="text-sm sm:text-base font-bold mb-2 text-yellow-400 font-mono">
-          УЛУЧШЕНИЯ
+          МАГАЗИН
         </h2>
 
         <div className="grid grid-cols-1 gap-2">
@@ -120,7 +192,7 @@ const UpgradesPanel: React.FC = () => {
           {purchasedUpgrades.includes(5) ? (
             <UpgradeCard
               icon="⚡"
-              title="Скорость работы"
+              title="Энергетики"
               description="+10% доход работников"
               currentLevel={upgrades.workSpeed.level}
               cost={upgrades.workSpeed.cost}
@@ -132,7 +204,7 @@ const UpgradesPanel: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xl opacity-30">⚡</span>
                 <div>
-                  <p className="text-gray-500 font-mono font-bold text-[10px] sm:text-xs">Скорость работы</p>
+                  <p className="text-gray-500 font-mono font-bold text-[10px] sm:text-xs">Энергетики</p>
                   <p className="text-gray-600 font-mono text-[9px] sm:text-[11px]">+10% доход работников</p>
                 </div>
               </div>
@@ -147,7 +219,7 @@ const UpgradesPanel: React.FC = () => {
       {/* ======== Секция: Работники ======== */}
       <section>
         <h2 className="text-sm sm:text-base font-bold mb-2 text-yellow-400 font-mono">
-          РАБОТНИКИ
+          БИРЖА ТРУДА
         </h2>
 
         <div className="grid grid-cols-1 gap-2">

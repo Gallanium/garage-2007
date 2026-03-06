@@ -66,7 +66,7 @@ export const COST_MULTIPLIER = 1.15
 export const CLICK_UPGRADE_MAX_LEVEL = 200
 
 /**
- * Эффект апгрейда «Скорость работы».
+ * Эффект апгрейда «Энергетики».
  * Каждый уровень = +10% к пассивному доходу.
  */
 export const WORK_SPEED_BONUS_PER_LEVEL = 0.1
@@ -159,7 +159,7 @@ export const MILESTONE_UPGRADES: Record<MilestoneLevel, {
     workerNames: ['Механик'],
     unlocks: {
       workers: ['Механик (20 ₽/сек, макс. 5)'],
-      upgrades: ['Скорость работы (+10% к доходу работников)'],
+      upgrades: ['Энергетики (+10% к доходу работников)'],
       decorations: [],
       visual: '',
     },
@@ -412,6 +412,9 @@ interface GameState {
 
   /** Показывать ли модалку Daily Rewards */
   showDailyRewardsModal: boolean
+
+  /** Состояние rewarded video */
+  rewardedVideo: RewardedVideoState
 }
 
 /**
@@ -501,6 +504,14 @@ interface GameActions {
 
   /** Открыть модалку Daily Rewards вручную (кнопка на экране) */
   openDailyRewardsModal: () => void
+
+  // --- Rewarded Video ---
+
+  /** Проверяет доступность rewarded video (cooldown прошёл) */
+  canWatchRewardedVideo: () => boolean
+
+  /** "Просмотр" rewarded video (placeholder). Возвращает true при успехе */
+  watchRewardedVideo: () => Promise<boolean>
 }
 
 /** Полный тип хранилища */
@@ -758,6 +769,94 @@ export const DAILY_REWARDS_TOTAL = DAILY_REWARDS.reduce((sum, r) => sum + r, 0) 
 export const DAILY_STREAK_GRACE_PERIOD_MS = 24 * 60 * 60 * 1000
 
 // ============================================
+// REWARDED VIDEO (GDD v3.0)
+// ============================================
+
+/** Награда за просмотр рекламы (гайки) */
+export const REWARDED_VIDEO_NUTS = 5
+
+/** Cooldown между просмотрами (1 час в мс) */
+export const REWARDED_VIDEO_COOLDOWN_MS = 60 * 60 * 1000
+
+/** Длительность "просмотра" заглушки (3 секунды) */
+export const REWARDED_VIDEO_FAKE_DURATION_MS = 3000
+
+/** Состояние rewarded video */
+export interface RewardedVideoState {
+  /** Timestamp последнего просмотра */
+  lastWatchedTimestamp: number
+  /** Количество просмотров за всё время (для аналитики) */
+  totalWatches: number
+  /** Сейчас идёт "просмотр" (loading state) */
+  isWatching: boolean
+}
+
+// ============================================
+// БУСТЫ (GDD v3.0)
+// ============================================
+
+/** Типы бустов */
+export type BoostType = 'income_2x' | 'income_3x' | 'turbo'
+
+/** Определение буста — каталожная запись */
+export interface BoostDefinition {
+  /** Название для UI */
+  label: string
+  /** Стоимость в гайках */
+  costNuts: number
+  /** Длительность в миллисекундах */
+  durationMs: number
+  /** Множитель (к доходу или клику) */
+  multiplier: number
+  /** Описание эффекта для UI */
+  description: string
+}
+
+/** Активный буст — запись в массиве активных */
+export interface ActiveBoost {
+  /** Тип буста */
+  type: BoostType
+  /** Timestamp активации */
+  activatedAt: number
+  /** Timestamp окончания */
+  expiresAt: number
+}
+
+/** Состояние бустов в GameState */
+export interface BoostsState {
+  /** Массив активных бустов */
+  active: ActiveBoost[]
+}
+
+/** Каталог бустов */
+export const BOOSTS: Record<BoostType, BoostDefinition> = {
+  income_2x: {
+    label: 'Двойной доход',
+    costNuts: 50,
+    durationMs: 60 * 60 * 1000,       // 1 час
+    multiplier: 2,
+    description: '×2 к доходу на 1 час',
+  },
+  income_3x: {
+    label: 'Тройной доход',
+    costNuts: 80,
+    durationMs: 30 * 60 * 1000,       // 30 минут
+    multiplier: 3,
+    description: '×3 к доходу на 30 мин',
+  },
+  turbo: {
+    label: 'Турбо-клик',
+    costNuts: 30,
+    durationMs: 15 * 60 * 1000,       // 15 минут
+    multiplier: 5,
+    description: '×5 к клику на 15 мин',
+  },
+} as const
+
+/** Максимальное количество одновременно активных бустов */
+export const MAX_ACTIVE_BOOSTS = 3
+
+// ============================================
 // ФОРМУЛЫ РАСЧЁТА (GBD v1.1)
 // ============================================
 
@@ -966,6 +1065,13 @@ const initialState: GameState = {
     currentStreak: 0,
   },
   showDailyRewardsModal: false,
+
+  // Rewarded Video
+  rewardedVideo: {
+    lastWatchedTimestamp: 0,
+    totalWatches: 0,
+    isWatching: false,
+  },
 }
 
 // ============================================
@@ -1073,7 +1179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ============================================
 
   /**
-   * Покупка апгрейда "Скорость работы"
+   * Покупка апгрейда "Энергетики"
    * GBD v1.1: Каждый уровень = +10% к пассивному доходу
    * Разблокируется на milestone 5
    */
@@ -1302,6 +1408,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
       achievements: state.achievements as Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }>,
       dailyRewards: state.dailyRewards,
+      rewardedVideo: {
+        lastWatchedTimestamp: state.rewardedVideo.lastWatchedTimestamp,
+        totalWatches: state.rewardedVideo.totalWatches,
+      },
     })
 
     if (!success) {
@@ -1435,6 +1545,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Backward compat: в старых сейвах поля нет → используем initialState
     const restoredDailyRewards = saveData.dailyRewards ?? initialState.dailyRewards
 
+    // --- Восстанавливаем rewarded video ---
+    // Backward compat: в старых сейвах поля нет → используем initialState
+    const restoredRewardedVideo = saveData.rewardedVideo
+      ? { ...initialState.rewardedVideo, ...saveData.rewardedVideo }
+      : initialState.rewardedVideo
+
     // --- Применяем всё разом ---
 
     set({
@@ -1458,6 +1574,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       bestStreak: saveData.stats.bestStreak ?? 0,
       achievements: restoredAchievements,
       dailyRewards: restoredDailyRewards,
+      rewardedVideo: restoredRewardedVideo,
     })
 
     // --- Оффлайн-доход НЕ начисляем здесь ---
@@ -1780,6 +1897,64 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // ============================================
+  // REWARDED VIDEO
+  // ============================================
+
+  canWatchRewardedVideo: () => {
+    const state = get()
+    const now = Date.now()
+    const timeSinceLastWatch = now - state.rewardedVideo.lastWatchedTimestamp
+
+    return state.rewardedVideo.lastWatchedTimestamp === 0 ||
+           timeSinceLastWatch >= REWARDED_VIDEO_COOLDOWN_MS
+  },
+
+  watchRewardedVideo: async () => {
+    const state = get()
+
+    if (!state.canWatchRewardedVideo()) {
+      console.warn('[RewardedVideo] Cooldown ещё не прошёл')
+      return false
+    }
+
+    if (state.rewardedVideo.isWatching) {
+      console.warn('[RewardedVideo] Уже идёт просмотр')
+      return false
+    }
+
+    // Начинаем "просмотр"
+    set((s) => ({
+      rewardedVideo: {
+        ...s.rewardedVideo,
+        isWatching: true,
+      },
+    }))
+
+    console.log('[RewardedVideo] 📺 Начинаем просмотр рекламы...')
+
+    // Заглушка: просто ждём 3 секунды
+    await new Promise((resolve) => setTimeout(resolve, REWARDED_VIDEO_FAKE_DURATION_MS))
+
+    // Начисляем награду
+    const now = Date.now()
+
+    set((s) => ({
+      nuts: s.nuts + REWARDED_VIDEO_NUTS,
+      rewardedVideo: {
+        lastWatchedTimestamp: now,
+        totalWatches: s.rewardedVideo.totalWatches + 1,
+        isWatching: false,
+      },
+    }))
+
+    console.log(`[RewardedVideo] ✅ Просмотр завершён! +${REWARDED_VIDEO_NUTS} гаек`)
+    console.log(`[RewardedVideo] Всего просмотров: ${get().rewardedVideo.totalWatches}`)
+
+    get().saveProgress()
+    return true
+  },
+
+  // ============================================
   // СБРОС
   // ============================================
 
@@ -1912,3 +2087,11 @@ export const useAchievements = () => useGameStore((s) => s.achievements)
 export const useHasNewAchievements = () => useGameStore((s) => s.hasNewAchievements)
 export const useClaimAchievement = () => useGameStore((s) => s.claimAchievement)
 export const useClearNewAchievementsFlag = () => useGameStore((s) => s.clearNewAchievementsFlag)
+
+// ============================================
+// СЕЛЕКТОРЫ REWARDED VIDEO
+// ============================================
+
+export const useRewardedVideo = () => useGameStore((s) => s.rewardedVideo)
+export const useCanWatchRewardedVideo = () => useGameStore((s) => s.canWatchRewardedVideo())
+export const useWatchRewardedVideo = () => useGameStore((s) => s.watchRewardedVideo)

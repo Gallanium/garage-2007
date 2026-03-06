@@ -120,7 +120,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
               ))}
             {unlocks.upgrades.length > 0 &&
               unlocks.upgrades.map((upgrade, i) => (
-                <li key={`upgrade-${i}`}>⚙️ {upgrade}</li>
+                <li key={`upgrade-${i}`}>⚡ {upgrade}</li>
               ))}
             {unlocks.decorations.length > 0 &&
               unlocks.decorations.map((deco, i) => (
@@ -131,10 +131,6 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
             )}
           </ul>
         </div>
-
-        <p className="text-[9px] sm:text-[11px] italic text-yellow-300 mb-3 font-mono">
-          🔥 Новые возможности!
-        </p>
 
         <button
           type="button"

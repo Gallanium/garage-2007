@@ -42,7 +42,7 @@ import DailyRewardButton from './components/DailyRewardButton'
 const tabs = [
   { id: 'game', label: 'Игра', icon: '🏠' },
   { id: 'upgrades', label: 'Улучшения', icon: '⬆️' },
-  { id: 'achievements', label: 'Достижения', icon: '🏆' },
+  { id: 'achievements', label: 'Ачивки', icon: '🏆' },
   { id: 'stats', label: 'Статистика', icon: '📊' },
 ]
 
@@ -70,7 +70,7 @@ const MODAL_SHOW_DELAY_MS = 500
 function App() {
   // --- Debug: доступ к store из консоли браузера (только dev) ---
   if (import.meta.env.DEV) {
-    ;(window as any).__store = useGameStore
+    ;(window as Window & { __store: typeof useGameStore }).__store = useGameStore
   }
 
   // --- Локальное состояние ---
