@@ -61,3 +61,6 @@ coverage/
 
 # Файлы Claude
 .claude/
+
+# Git worktrees
+.worktrees/
