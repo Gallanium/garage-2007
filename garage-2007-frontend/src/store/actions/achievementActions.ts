@@ -1,0 +1,54 @@
+// src/store/actions/achievementActions.ts
+import type { StateCreator } from 'zustand'
+import type { GameStore, GameState, AchievementId } from '../types'
+import { ACHIEVEMENTS } from '../constants/achievements'
+
+type Slice = Pick<GameStore, 'checkAchievements' | 'claimAchievement' | 'clearNewAchievementsFlag'>
+
+export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
+  checkAchievements: () => {
+    const state = get()
+    const newlyUnlocked: AchievementId[] = []
+
+    for (const [id, def] of Object.entries(ACHIEVEMENTS)) {
+      const aid = id as AchievementId
+      if (state.achievements[aid].unlocked) continue
+      if (def.progressGetter(state) >= def.targetValue) {
+        newlyUnlocked.push(aid)
+        console.log(`[Achievement] 🏆 Разблокировано: "${def.title}"`)
+      }
+    }
+
+    if (newlyUnlocked.length > 0) {
+      _set((s: GameState) => {
+        const updated = { ...s.achievements }
+        for (const id of newlyUnlocked) {
+          updated[id] = { ...updated[id], unlocked: true, unlockedAt: Date.now() }
+        }
+        return { achievements: updated, hasNewAchievements: true }
+      })
+      get().saveProgress()
+    }
+
+    return newlyUnlocked
+  },
+
+  claimAchievement: (achievementId: AchievementId) => {
+    const state = get()
+    const playerAch = state.achievements[achievementId]
+    const def = ACHIEVEMENTS[achievementId]
+    if (!def) { console.error(`[Achievement] Неизвестное: ${achievementId}`); return false }
+    if (!playerAch.unlocked) { console.warn(`[Achievement] Не разблокировано`); return false }
+    if (playerAch.claimed)   { console.warn(`[Achievement] Уже забрано`); return false }
+
+    _set((s: GameState) => ({
+      nuts: s.nuts + def.nutsReward,
+      achievements: { ...s.achievements, [achievementId]: { ...s.achievements[achievementId], claimed: true } },
+    }))
+
+    get().saveProgress()
+    return true
+  },
+
+  clearNewAchievementsFlag: () => _set({ hasNewAchievements: false }),
+})
