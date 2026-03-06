@@ -33,6 +33,7 @@ import WelcomeBackModal from './components/WelcomeBackModal'
 import MilestoneUpgradeModal from './components/MilestoneUpgradeModal'
 import DailyRewardsModal from './components/DailyRewardsModal'
 import DailyRewardButton from './components/DailyRewardButton'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // ============================================
 // КОНСТАНТЫ
@@ -327,11 +328,13 @@ function App() {
           <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
 
             <div className="w-full h-full flex items-center justify-center">
-              <PhaserGame
-                onGarageClick={handleClick}
-                garageLevel={garageLevel}
-                isActive={activeTab === 'game' && !showWelcomeBack && !showMilestoneModal && !showDailyRewardsModal}
-              />
+              <ErrorBoundary fallback="Игровой движок недоступен. Попробуй перезагрузить страницу.">
+                <PhaserGame
+                  onGarageClick={handleClick}
+                  garageLevel={garageLevel}
+                  isActive={activeTab === 'game' && !showWelcomeBack && !showMilestoneModal && !showDailyRewardsModal}
+                />
+              </ErrorBoundary>
             </div>
 
             {/* Кнопка ежедневных наград */}
