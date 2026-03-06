@@ -46,7 +46,7 @@ const tabs = [
 function App() {
   // --- Debug: доступ к store из консоли браузера (только dev) ---
   if (import.meta.env.DEV) {
-    ;(window as Window & { __store: typeof useGameStore }).__store = useGameStore
+    ;(window as unknown as { __store: typeof useGameStore }).__store = useGameStore
   }
 
   // --- Lifecycle хуки ---

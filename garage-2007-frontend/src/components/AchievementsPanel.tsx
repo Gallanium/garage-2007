@@ -101,7 +101,7 @@ const AchievementsPanel: React.FC = () => {
                 definition={definition}
                 playerState={playerState}
                 currentProgress={currentProgress}
-                onClaim={claimAchievement}
+                onClaim={(id) => claimAchievement(id as AchievementId)}
               />
             )
           })}
