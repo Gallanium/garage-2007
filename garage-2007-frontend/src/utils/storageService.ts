@@ -339,7 +339,7 @@ export function loadGame(): SaveData | null {
 
     // --- Миграция v2 → v3: functionalUpgradesPurchased → milestonesPurchased ---
     if (merged.version < 3) {
-      const oldData = parsed as Record<string, unknown>
+      const oldData = parsed as unknown as Record<string, unknown>
       const oldPlayerData = oldData.playerData as Record<string, unknown> | undefined
       if (oldPlayerData && Array.isArray(oldPlayerData.functionalUpgradesPurchased)) {
         merged.playerData.milestonesPurchased = oldPlayerData.functionalUpgradesPurchased as number[]
@@ -349,7 +349,7 @@ export function loadGame(): SaveData | null {
 
     // --- Миграция v3 → v4: foreman → brigadier, удаление manager ---
     if (merged.version < 4) {
-      const oldWorkers = (parsed as Record<string, unknown>).workers as Record<string, unknown> | undefined
+      const oldWorkers = (parsed as unknown as Record<string, unknown>).workers as Record<string, unknown> | undefined
       if (oldWorkers) {
         // Переносим foreman → brigadier
         const foreman = oldWorkers.foreman as { count: number; cost: number } | undefined

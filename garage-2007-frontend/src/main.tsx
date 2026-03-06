@@ -255,7 +255,7 @@ if (import.meta.env.DEV) {
     },
   };
 
-  (window as Window & { game: typeof game }).game = game
+  ;(window as unknown as { game: typeof game }).game = game
 
   console.log('🔧 DEV: Консольные инструменты доступны через window.game')
   console.log('🔧 Введите game.help() для списка команд')

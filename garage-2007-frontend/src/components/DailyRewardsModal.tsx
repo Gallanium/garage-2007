@@ -74,7 +74,7 @@ interface DayCardProps {
   isBonusDay: boolean
 }
 
-const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay }) => {
+const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay: _isBonusDay }) => {
   const base = 'rounded-lg p-1.5 text-center font-mono transition-all duration-200'
   const styles: Record<DayCardState, string> = {
     claimed: 'bg-green-900/40 border border-green-500/50',

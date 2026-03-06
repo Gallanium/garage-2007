@@ -200,41 +200,20 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
     <div
       ref={containerRef}
       id="phaser-game-container"
-      style={{
-        width: '100%',
-        height: '100%',
-        maxWidth: '480px',
-        margin: '0 auto',
-        backgroundColor: 'transparent',
-        position: 'relative',
-      }}
+      className="w-full h-full max-w-[480px] mx-auto bg-transparent relative"
     >
       {/* Canvas будет автоматически создан Phaser внутри этого div */}
 
       {/* Показываем loader только пока игра НЕ готова и нет ошибок */}
       {!isGameReady && !gameError && (
-        <div style={{
-          position: 'absolute',
-          color: '#E6B800',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          fontFamily: '"Press Start 2P", cursive',
-        }}>
+        <div className="absolute text-garage-yellow text-sm font-bold font-mono">
           Загрузка...
         </div>
       )}
 
       {/* Показываем ошибку, если Phaser не смог инициализироваться */}
       {gameError && (
-        <div style={{
-          position: 'absolute',
-          color: '#FF4444',
-          fontSize: '12px',
-          fontWeight: 'bold',
-          fontFamily: '"Press Start 2P", cursive',
-          textAlign: 'center',
-          padding: '20px',
-        }}>
+        <div className="absolute text-red-400 text-xs font-bold font-mono text-center p-5">
           {gameError}
         </div>
       )}
