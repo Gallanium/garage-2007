@@ -88,6 +88,16 @@ export class GarageVisualManager {
     return { x: this.sprite.x, y: this.sprite.y }
   }
 
+  /** Границы спрайта в мировых координатах (без учёта временного tween-масштаба). */
+  get bounds(): { x: number; y: number; width: number; height: number } {
+    return {
+      x: this.sprite.x - this.sprite.width / 2,
+      y: this.sprite.y - this.sprite.height / 2,
+      width: this.sprite.width,
+      height: this.sprite.height,
+    }
+  }
+
   destroy(): void {
     this.sprite.removeAllListeners()
     this.sprite.destroy()

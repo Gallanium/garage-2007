@@ -10,6 +10,7 @@ import {
   useGameStore,
   GARAGE_LEVEL_NAMES,
   formatLargeNumber,
+  useHasAnyActiveBoost,
 } from '../store/gameStore'
 
 /**
@@ -19,6 +20,10 @@ export function GameFooter() {
   const clickValue = useClickValue()
   const momentaryClickIncome = useMomentaryClickIncome()
   const passiveIncomePerSecond = usePassiveIncome()
+  const hasAnyActiveBoost = useHasAnyActiveBoost()
+  const getActiveMultiplier = useGameStore((s) => s.getActiveMultiplier)
+  const clickMultiplier = hasAnyActiveBoost ? getActiveMultiplier('click') : 1
+  const incomeMultiplier = hasAnyActiveBoost ? getActiveMultiplier('income') : 1
   const balance = useBalance()
   const garageLevel = useGarageLevel()
   const nextLevelCost = useNextLevelCost()
@@ -35,8 +40,8 @@ export function GameFooter() {
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-garage-yellow/30 shadow-md">
           <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">За клик</p>
           <div className="flex items-baseline gap-0.5">
-            <p className="text-base sm:text-lg font-bold text-garage-yellow font-mono">
-              {formatLargeNumber(clickValue)}
+            <p className={`text-base sm:text-lg font-bold font-mono ${clickMultiplier > 1 ? 'text-green-300' : 'text-garage-yellow'}`}>
+              {formatLargeNumber(clickValue * clickMultiplier)}
             </p>
             <span className="text-[9px] sm:text-[11px] text-garage-yellow/70 font-mono">₽</span>
           </div>
@@ -57,8 +62,8 @@ export function GameFooter() {
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-green-400/30 shadow-md">
           <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
           <div className="flex items-baseline gap-0.5">
-            <p className="text-base sm:text-lg font-bold text-green-300 font-mono">
-              {passiveIncomePerSecond.toFixed(1)}
+            <p className={`text-base sm:text-lg font-bold font-mono ${incomeMultiplier > 1 ? 'text-green-300' : 'text-green-300'}`}>
+              {(passiveIncomePerSecond * incomeMultiplier).toFixed(1)}
             </p>
             <span className="text-[9px] sm:text-[11px] text-green-300/70 font-mono">₽/с</span>
           </div>

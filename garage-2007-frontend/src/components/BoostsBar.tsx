@@ -54,14 +54,13 @@ export default function BoostsBar() {
 
   return (
     <>
-      <div className="px-2 py-1 bg-gray-900/80 border-t border-gray-700">
+      <div className="px-3 py-1 bg-gray-900/80 border-t border-gray-700">
         <div className="flex gap-1 justify-center">
           {BOOST_ORDER.map(type => {
             const def = BOOST_DEFINITIONS[type]
             const status = getStatus(type)
             const activeBoost = activeBoosts.find(b => b.type === type && b.expiresAt > now)
             const remaining = activeBoost ? activeBoost.expiresAt - now : 0
-            const deficit = def.costNuts - nuts
 
             return (
               <button
@@ -88,7 +87,7 @@ export default function BoostsBar() {
                       {def.label}
                     </span>
                     <span className={status === 'blocked_nuts' ? 'text-red-400' : 'text-gray-300'}>
-                      {status === 'blocked_nuts' ? `-${deficit} 🔩` : `${def.costNuts} 🔩`}
+                      {`${def.costNuts} 🔩`}
                     </span>
                     {status === 'blocked_conflict' && (
                       <span className="text-gray-500">Уже активен</span>

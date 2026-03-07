@@ -75,15 +75,12 @@ export default class MainScene extends Phaser.Scene {
         this.boostGlow = this.add.graphics()
         this.boostGlow.setDepth(15) // между GARAGE(10) и EFFECTS(20)
       }
-      // Пульсирующая аура: перерисовываем каждый кадр через tween на alpha
+      // Пульсирующая аура вокруг спрайта гаража
+      const pad = 10
+      const b = this.garageVisual.bounds
       this.boostGlow.clear()
       this.boostGlow.lineStyle(4, 0xFFAA00, 0.8)
-      this.boostGlow.strokeRect(
-        this.scale.width * 0.05,
-        this.scale.height * 0.05,
-        this.scale.width * 0.9,
-        this.scale.height * 0.55,
-      )
+      this.boostGlow.strokeRect(b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2)
       this.tweens.add({
         targets: this.boostGlow,
         alpha: { from: 0.3, to: 0.9 },
