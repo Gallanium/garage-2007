@@ -51,6 +51,13 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         lastWatchedTimestamp: s.rewardedVideo.lastWatchedTimestamp,
         totalWatches: s.rewardedVideo.totalWatches,
       },
+      boosts: {
+        active: s.boosts.active.map(b => ({
+          type: b.type,
+          activatedAt: b.activatedAt,
+          expiresAt: b.expiresAt,
+        })),
+      },
     })
     if (!ok) console.error('[Save] Ошибка сохранения')
   },
@@ -93,6 +100,9 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     const offlineEarnings = calculateOfflineEarnings(passiveIncome, saveData.timestamp, 24)
     const now = Date.now()
     const offlineTimeAway = saveData.timestamp > 0 ? Math.floor((now - saveData.timestamp) / 1000) : 0
+    const restoredBoosts = (saveData.boosts?.active ?? [])
+      .filter(b => b.expiresAt > now)
+      .map(b => ({ type: b.type as import('../types').BoostType, activatedAt: b.activatedAt, expiresAt: b.expiresAt }))
 
     const savedAchievements = (saveData.achievements ?? {}) as Record<string, PlayerAchievement>
     const restoredAchievements: Record<AchievementId, PlayerAchievement> = { ...initialState.achievements }
@@ -124,6 +134,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       rewardedVideo: saveData.rewardedVideo
         ? { ...initialState.rewardedVideo, ...saveData.rewardedVideo }
         : initialState.rewardedVideo,
+      boosts: { active: restoredBoosts },
     })
 
     get().checkForMilestone()
@@ -160,10 +171,12 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
           totalPlayTimeSeconds: s.totalPlayTimeSeconds + 1,
         }
         if (passiveIncomePerSecond > 0) {
-          const newBalance = roundCurrency(s.balance + passiveIncomePerSecond)
+          const boostMultiplier = get().getActiveMultiplier('income')
+          const earned = roundCurrency(passiveIncomePerSecond * boostMultiplier)
+          const newBalance = roundCurrency(s.balance + earned)
           const newLevel = checkAutoLevel(newBalance, s.garageLevel, s.milestonesPurchased)
           result.balance = newBalance
-          result.totalEarned = roundCurrency(s.totalEarned + passiveIncomePerSecond)
+          result.totalEarned = roundCurrency(s.totalEarned + earned)
           if (newLevel !== s.garageLevel) result.garageLevel = newLevel
         }
         return result
