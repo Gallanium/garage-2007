@@ -1,9 +1,12 @@
 // src/store/actions/boostActions.ts
 import type { StateCreator } from 'zustand'
 import type { GameStore, BoostType } from '../types'
-import { BOOST_DEFINITIONS, BOOST_CONFLICT_GROUPS } from '../constants/boosts'
+import { BOOST_DEFINITIONS } from '../constants/boosts'
 
-type Slice = Pick<GameStore, 'activateBoost' | 'tickBoosts' | 'getActiveMultiplier' | 'startBoostTick'>
+type Slice = Pick<GameStore,
+  | 'activateBoost' | 'replaceBoost' | 'tickBoosts'
+  | 'getActiveMultiplier' | 'startBoostTick'
+>
 
 export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   activateBoost: (type: BoostType): boolean => {
@@ -13,21 +16,42 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     // Проверить баланс гаек
     if (state.nuts < def.costNuts) return false
 
-    // Проверить конфликты: нельзя активировать если активен буст из той же группы
-    const conflictGroup = BOOST_CONFLICT_GROUPS.find(group => group.includes(type))
-    if (conflictGroup) {
-      const hasConflict = state.boosts.active.some(b => conflictGroup.includes(b.type))
-      if (hasConflict) return false
-    }
+    // Проверить разблокировку по milestone
+    if (def.unlockLevel > 0 && !state.milestonesPurchased.includes(def.unlockLevel)) return false
 
+    // Проверить: нельзя активировать если уже есть активный буст
+    // (для замены использовать replaceBoost)
     const now = Date.now()
+    const hasActive = state.boosts.active.some(b => b.expiresAt > now)
+    if (hasActive) return false
+
     _set(s => ({
       nuts: s.nuts - def.costNuts,
       boosts: {
-        active: [
-          ...s.boosts.active,
-          { type, activatedAt: now, expiresAt: now + def.durationMs },
-        ],
+        active: [{ type, activatedAt: now, expiresAt: now + def.durationMs }],
+      },
+    }))
+
+    get().saveProgress()
+    return true
+  },
+
+  replaceBoost: (type: BoostType): boolean => {
+    const state = get()
+    const def = BOOST_DEFINITIONS[type]
+
+    // Проверить баланс гаек
+    if (state.nuts < def.costNuts) return false
+
+    // Проверить разблокировку
+    if (def.unlockLevel > 0 && !state.milestonesPurchased.includes(def.unlockLevel)) return false
+
+    const now = Date.now()
+    // Заменяем текущий буст (потерянное время не компенсируется)
+    _set(s => ({
+      nuts: s.nuts - def.costNuts,
+      boosts: {
+        active: [{ type, activatedAt: now, expiresAt: now + def.durationMs }],
       },
     }))
 
@@ -47,22 +71,17 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
   getActiveMultiplier: (scope: 'income' | 'click'): number => {
     const { boosts } = get()
     const now = Date.now()
-    const active = boosts.active.filter(b => b.expiresAt > now)
+    const active = boosts.active.find(b => b.expiresAt > now)
 
-    // Income multiplier: произведение income_2x / income_3x
-    let incomeMultiplier = 1
-    for (const b of active) {
-      if (b.type === 'income_2x' || b.type === 'income_3x') {
-        incomeMultiplier *= BOOST_DEFINITIONS[b.type].multiplier
-      }
+    if (!active) return 1
+
+    // turbo влияет только на клики
+    if (active.type === 'turbo') {
+      return scope === 'click' ? BOOST_DEFINITIONS.turbo.multiplier : 1
     }
 
-    if (scope === 'income') return incomeMultiplier
-
-    // Click multiplier: turbo × income
-    const turboBoost = active.find(b => b.type === 'turbo')
-    const turboMultiplier = turboBoost ? BOOST_DEFINITIONS.turbo.multiplier : 1
-    return turboMultiplier * incomeMultiplier
+    // income_2x / income_3x влияют на всё (и клики, и пассив)
+    return BOOST_DEFINITIONS[active.type].multiplier
   },
 
   startBoostTick: (): (() => void) => {
