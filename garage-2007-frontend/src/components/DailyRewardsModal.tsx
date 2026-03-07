@@ -88,7 +88,7 @@ const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay: 
 
   return (
     <div className={`${base} ${styles[state]}`}>
-      <p className={`text-[8px] sm:text-[10px] uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
+      <p className={`text-game-xs sm:text-game-sm uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
         Д{dayLabel}
       </p>
       <div className={`text-base sm:text-lg font-bold ${
@@ -99,7 +99,7 @@ const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay: 
       }`}>
         {isClaimed || isDone ? '✅' : `${reward}`}
       </div>
-      <p className="text-[10px] sm:text-xs mt-0.5">
+      <p className="text-game-sm sm:text-xs mt-0.5">
         {isClaimed || isDone ? '' : '🔩'}
       </p>
     </div>
@@ -255,7 +255,7 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
         {/* Таймер (когда награда недоступна) */}
         {!effectiveCanClaim && countdown && (
           <div className="text-center mb-3">
-            <p className="text-[8px] sm:text-[10px] text-gray-500 font-mono mb-0.5">
+            <p className="text-game-xs sm:text-game-sm text-gray-500 font-mono mb-0.5">
               Следующая награда через
             </p>
             <p className="text-sm sm:text-base font-bold text-amber-400 font-mono tracking-wider">

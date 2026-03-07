@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.props.fallback ?? 'Что-то пошло не так'}
           </p>
           {import.meta.env.DEV && this.state.error && (
-            <p className="text-gray-500 text-[8px] font-mono text-center break-all max-w-xs">
+            <p className="text-gray-500 text-game-xs font-mono text-center break-all max-w-xs">
               {this.state.error.message}
             </p>
           )}

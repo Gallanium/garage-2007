@@ -94,7 +94,7 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
           С возвращением!
         </h2>
 
-        <p className="text-[10px] sm:text-xs text-gray-300 mb-4 font-mono">
+        <p className="text-game-sm sm:text-xs text-gray-300 mb-4 font-mono">
           Вас не было <span className="text-white font-semibold">{formattedTime}</span>
         </p>
 

@@ -20,6 +20,11 @@ export default {
         'mono': ['"Press Start 2P"', 'cursive'],
         'pixel': ['"Press Start 2P"', 'cursive'],
       },
+      fontSize: {
+        'game-xs':   ['8px',  { lineHeight: '10px' }],
+        'game-sm':   ['10px', { lineHeight: '12px' }],
+        'game-base': ['12px', { lineHeight: '16px' }],
+      },
     },
   },
   plugins: [],

@@ -52,7 +52,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
             onClick={handleClick(tab.id)}
             className={`
               flex-1 flex flex-col items-center gap-0.5 sm:gap-1
-              px-1 py-1.5 rounded text-[8px] sm:text-[10px] font-mono font-medium
+              px-1 py-1.5 rounded text-game-xs sm:text-game-sm font-mono font-medium
               transition-colors duration-200
               ${
                 isActive
