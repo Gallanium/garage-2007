@@ -53,8 +53,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
   const garageLevelRef = useRef(garageLevel)
   garageLevelRef.current = garageLevel
 
-  const hasAnyActiveBoostRef = useRef(hasAnyActiveBoost)
-  hasAnyActiveBoostRef.current = hasAnyActiveBoost
 
   // Состояние готовности игры (для скрытия индикатора загрузки)
   const [isGameReady, setIsGameReady] = useState(false)

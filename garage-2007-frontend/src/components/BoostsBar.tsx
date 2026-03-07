@@ -17,7 +17,7 @@ export default function BoostsBar() {
   const nuts = useNuts()
   const activeBoosts = useBoosts()
   const activateBoost = useGameStore((s) => s.activateBoost)
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   const [promptDeficit, setPromptDeficit] = useState<number | null>(null)
 
   // Обновляем таймер каждую секунду
