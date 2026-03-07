@@ -10,6 +10,7 @@ import {
   useBalance,
   useMomentaryClickIncome,
   usePassiveIncome,
+  useHasAnyActiveBoost,
   DAILY_STREAK_GRACE_PERIOD_MS,
   MILESTONE_UPGRADES,
   type MilestoneLevel,
@@ -67,6 +68,7 @@ function App() {
   const balance = useBalance()
   const momentaryClickIncome = useMomentaryClickIncome()
   const passiveIncomePerSecond = usePassiveIncome()
+  const hasAnyActiveBoost = useHasAnyActiveBoost()
 
   const handleClick = useGameStore((s) => s.handleClick)
   const showDailyRewardsModal = useGameStore((s) => s.showDailyRewardsModal)
@@ -129,6 +131,7 @@ function App() {
             dailyRewardStreak={dailyRewards.currentStreak}
             canClaimDaily={canClaimToday}
             onOpenDailyRewards={openDailyRewardsModal}
+            hasAnyActiveBoost={hasAnyActiveBoost}
           />
           <BoostsBar />
           <GameFooter />
