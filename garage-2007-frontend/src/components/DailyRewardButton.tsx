@@ -58,7 +58,7 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
       {canClaim && (
         <span className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 rounded-full
                          flex items-center justify-center
-                         text-[9px] sm:text-[10px] font-bold text-white
+                         text-[9px] sm:text-game-sm font-bold text-white
                          border border-red-400
                          animate-bounce">
           !

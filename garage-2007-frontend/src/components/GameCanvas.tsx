@@ -44,7 +44,7 @@ export function GameCanvas({
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2
                       bg-garage-yellow/20 backdrop-blur-sm rounded-full px-3 py-2
                       border border-garage-yellow/50 animate-pulse">
-        <p className="text-[10px] sm:text-xs text-garage-yellow font-mono text-center">
+        <p className="text-game-sm sm:text-xs text-garage-yellow font-mono text-center">
           👆 Кликни по гаражу
         </p>
       </div>

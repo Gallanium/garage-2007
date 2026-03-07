@@ -89,7 +89,7 @@ const UpgradesPanel: React.FC = () => {
           <div className="flex items-center gap-3 mb-3">
             <span className="text-2xl">📺</span>
             <div>
-              <p className="text-green-400 font-mono font-bold text-[10px] sm:text-xs">Посмотреть рекламу</p>
+              <p className="text-green-400 font-mono font-bold text-game-sm sm:text-xs">Посмотреть рекламу</p>
               <p className="text-gray-400 font-mono text-[9px] sm:text-[11px]">
                 Получи {REWARDED_VIDEO_NUTS} гаек за просмотр
               </p>
@@ -100,7 +100,7 @@ const UpgradesPanel: React.FC = () => {
             <button
               onClick={handleWatchVideo}
               disabled={isWatching || rewardedVideo.isWatching}
-              className={`w-full py-1.5 rounded-lg font-mono font-bold text-[10px] sm:text-xs transition-colors
+              className={`w-full py-1.5 rounded-lg font-mono font-bold text-game-sm sm:text-xs transition-colors
                 ${isWatching || rewardedVideo.isWatching
                   ? 'bg-gray-700 text-gray-500 cursor-wait'
                   : 'bg-green-600 hover:bg-green-700 text-white'
@@ -112,7 +112,7 @@ const UpgradesPanel: React.FC = () => {
             </button>
           ) : (
             <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-              <p className="text-gray-400 font-mono text-[10px] sm:text-xs">
+              <p className="text-gray-400 font-mono text-game-sm sm:text-xs">
                 ⏳ Доступно через {minutesRemaining} мин
               </p>
             </div>
@@ -141,13 +141,13 @@ const UpgradesPanel: React.FC = () => {
                 <p className="text-yellow-400 font-mono font-bold text-sm sm:text-base">
                   До ур. {milestoneInfo.level}
                 </p>
-                <p className="text-gray-400 font-mono text-[10px] sm:text-xs">
+                <p className="text-gray-400 font-mono text-game-sm sm:text-xs">
                   «{GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}»
                 </p>
               </div>
             </div>
             {/* Что откроется */}
-            <ul className="space-y-0.5 text-[10px] sm:text-xs text-gray-300 font-mono mb-2">
+            <ul className="space-y-0.5 text-game-sm sm:text-xs text-gray-300 font-mono mb-2">
               {milestoneInfo.upgrade.unlocks.workers.map((w, i) => (
                 <li key={`w-${i}`}>👷 {w}</li>
               ))}
@@ -157,7 +157,7 @@ const UpgradesPanel: React.FC = () => {
             </ul>
             {/* Кнопка покупки */}
             <button
-              className={`w-full py-1.5 rounded-lg font-mono font-bold text-[10px] sm:text-xs transition-colors
+              className={`w-full py-1.5 rounded-lg font-mono font-bold text-game-sm sm:text-xs transition-colors
                 ${balance >= milestoneInfo.upgrade.cost
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -204,11 +204,11 @@ const UpgradesPanel: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xl opacity-30">⚡</span>
                 <div>
-                  <p className="text-gray-500 font-mono font-bold text-[10px] sm:text-xs">Энергетики</p>
+                  <p className="text-gray-500 font-mono font-bold text-game-sm sm:text-xs">Энергетики</p>
                   <p className="text-gray-600 font-mono text-[9px] sm:text-[11px]">+10% доход работников</p>
                 </div>
               </div>
-              <p className="text-gray-500 text-center mt-2 font-mono text-[10px] sm:text-xs">
+              <p className="text-gray-500 text-center mt-2 font-mono text-game-sm sm:text-xs">
                 🔒 Уровень 5
               </p>
             </div>
@@ -237,7 +237,7 @@ const UpgradesPanel: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-xl opacity-30">{def.icon}</span>
                     <div>
-                      <p className="text-gray-500 font-mono font-bold text-[10px] sm:text-xs">
+                      <p className="text-gray-500 font-mono font-bold text-game-sm sm:text-xs">
                         {def.title}
                       </p>
                       <p className="text-gray-600 font-mono text-[9px] sm:text-[11px]">
@@ -245,7 +245,7 @@ const UpgradesPanel: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <p className="text-gray-500 text-center mt-2 font-mono text-[10px] sm:text-xs">
+                  <p className="text-gray-500 text-center mt-2 font-mono text-game-sm sm:text-xs">
                     🔒 Уровень {def.requiredMilestone}
                   </p>
                 </div>

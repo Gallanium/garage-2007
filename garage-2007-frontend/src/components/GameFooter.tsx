@@ -33,7 +33,7 @@ export function GameFooter() {
 
         {/* Доход за клик */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-garage-yellow/30 shadow-md">
-          <p className="text-[8px] sm:text-[10px] text-gray-400 mb-1 font-mono uppercase">За клик</p>
+          <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">За клик</p>
           <div className="flex items-baseline gap-0.5">
             <p className="text-base sm:text-lg font-bold text-garage-yellow font-mono">
               {formatLargeNumber(clickValue)}
@@ -44,7 +44,7 @@ export function GameFooter() {
 
         {/* Моментальный доход */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-blue-400/30 shadow-md">
-          <p className="text-[8px] sm:text-[10px] text-gray-400 mb-1 font-mono uppercase">Момент.</p>
+          <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Момент.</p>
           <div className="flex items-baseline gap-0.5">
             <p className="text-base sm:text-lg font-bold text-blue-300 font-mono">
               {formatLargeNumber(momentaryClickIncome)}
@@ -55,7 +55,7 @@ export function GameFooter() {
 
         {/* Пассивный доход */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-green-400/30 shadow-md">
-          <p className="text-[8px] sm:text-[10px] text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
+          <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
           <div className="flex items-baseline gap-0.5">
             <p className="text-base sm:text-lg font-bold text-green-300 font-mono">
               {passiveIncomePerSecond.toFixed(1)}
@@ -76,7 +76,7 @@ export function GameFooter() {
               style={{ width: `${Math.round(garageProgress * 100)}%` }}
             />
           </div>
-          <p className="text-[8px] sm:text-[10px] text-gray-500 mt-1 font-mono">
+          <p className="text-game-xs sm:text-game-sm text-gray-500 mt-1 font-mono">
             {milestoneInfo
               ? `🔓 Апгрейд: «${GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» — ур.${milestoneInfo.level}`
               : nextLevelCost
@@ -89,7 +89,7 @@ export function GameFooter() {
           <button
             onClick={resetGame}
             className="bg-red-900/50 hover:bg-red-800/70
-                       text-red-300 text-[8px] sm:text-[10px] font-medium py-1.5 px-2 rounded
+                       text-red-300 text-game-xs sm:text-game-sm font-medium py-1.5 px-2 rounded
                        transition-colors duration-200
                        border border-red-700/50 font-mono
                        active:scale-95 transform shrink-0"

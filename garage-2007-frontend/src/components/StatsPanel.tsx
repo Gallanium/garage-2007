@@ -75,7 +75,7 @@ const StatsPanel: React.FC = () => {
             <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono uppercase">Уровень гаража</p>
             <p className="text-base sm:text-lg font-bold text-yellow-400 font-mono">
               {garageLevel}{' '}
-              <span className="text-[10px] sm:text-xs text-yellow-400/70">— «{levelName}»</span>
+              <span className="text-game-sm sm:text-xs text-yellow-400/70">— «{levelName}»</span>
             </p>
           </div>
         </div>
@@ -91,7 +91,7 @@ const StatsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">👆</span>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">Всего кликов</p>
+                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Всего кликов</p>
               </div>
               <p className="text-base sm:text-lg font-bold text-white font-mono">
                 {formatLargeNumber(totalClicks)}
@@ -105,7 +105,7 @@ const StatsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🏆</span>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">Рекорд (сек)</p>
+                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Рекорд (сек)</p>
               </div>
               <div className="flex items-baseline gap-0.5">
                 <p className="text-base sm:text-lg font-bold text-orange-300 font-mono">
@@ -122,7 +122,7 @@ const StatsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">⏱️</span>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">Время в игре</p>
+                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Время в игре</p>
               </div>
               <p className="text-base sm:text-lg font-bold text-green-300 font-mono">
                 {formatPlayTime(totalPlayTime)}
@@ -136,7 +136,7 @@ const StatsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">💰</span>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">Заработано</p>
+                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Заработано</p>
               </div>
               <div className="flex items-baseline gap-0.5">
                 <p className="text-base sm:text-lg font-bold text-white font-mono">
@@ -153,7 +153,7 @@ const StatsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🔄</span>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">Сессий</p>
+                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Сессий</p>
               </div>
               <p className="text-base sm:text-lg font-bold text-white font-mono">
                 {sessionCount}
@@ -167,7 +167,7 @@ const StatsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🔥</span>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-mono">Лучшая серия</p>
+                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Лучшая серия</p>
               </div>
               <div className="flex items-baseline gap-0.5">
                 <p className="text-base sm:text-lg font-bold text-amber-300 font-mono">

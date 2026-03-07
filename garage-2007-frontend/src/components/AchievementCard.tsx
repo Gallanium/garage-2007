@@ -43,7 +43,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
           <div className="text-xl opacity-50">{icon}</div>
           <div className="flex-1">
             <div className="flex items-start justify-between mb-1">
-              <h3 className="font-bold text-[10px] sm:text-xs text-white/70 font-mono">{title}</h3>
+              <h3 className="font-bold text-game-sm sm:text-xs text-white/70 font-mono">{title}</h3>
               <span className="text-base">✅</span>
             </div>
             <p className="text-[9px] sm:text-[11px] text-gray-500 font-mono mb-1">{description}</p>
@@ -65,7 +65,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
           <div className="text-xl">{icon}</div>
           <div className="flex-1">
             <div className="flex items-start justify-between mb-1">
-              <h3 className="font-bold text-[10px] sm:text-xs text-yellow-400 font-mono">{title}</h3>
+              <h3 className="font-bold text-game-sm sm:text-xs text-yellow-400 font-mono">{title}</h3>
               <span className="text-[9px] sm:text-[11px] bg-yellow-500/20 text-yellow-300 px-1.5 py-0.5 rounded font-mono">
                 +{nutsReward} 🔩
               </span>
@@ -75,7 +75,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
             <button
               onClick={handleClaim}
               className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold
-                         py-1.5 px-3 rounded font-mono text-[10px] sm:text-xs transition-colors duration-200
+                         py-1.5 px-3 rounded font-mono text-game-sm sm:text-xs transition-colors duration-200
                          active:scale-95 transform"
             >
               ЗАБРАТЬ 🎁
@@ -93,7 +93,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
         <div className="text-xl opacity-40">{icon}</div>
         <div className="flex-1">
           <div className="flex items-start justify-between mb-1">
-            <h3 className="font-bold text-[10px] sm:text-xs text-white/60 font-mono">{title}</h3>
+            <h3 className="font-bold text-game-sm sm:text-xs text-white/60 font-mono">{title}</h3>
             <span className="text-[9px] sm:text-[11px] bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded font-mono">
               {nutsReward} 🔩
             </span>
@@ -107,7 +107,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <p className="text-[8px] sm:text-[10px] text-gray-500 font-mono">
+            <p className="text-game-xs sm:text-game-sm text-gray-500 font-mono">
               {currentProgress.toLocaleString()} / {targetValue.toLocaleString()} ({progressPercent}%)
             </p>
           </div>
