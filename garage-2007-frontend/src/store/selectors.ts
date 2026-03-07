@@ -57,6 +57,12 @@ export const useGarageProgress = () =>
     return Math.min(Math.max((s.balance - curr) / range, 0), 1)
   })
 
+export const useBoosts            = () => useGameStore((s) => s.boosts.active)
+export const useActivateBoost     = () => useGameStore((s) => s.activateBoost)
+export const useHasActiveBoost    = (type: import('./types').BoostType) =>
+  useGameStore((s) => s.boosts.active.some(b => b.type === type))
+export const useHasAnyActiveBoost = () => useGameStore((s) => s.boosts.active.length > 0)
+
 export const usePendingMilestoneInfo = () =>
   useGameStore(
     useShallow((s) => {

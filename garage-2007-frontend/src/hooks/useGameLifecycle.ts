@@ -33,6 +33,7 @@ export function useGameLifecycle(): void {
   const loadProgress = useGameStore((s) => s.loadProgress)
   const saveProgress = useGameStore((s) => s.saveProgress)
   const startPassiveIncome = useGameStore((s) => s.startPassiveIncome)
+  const startBoostTick  = useGameStore((s) => s.startBoostTick)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -47,7 +48,13 @@ export function useGameLifecycle(): void {
     return cleanup
   }, [startPassiveIncome])
 
-  // 3. Автосохранение каждые 30 секунд
+  // 3. Запуск тика бустов (очистка протухших)
+  useEffect(() => {
+    const cleanup = startBoostTick()
+    return cleanup
+  }, [startBoostTick])
+
+  // 5. Автосохранение каждые 30 секунд
   useEffect(() => {
     if (!isLoaded) return
 
@@ -58,7 +65,7 @@ export function useGameLifecycle(): void {
     return () => clearInterval(saveInterval)
   }, [isLoaded, saveProgress])
 
-  // 4. Debounced сохранение при изменении баланса/уровня
+  // 6. Debounced сохранение при изменении баланса/уровня
   useEffect(() => {
     if (!isLoaded) return
 
@@ -77,13 +84,13 @@ export function useGameLifecycle(): void {
     }
   }, [balance, garageLevel, isLoaded, saveProgress])
 
-  // 5. Проверка milestone при смене уровня
+  // 7. Проверка milestone при смене уровня
   useEffect(() => {
     if (!isLoaded) return
     checkForMilestone()
   }, [garageLevel, isLoaded, checkForMilestone])
 
-  // 6. Сохранение при закрытии вкладки
+  // 8. Сохранение при закрытии вкладки
   useEffect(() => {
     const handleBeforeUnload = () => {
       saveProgress()
