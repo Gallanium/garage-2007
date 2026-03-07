@@ -51,15 +51,15 @@ const AchievementsPanel: React.FC = () => {
 
           {/* Левая часть: прогресс */}
           <div className="flex-1 min-w-0">
-            <p className="text-[8px] sm:text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">
+            <p className="text-game-xs sm:text-game-sm text-gray-500 uppercase tracking-widest font-mono mb-1">
               Прогресс
             </p>
             <div className="flex items-center gap-1.5">
               <span className="text-base sm:text-lg font-bold text-yellow-400 font-mono tabular-nums">
                 {stats.claimed}
               </span>
-              <span className="text-[10px] sm:text-xs text-gray-500 font-mono">/</span>
-              <span className="text-[10px] sm:text-xs text-gray-400 font-mono tabular-nums">
+              <span className="text-game-sm sm:text-xs text-gray-500 font-mono">/</span>
+              <span className="text-game-sm sm:text-xs text-gray-400 font-mono tabular-nums">
                 {stats.total}
               </span>
               <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden ml-1">
@@ -73,7 +73,7 @@ const AchievementsPanel: React.FC = () => {
 
           {/* Правая часть: к получению */}
           <div className="flex-shrink-0 text-right">
-            <p className="text-[8px] sm:text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">
+            <p className="text-game-xs sm:text-game-sm text-gray-500 uppercase tracking-widest font-mono mb-1">
               К получению
             </p>
             <div className="flex items-center justify-end gap-1">

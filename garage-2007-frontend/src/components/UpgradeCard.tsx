@@ -60,7 +60,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
       </div>
 
       {/* ---- Описание ---- */}
-      <p className="text-[10px] sm:text-xs text-gray-400 mb-2 font-mono">{description}</p>
+      <p className="text-game-sm sm:text-xs text-gray-400 mb-2 font-mono">{description}</p>
 
       {/* ---- Нижняя строка: уровень + кнопка ---- */}
       <div className="flex justify-between items-center">
@@ -69,7 +69,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
         </span>
 
         {isMaxed ? (
-          <span className="px-3 py-1.5 rounded text-[10px] sm:text-xs font-mono font-medium bg-green-700 text-green-200">
+          <span className="px-3 py-1.5 rounded text-game-sm sm:text-xs font-mono font-medium bg-green-700 text-green-200">
             MAX
           </span>
         ) : (
@@ -78,7 +78,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
             disabled={!canAfford}
             onClick={handleClick}
             className={`
-              px-2 py-1.5 rounded text-[10px] sm:text-xs font-mono font-medium
+              px-2 py-1.5 rounded text-game-sm sm:text-xs font-mono font-medium
               transition-colors duration-200
               active:scale-95 transform
               ${

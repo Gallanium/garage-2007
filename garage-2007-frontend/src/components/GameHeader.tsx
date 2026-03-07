@@ -16,14 +16,14 @@ export function GameHeader() {
           <h1 className="text-sm font-bold text-garage-yellow drop-shadow-lg font-mono">
             ГАРАЖ 2007
           </h1>
-          <p className="text-[8px] text-gray-400">v0.1.0-MVP</p>
+          <p className="text-game-xs text-gray-400">v0.1.0-MVP</p>
         </div>
       </div>
 
       <div className="flex justify-between items-center">
         {/* Левая часть: Баланс */}
         <div className="flex flex-col">
-          <span className="text-[8px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-mono">Баланс</span>
+          <span className="text-game-xs sm:text-game-sm text-gray-400 uppercase tracking-wider font-mono">Баланс</span>
           <div className="flex items-baseline gap-1">
             <span className="text-xl sm:text-2xl font-bold text-garage-yellow font-mono tabular-nums tracking-tight">
               {formatLargeNumber(balance)}
@@ -34,7 +34,7 @@ export function GameHeader() {
 
         {/* Правая часть: Гайки */}
         <div className="flex flex-col items-end">
-          <span className="text-[8px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-mono">Гайки</span>
+          <span className="text-game-xs sm:text-game-sm text-gray-400 uppercase tracking-wider font-mono">Гайки</span>
           <div className="flex items-baseline gap-1">
             <span className="text-lg sm:text-xl font-bold text-orange-400 font-mono tabular-nums">
               {formatLargeNumber(nuts)}

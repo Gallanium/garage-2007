@@ -183,7 +183,7 @@ function App() {
 
       {/* Debug overlay (только dev) */}
       {import.meta.env.DEV && (
-        <div className="fixed bottom-2 right-2 bg-black/80 text-green-400 text-[8px] p-1.5 rounded font-mono z-50">
+        <div className="fixed bottom-2 right-2 bg-black/80 text-green-400 text-game-xs p-1.5 rounded font-mono z-50">
           <p>DEV</p>
           <p>B: {balance}</p>
           <p>L: {garageLevel}</p>

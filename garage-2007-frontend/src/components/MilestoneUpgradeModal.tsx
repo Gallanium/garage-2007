@@ -89,10 +89,10 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           🏆 ПОВЫШЕНИЕ КЛАССА
         </h2>
 
-        <p className="text-[10px] sm:text-xs text-gray-300 mb-1 font-mono">
+        <p className="text-game-sm sm:text-xs text-gray-300 mb-1 font-mono">
           Ур.{currentLevel} → Ур.{nextLevel}
         </p>
-        <p className="text-[10px] sm:text-xs text-garage-yellow font-mono mb-3">
+        <p className="text-game-sm sm:text-xs text-garage-yellow font-mono mb-3">
           «{levelName}»
         </p>
 
@@ -110,7 +110,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
         {/* Что откроется */}
         <div className="text-left mb-3">
-          <p className="text-[10px] sm:text-xs font-bold text-yellow-400 mb-1.5 font-mono">
+          <p className="text-game-sm sm:text-xs font-bold text-yellow-400 mb-1.5 font-mono">
             ✨ ОТКРОЕТСЯ:
           </p>
           <ul className="space-y-0.5 text-[9px] sm:text-[11px] text-gray-300 font-mono">
@@ -136,7 +136,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           type="button"
           onClick={handlePurchase}
           disabled={!canAfford}
-          className={`w-full py-2 px-4 rounded-lg font-mono text-[10px] sm:text-xs font-bold
+          className={`w-full py-2 px-4 rounded-lg font-mono text-game-sm sm:text-xs font-bold
                       transition-colors duration-200
                       active:scale-95 transform
                       ${canAfford
