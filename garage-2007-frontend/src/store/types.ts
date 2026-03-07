@@ -124,6 +124,7 @@ export interface GameState {
   dailyRewards: DailyRewardsState
   showDailyRewardsModal: boolean
   rewardedVideo: RewardedVideoState
+  boosts: BoostsState
 }
 
 // ── GameActions ───────────────────────────────────────────────────────────────
@@ -151,6 +152,10 @@ export interface GameActions {
   openDailyRewardsModal: () => void
   canWatchRewardedVideo: () => boolean
   watchRewardedVideo: () => Promise<boolean>
+  activateBoost: (type: BoostType) => boolean
+  tickBoosts: () => void
+  getActiveMultiplier: (scope: 'income' | 'click') => number
+  startBoostTick: () => () => void
 }
 
 export type GameStore = GameState & GameActions
