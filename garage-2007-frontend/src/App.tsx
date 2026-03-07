@@ -24,6 +24,7 @@ import DailyRewardsModal from './components/DailyRewardsModal'
 import { GameHeader } from './components/GameHeader'
 import { GameFooter } from './components/GameFooter'
 import { GameCanvas } from './components/GameCanvas'
+import BoostsBar from './components/BoostsBar'
 import { useGameLifecycle } from './hooks/useGameLifecycle'
 import { useOfflineEarnings } from './hooks/useOfflineEarnings'
 
@@ -129,6 +130,7 @@ function App() {
             canClaimDaily={canClaimToday}
             onOpenDailyRewards={openDailyRewardsModal}
           />
+          <BoostsBar />
           <GameFooter />
         </div>
 
