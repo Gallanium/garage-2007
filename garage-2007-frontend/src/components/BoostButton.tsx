@@ -19,7 +19,7 @@ function formatTime(ms: number): string {
 
 const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
   const activeBoosts = useBoosts()
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)

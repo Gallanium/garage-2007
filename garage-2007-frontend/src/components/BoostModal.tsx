@@ -62,7 +62,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
   const activateBoost = useGameStore(s => s.activateBoost)
   const replaceBoost = useGameStore(s => s.replaceBoost)
 
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   const [confirmType, setConfirmType] = useState<BoostType | null>(null)  // pending replace
   const [nutsDeficit, setNutsDeficit] = useState<number | null>(null)
 
