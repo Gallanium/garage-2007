@@ -3,7 +3,7 @@ import type { BoostType, BoostDefinition } from '../types'
 
 export const BOOST_DEFINITIONS: Record<BoostType, BoostDefinition> = {
   income_2x: {
-    label: 'X2 Доход',
+    label: 'Турбо-доход',
     costNuts: 30,
     durationMs: 3_600_000,
     multiplier: 2,
@@ -11,7 +11,7 @@ export const BOOST_DEFINITIONS: Record<BoostType, BoostDefinition> = {
     unlockLevel: 5,   // requires milestonesPurchased.includes(5)
   },
   income_3x: {
-    label: 'X3 Доход',
+    label: 'Нитро-ускорение',
     costNuts: 50,
     durationMs: 1_800_000,
     multiplier: 3,

@@ -10,8 +10,15 @@ import {
   useGameStore,
   GARAGE_LEVEL_NAMES,
   formatLargeNumber,
-  useHasAnyActiveBoost,
+  useActiveBoostType,
 } from '../store/gameStore'
+import type { BoostType } from '../store/gameStore'
+
+const BOOST_COLORS: Record<BoostType, { text: string; glow: string }> = {
+  turbo:     { text: 'text-purple-300', glow: 'drop-shadow-[0_0_6px_rgba(192,132,252,0.6)]' },
+  income_2x: { text: 'text-amber-300',  glow: 'drop-shadow-[0_0_6px_rgba(252,211,77,0.6)]' },
+  income_3x: { text: 'text-red-300',    glow: 'drop-shadow-[0_0_6px_rgba(252,165,165,0.6)]' },
+}
 
 /**
  * Нижняя панель: статистика доходов, прогресс-бар уровня гаража, кнопка сброса.
@@ -20,10 +27,13 @@ export function GameFooter() {
   const clickValue = useClickValue()
   const momentaryClickIncome = useMomentaryClickIncome()
   const passiveIncomePerSecond = usePassiveIncome()
-  const hasAnyActiveBoost = useHasAnyActiveBoost()
+  const activeBoostType = useActiveBoostType()
   const getActiveMultiplier = useGameStore((s) => s.getActiveMultiplier)
-  const clickMultiplier = hasAnyActiveBoost ? getActiveMultiplier('click') : 1
-  const incomeMultiplier = hasAnyActiveBoost ? getActiveMultiplier('income') : 1
+  const clickMultiplier = activeBoostType ? getActiveMultiplier('click') : 1
+  const incomeMultiplier = activeBoostType ? getActiveMultiplier('income') : 1
+
+  const clickBoostColors = activeBoostType ? BOOST_COLORS[activeBoostType] : null
+  const passiveBoostColors = activeBoostType && activeBoostType !== 'turbo' ? BOOST_COLORS[activeBoostType] : null
   const balance = useBalance()
   const garageLevel = useGarageLevel()
   const nextLevelCost = useNextLevelCost()
@@ -40,10 +50,10 @@ export function GameFooter() {
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-garage-yellow/30 shadow-md">
           <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">За клик</p>
           <div className="flex items-baseline gap-0.5">
-            <p className={`text-base sm:text-lg font-bold font-mono ${clickMultiplier > 1 ? 'text-green-300' : 'text-garage-yellow'}`}>
+            <p className={`text-base sm:text-lg font-bold font-mono ${clickBoostColors ? `${clickBoostColors.text} ${clickBoostColors.glow}` : 'text-garage-yellow'}`}>
               {formatLargeNumber(clickValue * clickMultiplier)}
             </p>
-            <span className="text-[9px] sm:text-[11px] text-garage-yellow/70 font-mono">₽</span>
+            <span className={`text-[9px] sm:text-[11px] font-mono ${clickBoostColors ? clickBoostColors.text : 'text-garage-yellow/70'}`}>₽</span>
           </div>
         </div>
 
@@ -62,10 +72,10 @@ export function GameFooter() {
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-green-400/30 shadow-md">
           <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
           <div className="flex items-baseline gap-0.5">
-            <p className={`text-base sm:text-lg font-bold font-mono ${incomeMultiplier > 1 ? 'text-green-300' : 'text-green-300'}`}>
+            <p className={`text-base sm:text-lg font-bold font-mono ${passiveBoostColors ? `${passiveBoostColors.text} ${passiveBoostColors.glow}` : 'text-green-300'}`}>
               {(passiveIncomePerSecond * incomeMultiplier).toFixed(1)}
             </p>
-            <span className="text-[9px] sm:text-[11px] text-green-300/70 font-mono">₽/с</span>
+            <span className={`text-[9px] sm:text-[11px] font-mono ${passiveBoostColors ? passiveBoostColors.text : 'text-green-300/70'}`}>₽/с</span>
           </div>
         </div>
 

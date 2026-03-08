@@ -22,7 +22,7 @@ function formatTime(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-const BOOST_ORDER: BoostType[] = ['income_2x', 'income_3x', 'turbo']
+const BOOST_ORDER: BoostType[] = ['turbo', 'income_2x', 'income_3x']
 
 // Визуальные темы для карточек по референсу
 const BOOST_THEMES: Record<BoostType, {
@@ -206,7 +206,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                     </div>
                   ) : status === 'locked' ? (
                     <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
-                      🔒 MILESTONE {def.unlockLevel}
+                      🔒 УРОВЕНЬ {def.unlockLevel}
                     </div>
                   ) : (
                     <button
