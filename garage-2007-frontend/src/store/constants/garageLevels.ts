@@ -67,7 +67,7 @@ export const MILESTONE_UPGRADES: Record<MilestoneLevel, {
     workerNames: ['Механик'],
     unlocks: {
       workers: ['Механик (20 ₽/сек, макс. 5)'],
-      upgrades: ['Энергетики (+10% к доходу работников)'],
+      upgrades: ['Энергетики (+10% к доходу работников)', '🚀 Буст «Турбо-доход» (×2 доход, 60 мин)'],
       decorations: [],
       visual: '',
     },
@@ -78,7 +78,7 @@ export const MILESTONE_UPGRADES: Record<MilestoneLevel, {
     workerNames: ['Мастер'],
     unlocks: {
       workers: ['Мастер (200 ₽/сек, макс. 3)'],
-      upgrades: [],
+      upgrades: ['🚀 Буст «Нитро-ускорение» (×3 доход, 30 мин)'],
       decorations: [],
       visual: '',
     },
