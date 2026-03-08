@@ -37,7 +37,7 @@ export function GameCanvas({
           <PhaserGame
             onGarageClick={onGarageClick}
             garageLevel={garageLevel}
-            isActive={isActive}
+            isActive={isActive && !showBoostModal}
             hasAnyActiveBoost={hasAnyActiveBoost}
           />
         </ErrorBoundary>
