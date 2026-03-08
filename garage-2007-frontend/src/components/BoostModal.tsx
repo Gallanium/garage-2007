@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  useGameStore, useNuts, useBoosts, useMilestonesPurchased,
+  useGameStore, useNuts, useBoosts, useGarageLevel,
   BOOST_DEFINITIONS,
 } from '../store/gameStore'
 import type { BoostType } from '../store/gameStore'
@@ -58,7 +58,7 @@ const BOOST_THEMES: Record<BoostType, {
 export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
   const nuts = useNuts()
   const activeBoosts = useBoosts()
-  const milestonesPurchased = useMilestonesPurchased()
+  const garageLevel = useGarageLevel()
   const activateBoost = useGameStore(s => s.activateBoost)
   const replaceBoost = useGameStore(s => s.replaceBoost)
 
@@ -76,7 +76,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
     const isThisActive = activeBoosts.some(b => b.type === type && b.expiresAt > now)
     if (isThisActive) return 'active' as const
 
-    const isLocked = def.unlockLevel > 0 && !milestonesPurchased.includes(def.unlockLevel)
+    const isLocked = def.unlockLevel > 0 && garageLevel < def.unlockLevel
     if (isLocked) return 'locked' as const
 
     const hasOtherActive = activeBoosts.some(b => b.type !== type && b.expiresAt > now)
@@ -84,7 +84,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
     if (nuts < def.costNuts) return 'blocked_nuts' as const
     return 'can_buy' as const
-  }, [activeBoosts, milestonesPurchased, nuts, now])
+  }, [activeBoosts, garageLevel, nuts, now])
 
   const handleBuyClick = useCallback((type: BoostType) => {
     const status = getStatus(type)
