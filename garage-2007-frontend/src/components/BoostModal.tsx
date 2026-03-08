@@ -115,8 +115,8 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-        <div className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30">
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+        <div className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30" onClick={(e) => e.stopPropagation()}>
 
           {/* Крестик */}
           <button
