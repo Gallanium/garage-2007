@@ -174,9 +174,10 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
               return (
                 <div
                   key={type}
-                  className={`rounded-lg border p-3 animate-[slideUp_400ms_ease-out] ${theme.cardBg} ${status === 'locked' ? 'opacity-50' : ''}`}
+                  className="animate-[slideUp_400ms_ease-out]"
                   style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'backwards' }}
                 >
+                <div className={`rounded-lg border p-3 ${theme.cardBg} ${status === 'locked' ? 'opacity-50' : ''}`}>
                   <div className="flex items-center gap-3 mb-2">
                     {/* Иконка */}
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg flex-shrink-0 ${theme.iconBg}`}>
@@ -223,6 +224,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                         : 'КУПИТЬ'}
                     </button>
                   )}
+                </div>
                 </div>
               )
             })}
