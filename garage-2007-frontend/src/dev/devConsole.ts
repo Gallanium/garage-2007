@@ -6,6 +6,7 @@
 import {
   useGameStore,
   GARAGE_LEVEL_THRESHOLDS,
+  MILESTONE_LEVELS,
   MILESTONE_UPGRADES,
   WORKER_LIMITS,
   checkAutoLevel,
@@ -75,11 +76,16 @@ export function initDevConsole(): void {
       console.log(`✅ totalClicks = ${v}`)
     },
 
-    /** Установить уровень гаража (1-20) */
+    /** Установить уровень гаража (1-20). Авто-добавляет пройденные milestone в milestonesPurchased. */
     setGarageLevel: (v: number) => {
       if (v < 1 || v > 20) { console.error('❌ Уровень должен быть 1-20'); return }
-      store.setState({ garageLevel: v })
-      console.log(`✅ garageLevel = ${v}`)
+      const s = store.getState()
+      const newPurchased = [...s.milestonesPurchased]
+      for (const ml of MILESTONE_LEVELS) {
+        if (ml <= v && !newPurchased.includes(ml)) newPurchased.push(ml)
+      }
+      store.setState({ garageLevel: v, milestonesPurchased: newPurchased })
+      console.log(`✅ garageLevel = ${v}, milestonesPurchased = [${newPurchased.join(', ')}]`)
     },
 
     /** Установить пассивный доход (₽/сек) */

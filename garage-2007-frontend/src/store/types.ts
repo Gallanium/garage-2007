@@ -105,7 +105,7 @@ export interface GameState {
   milestonesPurchased: number[]
   showMilestoneModal: boolean
   pendingMilestoneLevel: number | null
-  dismissedMilestoneLevel: number | null
+  _milestoneDismissedAt: number
   passiveIncomePerSecond: number
   upgrades: UpgradesState
   workers: WorkersState

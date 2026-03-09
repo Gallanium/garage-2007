@@ -25,7 +25,7 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
         garageLevel: checkAutoLevel(newBalance, baseLevel, newPurchased),
         showMilestoneModal: false,
         pendingMilestoneLevel: null,
-        dismissedMilestoneLevel: null,
+        _milestoneDismissedAt: 0,
       }
     })
 
@@ -37,9 +37,10 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
   checkForMilestone: () => {
     const state = get()
     if (state.showMilestoneModal) return
+    // 5-second cooldown after dismissal
+    if (state._milestoneDismissedAt > 0 && Date.now() - state._milestoneDismissedAt < 5_000) return
     for (const level of MILESTONE_LEVELS) {
       if (!state.milestonesPurchased.includes(level)) {
-        if (state.dismissedMilestoneLevel === level) return
         const threshold = GARAGE_LEVEL_THRESHOLDS[level]
         if (threshold !== undefined && state.balance >= threshold) {
           _set({ showMilestoneModal: true, pendingMilestoneLevel: level })
@@ -50,10 +51,10 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
   },
 
   closeMilestoneModal: () => {
-    _set((s: GameState) => ({
+    _set({
       showMilestoneModal: false,
-      dismissedMilestoneLevel: s.pendingMilestoneLevel,
       pendingMilestoneLevel: null,
-    }))
+      _milestoneDismissedAt: Date.now(),
+    })
   },
 })
