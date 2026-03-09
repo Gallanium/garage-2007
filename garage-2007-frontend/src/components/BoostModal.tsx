@@ -130,7 +130,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
           {/* Заголовок */}
           <div className="text-center mb-4">
             <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
-              🚀 БУСТЫ
+              БУСТЫ
             </h2>
             <p className="text-gray-500 text-[9px] mt-1 tracking-wide">
               Временные усиления за гайки
