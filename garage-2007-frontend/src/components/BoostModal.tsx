@@ -115,8 +115,8 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-        <div className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]" onClick={onClose}>
+        <div className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]" onClick={(e) => e.stopPropagation()}>
 
           {/* Крестик */}
           <button
@@ -128,7 +128,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
           </button>
 
           {/* Заголовок */}
-          <div className="text-center mb-4">
+          <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
             <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
               БУСТЫ
             </h2>
@@ -139,7 +139,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
           {/* Диалог подтверждения замены */}
           {confirmType && (
-            <div className="mb-3 p-3 bg-orange-950/60 border border-orange-600/50 rounded-lg text-center">
+            <div className="mb-3 p-3 bg-orange-950/60 border border-orange-600/50 rounded-lg text-center animate-[slideUp_200ms_ease-out]">
               <p className="text-orange-300 text-[9px] mb-2">
                 Заменить активный буст?<br/>
                 <span className="text-gray-400">Оставшееся время будет потеряно</span>
@@ -163,7 +163,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
           {/* Карточки бустов */}
           <div className="flex flex-col gap-2">
-            {BOOST_ORDER.map(type => {
+            {BOOST_ORDER.map((type, index) => {
               const def = BOOST_DEFINITIONS[type]
               const theme = BOOST_THEMES[type]
               const status = getStatus(type)
@@ -174,7 +174,8 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
               return (
                 <div
                   key={type}
-                  className={`rounded-lg border p-3 ${theme.cardBg} ${status === 'locked' ? 'opacity-50' : ''}`}
+                  className={`rounded-lg border p-3 animate-[slideUp_400ms_ease-out] ${theme.cardBg} ${status === 'locked' ? 'opacity-50' : ''}`}
+                  style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'backwards' }}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     {/* Иконка */}
