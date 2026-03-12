@@ -18,7 +18,7 @@ export const initialState: GameState = {
   milestonesPurchased: [],
   showMilestoneModal: false,
   pendingMilestoneLevel: null,
-  dismissedMilestoneLevel: null,
+  _milestoneDismissedAt: 0,
 
   workers: {
     apprentice: { count: 0, cost: BASE_COSTS.apprentice },

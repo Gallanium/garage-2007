@@ -75,6 +75,15 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         ? (playerDataAny.milestonesPurchased as number[])
         : []
 
+    // Heal corrupted saves: if garageLevel was set past a milestone without purchasing it,
+    // auto-add those milestones to milestonesPurchased to restore consistency.
+    const savedGarageLevel = saveData.playerData.garageLevel ?? 1
+    for (const ml of [5, 10, 15, 20] as const) {
+      if (savedGarageLevel >= ml && !restoredPurchased.includes(ml)) {
+        restoredPurchased.push(ml)
+      }
+    }
+
     const mechanicSave = saveData.workers.mechanic
     const shouldResetMechanics = mechanicSave?.count > 0 && !restoredPurchased.includes(5)
     const savedWorkers = saveData.workers as unknown as Record<string, { count?: number; cost?: number }>

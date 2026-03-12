@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import PhaserGame from '../game/PhaserGame'
 import DailyRewardButton from './DailyRewardButton'
+import BoostButton from './BoostButton'
+import BoostModal from './BoostModal'
 import { ErrorBoundary } from './ErrorBoundary'
 
 interface GameCanvasProps {
@@ -24,6 +27,8 @@ export function GameCanvas({
   onOpenDailyRewards,
   hasAnyActiveBoost,
 }: GameCanvasProps) {
+  const [showBoostModal, setShowBoostModal] = useState(false)
+
   return (
     <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
 
@@ -32,7 +37,7 @@ export function GameCanvas({
           <PhaserGame
             onGarageClick={onGarageClick}
             garageLevel={garageLevel}
-            isActive={isActive}
+            isActive={isActive && !showBoostModal}
             hasAnyActiveBoost={hasAnyActiveBoost}
           />
         </ErrorBoundary>
@@ -42,6 +47,13 @@ export function GameCanvas({
         streak={dailyRewardStreak}
         canClaim={canClaimDaily}
         onClick={onOpenDailyRewards}
+      />
+
+      <BoostButton onClick={() => setShowBoostModal(true)} />
+
+      <BoostModal
+        isOpen={showBoostModal}
+        onClose={() => setShowBoostModal(false)}
       />
 
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2

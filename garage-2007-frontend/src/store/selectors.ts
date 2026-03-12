@@ -62,6 +62,11 @@ export const useActivateBoost     = () => useGameStore((s) => s.activateBoost)
 export const useHasActiveBoost    = (type: import('./types').BoostType) =>
   useGameStore((s) => s.boosts.active.some(b => b.type === type))
 export const useHasAnyActiveBoost = () => useGameStore((s) => s.boosts.active.length > 0)
+export const useActiveBoostType   = () => useGameStore((s) => {
+  const now = Date.now()
+  const active = s.boosts.active.find(b => b.expiresAt > now)
+  return active?.type ?? null
+})
 
 export const usePendingMilestoneInfo = () =>
   useGameStore(

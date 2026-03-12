@@ -81,6 +81,8 @@ export interface BoostDefinition {
   durationMs: number
   multiplier: number
   description: string
+  /** Уровень milestone, необходимый для разблокировки (0 = всегда доступен) */
+  unlockLevel: number
 }
 
 export interface ActiveBoost {
@@ -103,7 +105,7 @@ export interface GameState {
   milestonesPurchased: number[]
   showMilestoneModal: boolean
   pendingMilestoneLevel: number | null
-  dismissedMilestoneLevel: number | null
+  _milestoneDismissedAt: number
   passiveIncomePerSecond: number
   upgrades: UpgradesState
   workers: WorkersState
@@ -153,6 +155,7 @@ export interface GameActions {
   canWatchRewardedVideo: () => boolean
   watchRewardedVideo: () => Promise<boolean>
   activateBoost: (type: BoostType) => boolean
+  replaceBoost: (type: BoostType) => boolean
   tickBoosts: () => void
   getActiveMultiplier: (scope: 'income' | 'click') => number
   startBoostTick: () => () => void
