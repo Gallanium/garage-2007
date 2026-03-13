@@ -117,10 +117,13 @@ export const EVENT_CATEGORY_WEIGHTS: Record<EventCategory, number> = {
 }
 
 /** Минимальный cooldown между событиями: 15 мин */
-export const EVENT_COOLDOWN_MS = 900_000
+export const EVENT_COOLDOWN_MS = 15_000
 
 /** Дополнительная случайная задержка до следующего события: 0-15 мин */
-export const EVENT_RANDOM_DELAY_MS = 900_000
+export const EVENT_RANDOM_DELAY_MS = 15_000
 
 /** Проверка в passive tick каждые N тиков (1 тик = 1 сек) */
 export const EVENT_CHECK_INTERVAL = 60
+
+/** Время показа развёрнутого баннера перед авто-сворачиванием (мс) */
+export const BANNER_EXPAND_DURATION_MS = 4_000
