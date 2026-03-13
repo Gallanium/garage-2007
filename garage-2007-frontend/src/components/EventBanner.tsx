@@ -1,24 +1,14 @@
 // src/components/EventBanner.tsx
 import { useEffect, useRef, useState } from 'react'
 import { useActiveEvent, useGameStore, GAME_EVENTS, BANNER_EXPAND_DURATION_MS } from '../store/gameStore'
-import type { EventCategory } from '../store/gameStore'
+import type { EventCategory, EventDefinition } from '../store/gameStore'
+
+const DISMISS_DURATION_MS = 400
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; text: string; icon_bg: string }> = {
-  positive: {
-    border: 'border-green-600/60',
-    text: 'text-green-300',
-    icon_bg: 'bg-green-900/60',
-  },
-  negative: {
-    border: 'border-red-600/60',
-    text: 'text-red-300',
-    icon_bg: 'bg-red-900/60',
-  },
-  neutral: {
-    border: 'border-blue-600/60',
-    text: 'text-blue-300',
-    icon_bg: 'bg-blue-900/60',
-  },
+  positive: { border: 'border-green-600/60', text: 'text-green-300', icon_bg: 'bg-green-900/60' },
+  negative: { border: 'border-red-600/60',   text: 'text-red-300',   icon_bg: 'bg-red-900/60'   },
+  neutral:  { border: 'border-blue-600/60',  text: 'text-blue-300',  icon_bg: 'bg-blue-900/60'  },
 }
 
 function formatCountdown(ms: number): string {
@@ -32,30 +22,61 @@ function formatCountdown(ms: number): string {
 export function EventBanner() {
   const activeEvent = useActiveEvent()
   const clearEvent = useGameStore(s => s.clearEvent)
+
+  // Локальная копия события — сохраняется во время dismiss-анимации
+  const [displayedDef, setDisplayedDef] = useState<EventDefinition | null>(null)
   const [remaining, setRemaining] = useState(0)
   const [isExpanded, setIsExpanded] = useState(true)
-  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isDismissing, setIsDismissing] = useState(false)
 
-  // Запуск таймера авто-сворачивания
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const scheduleCollapse = () => {
     if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
-    expandTimerRef.current = setTimeout(() => {
-      setIsExpanded(false)
-    }, BANNER_EXPAND_DURATION_MS)
+    expandTimerRef.current = setTimeout(() => setIsExpanded(false), BANNER_EXPAND_DURATION_MS)
   }
 
-  // При новом событии — развернуть и запустить таймер
+  // Реакция на появление нового события
   useEffect(() => {
     if (!activeEvent) return
+    const def = GAME_EVENTS[activeEvent.id]
+    if (!def) return
+
+    // Отменить любой текущий dismiss
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+
+    setDisplayedDef(def)
+    setIsDismissing(false)
     setIsExpanded(true)
     scheduleCollapse()
+
     return () => {
       if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEvent?.id])
 
-  // Countdown таймер
+  // Реакция на исчезновение события — запуск dismiss-анимации
+  useEffect(() => {
+    if (activeEvent !== null) return
+    if (!displayedDef) return
+
+    setIsDismissing(true)
+    if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
+
+    dismissTimerRef.current = setTimeout(() => {
+      setDisplayedDef(null)
+      setIsDismissing(false)
+    }, DISMISS_DURATION_MS)
+
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEvent])
+
+  // Countdown
   useEffect(() => {
     if (!activeEvent) return
 
@@ -73,14 +94,12 @@ export function EventBanner() {
     return () => clearInterval(id)
   }, [activeEvent, clearEvent])
 
-  if (!activeEvent) return null
-  const def = GAME_EVENTS[activeEvent.id]
-  if (!def) return null
+  if (!displayedDef) return null
 
-  const styles = CATEGORY_STYLES[def.category]
+  const styles = CATEGORY_STYLES[displayedDef.category]
 
   const handleClick = () => {
-    if (!isExpanded) {
+    if (!isExpanded && !isDismissing) {
       setIsExpanded(true)
       scheduleCollapse()
     }
@@ -91,10 +110,13 @@ export function EventBanner() {
       className={`
         absolute top-2 left-3 z-10
         transition-[right] duration-500 ease-in-out
-        animate-[slideUp_400ms_ease-out]
         ${isExpanded ? 'right-[88px]' : 'right-auto'}
+        ${isDismissing
+          ? 'animate-[fadeSlideOut_400ms_ease-in_forwards]'
+          : 'animate-[slideUp_400ms_ease-out]'
+        }
       `}
-      style={{ animationFillMode: 'backwards' }}
+      style={{ animationFillMode: isDismissing ? 'forwards' : 'backwards' }}
     >
       <div
         className={`
@@ -115,20 +137,24 @@ export function EventBanner() {
           ${isExpanded ? 'w-8 h-8 text-base' : 'w-6 h-6 text-sm'}
           ${styles.icon_bg}
         `}>
-          {def.icon}
+          {displayedDef.icon}
         </div>
 
-        {/* Название + описание — только в развёрнутом */}
-        {isExpanded && (
-          <div className="flex-1 min-w-0 animate-[fadeIn_300ms_ease-out]">
+        {/* Текстовый блок — всегда в DOM, управляется через CSS */}
+        <div className={`
+          overflow-hidden
+          transition-all duration-500 ease-in-out
+          ${isExpanded ? 'max-w-xs opacity-100' : 'max-w-0 opacity-0'}
+        `}>
+          <div className="min-w-[120px]">
             <p className={`text-[10px] font-bold ${styles.text} leading-tight truncate`}>
-              {def.name}
+              {displayedDef.name}
             </p>
             <p className="text-gray-500 text-[8px] leading-tight mt-0.5 truncate">
-              {def.description}
+              {displayedDef.description}
             </p>
           </div>
-        )}
+        </div>
 
         {/* Таймер — всегда виден */}
         <div className={`

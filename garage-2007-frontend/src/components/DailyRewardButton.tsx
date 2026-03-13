@@ -27,7 +27,7 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
       type="button"
       onClick={onClick}
       className={`
-        absolute top-3 right-3 z-20
+        absolute top-2 right-3 z-20
         w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full
         flex flex-col items-center justify-center
         backdrop-blur-sm

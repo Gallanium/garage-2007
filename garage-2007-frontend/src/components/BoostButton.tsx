@@ -35,7 +35,7 @@ const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
       type="button"
       onClick={onClick}
       className={`
-        absolute top-[84px] right-3 z-20
+        absolute top-[80px] right-3 z-20
         w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full
         flex flex-col items-center justify-center
         backdrop-blur-sm border-2
