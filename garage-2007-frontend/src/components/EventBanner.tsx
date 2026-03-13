@@ -124,10 +124,11 @@ export function EventBanner() {
           flex items-center gap-2
           transition-all duration-500 ease-in-out
           ${isExpanded
-            ? 'rounded-lg px-3 py-2 cursor-default'
-            : 'rounded-full px-2.5 py-1.5 cursor-pointer'
+            ? 'px-3 py-2 cursor-default'
+            : 'px-2.5 py-1.5 cursor-pointer'
           }
         `}
+        style={{ borderRadius: isExpanded ? 10 : 20 }}
         onClick={handleClick}
       >
         {/* Иконка — всегда видна */}
