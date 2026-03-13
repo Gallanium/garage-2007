@@ -95,6 +95,38 @@ export interface BoostsState {
   active: ActiveBoost[]
 }
 
+// ── Events ────────────────────────────────────────────────────────────────────
+
+export type EventCategory = 'positive' | 'negative' | 'neutral'
+
+export interface EventEffect {
+  scope: 'income' | 'click' | 'cost'
+  multiplier: number
+}
+
+export interface EventDefinition {
+  id: string
+  name: string
+  description: string
+  icon: string
+  category: EventCategory
+  effect: EventEffect
+  durationMs: number
+  weight: number
+}
+
+export interface ActiveEvent {
+  id: string
+  activatedAt: number
+  expiresAt: number
+  eventSeed: number
+}
+
+export interface EventsState {
+  activeEvent: ActiveEvent | null
+  cooldownEnd: number
+}
+
 // ── GameState ─────────────────────────────────────────────────────────────────
 
 export interface GameState {
@@ -127,6 +159,7 @@ export interface GameState {
   showDailyRewardsModal: boolean
   rewardedVideo: RewardedVideoState
   boosts: BoostsState
+  events: EventsState
 }
 
 // ── GameActions ───────────────────────────────────────────────────────────────
@@ -159,6 +192,12 @@ export interface GameActions {
   tickBoosts: () => void
   getActiveMultiplier: (scope: 'income' | 'click') => number
   startBoostTick: () => () => void
+  triggerRandomEvent: () => boolean
+  clearEvent: () => void
+  tickEvents: () => void
+  getEventMultiplier: (scope: 'income' | 'click') => number
+  getEventCostMultiplier: () => number
+  startEventTick: () => () => void
 }
 
 export type GameStore = GameState & GameActions

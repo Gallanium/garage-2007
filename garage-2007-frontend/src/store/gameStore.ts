@@ -12,6 +12,7 @@ import { createAchievementSlice }   from './actions/achievementActions'
 import { createDailyRewardSlice }   from './actions/dailyRewardActions'
 import { createRewardedVideoSlice } from './actions/rewardedVideoActions'
 import { createBoostSlice }        from './actions/boostActions'
+import { createEventSlice }        from './actions/eventActions'
 import { createPersistenceSlice }   from './actions/persistenceActions'
 
 export const useGameStore = create<GameStore>((...a) => ({
@@ -25,6 +26,7 @@ export const useGameStore = create<GameStore>((...a) => ({
   ...createRewardedVideoSlice(...a),
   ...createPersistenceSlice(...a),
   ...createBoostSlice(...a),
+  ...createEventSlice(...a),
 }))
 
 // ── Re-exports so components keep importing from '../store/gameStore' ─────────
@@ -35,5 +37,6 @@ export * from './constants/garageLevels'
 export * from './constants/achievements'
 export * from './constants/dailyRewards'
 export * from './constants/boosts'
+export * from './constants/events'
 export * from './formulas/progression'
 export * from './initialState'

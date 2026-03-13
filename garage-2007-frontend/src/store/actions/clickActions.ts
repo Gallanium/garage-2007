@@ -11,7 +11,8 @@ export const createClickSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     const { clickValue, garageLevel: prevLevel } = get()
     const isCritical = Math.random() < CRITICAL_CLICK_CHANCE
     const boostMultiplier = get().getActiveMultiplier('click')
-    const income = (isCritical ? clickValue * CRITICAL_CLICK_MULTIPLIER : clickValue) * boostMultiplier
+    const eventMultiplier = get().getEventMultiplier('click')
+    const income = (isCritical ? clickValue * CRITICAL_CLICK_MULTIPLIER : clickValue) * boostMultiplier * eventMultiplier
 
     _set((state: GameState) => {
       const newBalance = state.balance + income

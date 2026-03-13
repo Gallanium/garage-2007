@@ -15,6 +15,7 @@ export default class MainScene extends Phaser.Scene {
   private clickEffect!: ClickEffectManager
   private levelUpEffect!: LevelUpEffectManager
   private boostGlow: Phaser.GameObjects.Graphics | null = null
+  private eventGlow: Phaser.GameObjects.Graphics | null = null
 
   constructor() {
     super({ key: 'MainScene' })
@@ -98,12 +99,57 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
+  private readonly EVENT_GLOW_COLORS = {
+    positive: 0x22C55E,
+    negative: 0xEF4444,
+    neutral:  0x3B82F6,
+  } as const
+
+  /**
+   * Включает/выключает визуальный эффект активного случайного события.
+   * Цвет зависит от категории: зелёный / красный / синий.
+   * Вызывается из PhaserGame.tsx при изменении activeEventCategory.
+   */
+  public setEventActive(category: 'positive' | 'negative' | 'neutral' | null): void {
+    if (category) {
+      if (!this.eventGlow) {
+        this.eventGlow = this.add.graphics()
+        this.eventGlow.setDepth(16) // на 1 выше boost glow
+      }
+      const color = this.EVENT_GLOW_COLORS[category]
+      const pad = 6
+      const b = this.garageVisual.bounds
+      this.eventGlow.clear()
+      this.eventGlow.lineStyle(3, color, 0.7)
+      this.eventGlow.strokeRect(b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2)
+      this.tweens.killTweensOf(this.eventGlow)
+      this.tweens.add({
+        targets: this.eventGlow,
+        alpha: { from: 0.2, to: 0.7 },
+        duration: 1200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+    } else {
+      if (this.eventGlow) {
+        this.tweens.killTweensOf(this.eventGlow)
+        this.eventGlow.destroy()
+        this.eventGlow = null
+      }
+    }
+  }
+
   shutdown(): void {
     this.events.off('garageClicked')
     this.events.off('playSpecialEffect')
     if (this.boostGlow) {
       this.boostGlow.destroy()
       this.boostGlow = null
+    }
+    if (this.eventGlow) {
+      this.eventGlow.destroy()
+      this.eventGlow = null
     }
     this.garageVisual.destroy()
     this.clickEffect.destroy()

@@ -28,8 +28,9 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
       return
     }
 
-    if (state.balance < worker.cost) {
-      console.warn(`[Hire] 💰 Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(worker.cost)}₽`)
+    const effectiveWorkerCost = Math.floor(worker.cost * get().getEventCostMultiplier())
+    if (state.balance < effectiveWorkerCost) {
+      console.warn(`[Hire] 💰 Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(effectiveWorkerCost)}₽`)
       return
     }
 
@@ -39,7 +40,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     const newPassive = calculateTotalPassiveIncome(workersAfter as unknown as Record<string, { count: number }>, state.upgrades.workSpeed.level)
 
     _set((s: GameState) => ({
-      balance: s.balance - worker.cost,
+      balance: s.balance - effectiveWorkerCost,
       passiveIncomePerSecond: newPassive,
       workers: { ...s.workers, [workerType]: { count: newCount, cost: newCost } },
     }))

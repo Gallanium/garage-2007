@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 import { gameConfig } from './gameConfig'
 import MainScene from './MainScene'
 import type { GarageClickEvent, LevelTransitionEvent } from './types'
+import type { EventCategory } from '../store/types'
 
 /**
  * Пропсы компонента PhaserGame
@@ -19,6 +20,9 @@ interface PhaserGameProps {
 
   /** Активен ли хотя бы один буст (для свечения в Phaser) */
   hasAnyActiveBoost: boolean
+
+  /** Категория активного события (для цветного свечения в Phaser) */
+  activeEventCategory: EventCategory | null
 }
 
 /**
@@ -31,7 +35,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, hasAnyActiveBoost }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, hasAnyActiveBoost, activeEventCategory }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -184,6 +188,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
   useEffect(() => {
     sceneRef.current?.setBoostActive(hasAnyActiveBoost)
   }, [hasAnyActiveBoost])
+
+  useEffect(() => {
+    sceneRef.current?.setEventActive(activeEventCategory)
+  }, [activeEventCategory])
 
   /**
    * Эффект синхронизации уровня гаража с Phaser сценой

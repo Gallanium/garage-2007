@@ -58,6 +58,10 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
           expiresAt: b.expiresAt,
         })),
       },
+      events: {
+        activeEvent: s.events.activeEvent,
+        cooldownEnd: s.events.cooldownEnd,
+      },
     })
     if (!ok) console.error('[Save] Ошибка сохранения')
   },
@@ -113,6 +117,15 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       .filter(b => b.expiresAt > now)
       .map(b => ({ type: b.type as import('../types').BoostType, activatedAt: b.activatedAt, expiresAt: b.expiresAt }))
 
+    const savedEvents = saveData.events
+    const restoredActiveEvent = savedEvents?.activeEvent && savedEvents.activeEvent.expiresAt > now
+      ? savedEvents.activeEvent
+      : null
+    const restoredEvents = {
+      activeEvent: restoredActiveEvent,
+      cooldownEnd: savedEvents?.cooldownEnd ?? 0,
+    }
+
     const savedAchievements = (saveData.achievements ?? {}) as Record<string, PlayerAchievement>
     const restoredAchievements: Record<AchievementId, PlayerAchievement> = { ...initialState.achievements }
     for (const key of Object.keys(savedAchievements)) {
@@ -144,6 +157,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         ? { ...initialState.rewardedVideo, ...saveData.rewardedVideo }
         : initialState.rewardedVideo,
       boosts: { active: restoredBoosts },
+      events: restoredEvents,
     })
 
     get().checkForMilestone()
@@ -181,7 +195,8 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         }
         if (passiveIncomePerSecond > 0) {
           const boostMultiplier = get().getActiveMultiplier('income')
-          const earned = roundCurrency(passiveIncomePerSecond * boostMultiplier)
+          const eventMultiplier = get().getEventMultiplier('income')
+          const earned = roundCurrency(passiveIncomePerSecond * boostMultiplier * eventMultiplier)
           const newBalance = roundCurrency(s.balance + earned)
           const newLevel = checkAutoLevel(newBalance, s.garageLevel, s.milestonesPurchased)
           result.balance = newBalance
@@ -192,7 +207,10 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       })
       if (passiveIncomePerSecond > 0) get().checkForMilestone()
       if (get().garageLevel !== prevLevel) get().saveProgress()
-      if (tick % 60 === 0) get().checkAchievements()
+      if (tick % 60 === 0) {
+        get().checkAchievements()
+        get().triggerRandomEvent()
+      }
     }, 1000)
     return () => clearInterval(id)
   },

@@ -11,13 +11,21 @@ import {
   GARAGE_LEVEL_NAMES,
   formatLargeNumber,
   useActiveBoostType,
+  useActiveEvent,
+  GAME_EVENTS,
 } from '../store/gameStore'
-import type { BoostType } from '../store/gameStore'
+import type { BoostType, EventCategory } from '../store/gameStore'
 
 const BOOST_COLORS: Record<BoostType, { text: string; glow: string }> = {
   turbo:     { text: 'text-purple-300', glow: 'drop-shadow-[0_0_6px_rgba(192,132,252,0.6)]' },
   income_2x: { text: 'text-amber-300',  glow: 'drop-shadow-[0_0_6px_rgba(252,211,77,0.6)]' },
   income_3x: { text: 'text-red-300',    glow: 'drop-shadow-[0_0_6px_rgba(252,165,165,0.6)]' },
+}
+
+const EVENT_COLORS: Record<EventCategory, { text: string; glow: string }> = {
+  positive: { text: 'text-green-300', glow: 'drop-shadow-[0_0_6px_rgba(134,239,172,0.6)]' },
+  negative: { text: 'text-red-400',   glow: 'drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]' },
+  neutral:  { text: 'text-blue-300',  glow: 'drop-shadow-[0_0_6px_rgba(147,197,253,0.6)]' },
 }
 
 /**
@@ -29,11 +37,24 @@ export function GameFooter() {
   const passiveIncomePerSecond = usePassiveIncome()
   const activeBoostType = useActiveBoostType()
   const getActiveMultiplier = useGameStore((s) => s.getActiveMultiplier)
-  const clickMultiplier = activeBoostType ? getActiveMultiplier('click') : 1
-  const incomeMultiplier = activeBoostType ? getActiveMultiplier('income') : 1
+  const getEventMultiplier = useGameStore((s) => s.getEventMultiplier)
+  const activeEvent = useActiveEvent()
 
+  const boostClickMultiplier = activeBoostType ? getActiveMultiplier('click') : 1
+  const boostIncomeMultiplier = activeBoostType ? getActiveMultiplier('income') : 1
+  const eventClickMultiplier = activeEvent ? getEventMultiplier('click') : 1
+  const eventIncomeMultiplier = activeEvent ? getEventMultiplier('income') : 1
+  const clickMultiplier = boostClickMultiplier * eventClickMultiplier
+  const incomeMultiplier = boostIncomeMultiplier * eventIncomeMultiplier
+
+  // Цвет: приоритет буст > событие
+  const activeEventDef = activeEvent ? GAME_EVENTS[activeEvent.id] : null
   const clickBoostColors = activeBoostType ? BOOST_COLORS[activeBoostType] : null
   const passiveBoostColors = activeBoostType && activeBoostType !== 'turbo' ? BOOST_COLORS[activeBoostType] : null
+  const clickEventColors = !clickBoostColors && activeEventDef && activeEventDef.effect.scope === 'click'
+    ? EVENT_COLORS[activeEventDef.category] : null
+  const passiveEventColors = !passiveBoostColors && activeEventDef && activeEventDef.effect.scope === 'income'
+    ? EVENT_COLORS[activeEventDef.category] : null
   const balance = useBalance()
   const garageLevel = useGarageLevel()
   const nextLevelCost = useNextLevelCost()
@@ -50,10 +71,15 @@ export function GameFooter() {
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-garage-yellow/30 shadow-md">
           <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">За клик</p>
           <div className="flex items-baseline gap-0.5">
-            <p className={`text-base sm:text-lg font-bold font-mono ${clickBoostColors ? `${clickBoostColors.text} ${clickBoostColors.glow}` : 'text-garage-yellow'}`}>
-              {formatLargeNumber(clickValue * clickMultiplier)}
-            </p>
-            <span className={`text-[9px] sm:text-[11px] font-mono ${clickBoostColors ? clickBoostColors.text : 'text-garage-yellow/70'}`}>₽</span>
+            {(() => {
+              const colors = clickBoostColors ?? clickEventColors
+              return <>
+                <p className={`text-base sm:text-lg font-bold font-mono ${colors ? `${colors.text} ${colors.glow}` : 'text-garage-yellow'}`}>
+                  {formatLargeNumber(clickValue * clickMultiplier)}
+                </p>
+                <span className={`text-[9px] sm:text-[11px] font-mono ${colors ? colors.text : 'text-garage-yellow/70'}`}>₽</span>
+              </>
+            })()}
           </div>
         </div>
 
@@ -72,10 +98,15 @@ export function GameFooter() {
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-green-400/30 shadow-md">
           <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
           <div className="flex items-baseline gap-0.5">
-            <p className={`text-base sm:text-lg font-bold font-mono ${passiveBoostColors ? `${passiveBoostColors.text} ${passiveBoostColors.glow}` : 'text-green-300'}`}>
-              {(passiveIncomePerSecond * incomeMultiplier).toFixed(1)}
-            </p>
-            <span className={`text-[9px] sm:text-[11px] font-mono ${passiveBoostColors ? passiveBoostColors.text : 'text-green-300/70'}`}>₽/с</span>
+            {(() => {
+              const colors = passiveBoostColors ?? passiveEventColors
+              return <>
+                <p className={`text-base sm:text-lg font-bold font-mono ${colors ? `${colors.text} ${colors.glow}` : 'text-green-300'}`}>
+                  {(passiveIncomePerSecond * incomeMultiplier).toFixed(1)}
+                </p>
+                <span className={`text-[9px] sm:text-[11px] font-mono ${colors ? colors.text : 'text-green-300/70'}`}>₽/с</span>
+              </>
+            })()}
           </div>
         </div>
 
