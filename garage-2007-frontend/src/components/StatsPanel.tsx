@@ -9,6 +9,7 @@ import {
   formatLargeNumber,
   GARAGE_LEVEL_NAMES,
 } from '../store/gameStore'
+import { useTelegramUser } from '../hooks/useTelegram'
 
 // ============================================
 // УТИЛИТЫ
@@ -30,6 +31,7 @@ function formatPlayTime(totalSeconds: number): string {
  * Панель статистики игрока.
  */
 const StatsPanel: React.FC = () => {
+  const tgUser = useTelegramUser()
   const garageLevel = useGarageLevel()
   const totalClicks = useTotalClicks()
   const peakClickIncome = usePeakClickIncome()
@@ -48,16 +50,21 @@ const StatsPanel: React.FC = () => {
       <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
                           border border-gray-700 shadow-md">
         <div className="flex items-center gap-3">
-          {/* Аватар-заглушка */}
+          {/* Аватар */}
           <div className="w-12 h-12 rounded-full bg-gray-700 border-2 border-gray-600
-                          flex items-center justify-center flex-shrink-0">
-            <span className="text-xl">👤</span>
+                          flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {tgUser?.photoUrl
+              ? <img src={tgUser.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+              : <span className="text-xl">👤</span>
+            }
           </div>
-          {/* Никнейм + подпись */}
+          {/* Имя + username */}
           <div>
-            <p className="text-sm sm:text-base font-bold text-white font-mono">Игрок</p>
+            <p className="text-sm sm:text-base font-bold text-white font-mono">
+              {tgUser ? `${tgUser.firstName}${tgUser.lastName ? ' ' + tgUser.lastName : ''}` : 'Игрок'}
+            </p>
             <p className="text-[9px] sm:text-[11px] text-gray-500 font-mono">
-              Telegram (скоро)
+              {tgUser?.username ? `@${tgUser.username}` : tgUser ? `ID: ${tgUser.id}` : 'Подключите Telegram'}
             </p>
           </div>
         </div>

@@ -26,6 +26,7 @@ import { GameFooter } from './components/GameFooter'
 import { GameCanvas } from './components/GameCanvas'
 import { useGameLifecycle } from './hooks/useGameLifecycle'
 import { useOfflineEarnings } from './hooks/useOfflineEarnings'
+import { useTelegramBackButton } from './hooks/useTelegram'
 
 // ============================================
 // КОНСТАНТЫ
@@ -55,6 +56,12 @@ function App() {
 
   // --- Локальное состояние ---
   const [activeTab, setActiveTab] = useState<string>('game')
+
+  // --- Telegram Back Button: показываем когда не на табе «Игра» ---
+  useTelegramBackButton(
+    activeTab !== 'game',
+    () => setActiveTab('game'),
+  )
 
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
@@ -100,7 +107,10 @@ function App() {
   const isGameTabActive = activeTab === 'game' && !showWelcomeBack && !showMilestoneModal && !showDailyRewardsModal
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-y-auto">
+    <div
+      className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-y-auto"
+      style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
+    >
 
       <GameHeader />
 

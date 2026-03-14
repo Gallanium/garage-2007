@@ -15,6 +15,7 @@
     "test:all": "vitest run && playwright test"
   },
   "dependencies": {
+    "@telegram-apps/sdk-react": "^3.3.9",
     "phaser": "^3.90.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
