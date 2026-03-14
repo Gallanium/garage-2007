@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   useGameStore,
   useGarageLevel,
@@ -58,10 +58,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<string>('game')
 
   // --- Telegram Back Button: показываем когда не на табе «Игра» ---
-  useTelegramBackButton(
-    activeTab !== 'game',
-    () => setActiveTab('game'),
-  )
+  const goToGameTab = useCallback(() => setActiveTab('game'), [])
+  useTelegramBackButton(activeTab !== 'game', goToGameTab)
 
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
@@ -128,7 +126,7 @@ function App() {
       <div className="relative flex-1 min-h-0">
 
         <div
-          className={`absolute inset-0 flex flex-col ${activeTab === 'game' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 flex flex-col ${activeTab === 'game' ? 'visible' : 'invisible opacity-0 pointer-events-none'}`}
         >
           <GameCanvas
             garageLevel={garageLevel}
