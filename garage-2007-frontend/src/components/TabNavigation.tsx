@@ -57,7 +57,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               ${
                 isActive
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  : 'bg-gray-800 text-gray-400 [@media(hover:hover)]:hover:bg-gray-700'
               }
             `}
           >

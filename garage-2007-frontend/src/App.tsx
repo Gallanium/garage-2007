@@ -58,7 +58,13 @@ function App() {
   const [activeTab, setActiveTab] = useState<string>('game')
 
   // --- Telegram Back Button: показываем когда не на табе «Игра» ---
-  const goToGameTab = useCallback(() => setActiveTab('game'), [])
+  const goToGameTab = useCallback(() => {
+    setActiveTab('game')
+    // Снять :focus/:hover с кнопки таба — нативный BackButton не делает blur
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, [])
   useTelegramBackButton(activeTab !== 'game', goToGameTab)
 
   // --- Данные из store ---
