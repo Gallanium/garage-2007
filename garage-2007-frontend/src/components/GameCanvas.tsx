@@ -5,11 +5,12 @@ import BoostButton from './BoostButton'
 import BoostModal from './BoostModal'
 import { EventBanner } from './EventBanner'
 import { ErrorBoundary } from './ErrorBoundary'
+import { useTelegramHaptic } from '../hooks/useTelegram'
 
 interface GameCanvasProps {
   garageLevel: number
   isActive: boolean
-  onGarageClick: () => void
+  onGarageClick: () => boolean
   dailyRewardStreak: number
   canClaimDaily: boolean
   onOpenDailyRewards: () => void
@@ -27,6 +28,16 @@ export function GameCanvas({
   onOpenDailyRewards,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
+  const haptic = useTelegramHaptic()
+
+  const handleGarageClick = () => {
+    const isCritical = onGarageClick()
+    if (isCritical) {
+      haptic.impactMedium()
+    } else {
+      haptic.impactLight()
+    }
+  }
 
   return (
     <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
@@ -34,7 +45,7 @@ export function GameCanvas({
       <div className="w-full h-full flex items-center justify-center">
         <ErrorBoundary fallback="Игровой движок недоступен. Попробуй перезагрузить страницу.">
           <PhaserGame
-            onGarageClick={onGarageClick}
+            onGarageClick={handleGarageClick}
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
           />
