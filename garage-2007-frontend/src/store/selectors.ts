@@ -68,6 +68,10 @@ export const useActiveBoostType   = () => useGameStore((s) => {
   return active?.type ?? null
 })
 
+export const useActiveEvent        = () => useGameStore((s) => s.events.activeEvent)
+export const useEventCooldownEnd   = () => useGameStore((s) => s.events.cooldownEnd)
+export const useHasActiveEvent     = () => useGameStore((s) => s.events.activeEvent !== null)
+
 export const usePendingMilestoneInfo = () =>
   useGameStore(
     useShallow((s) => {

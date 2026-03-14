@@ -16,9 +16,6 @@ interface PhaserGameProps {
 
   /** Активна ли вкладка «Игра» (блокирует клики если false) */
   isActive: boolean
-
-  /** Активен ли хотя бы один буст (для свечения в Phaser) */
-  hasAnyActiveBoost: boolean
 }
 
 /**
@@ -31,7 +28,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, hasAnyActiveBoost }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -180,10 +177,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
     if (!sceneRef.current) return
     sceneRef.current.input.enabled = isActive
   }, [isActive])
-
-  useEffect(() => {
-    sceneRef.current?.setBoostActive(hasAnyActiveBoost)
-  }, [hasAnyActiveBoost])
 
   /**
    * Эффект синхронизации уровня гаража с Phaser сценой

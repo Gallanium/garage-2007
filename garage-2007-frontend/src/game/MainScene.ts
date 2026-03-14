@@ -14,7 +14,6 @@ export default class MainScene extends Phaser.Scene {
   private garageVisual!: GarageVisualManager
   private clickEffect!: ClickEffectManager
   private levelUpEffect!: LevelUpEffectManager
-  private boostGlow: Phaser.GameObjects.Graphics | null = null
 
   constructor() {
     super({ key: 'MainScene' })
@@ -65,46 +64,9 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * Включает/выключает визуальный индикатор активного буста.
-   * Вызывается из PhaserGame.tsx при изменении hasAnyActiveBoost.
-   */
-  public setBoostActive(isActive: boolean): void {
-    if (isActive) {
-      if (!this.boostGlow) {
-        this.boostGlow = this.add.graphics()
-        this.boostGlow.setDepth(15) // между GARAGE(10) и EFFECTS(20)
-      }
-      // Пульсирующая аура вокруг спрайта гаража
-      const pad = 10
-      const b = this.garageVisual.bounds
-      this.boostGlow.clear()
-      this.boostGlow.lineStyle(4, 0xFFAA00, 0.8)
-      this.boostGlow.strokeRect(b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2)
-      this.tweens.add({
-        targets: this.boostGlow,
-        alpha: { from: 0.3, to: 0.9 },
-        duration: 800,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      })
-    } else {
-      if (this.boostGlow) {
-        this.tweens.killTweensOf(this.boostGlow)
-        this.boostGlow.destroy()
-        this.boostGlow = null
-      }
-    }
-  }
-
   shutdown(): void {
     this.events.off('garageClicked')
     this.events.off('playSpecialEffect')
-    if (this.boostGlow) {
-      this.boostGlow.destroy()
-      this.boostGlow = null
-    }
     this.garageVisual.destroy()
     this.clickEffect.destroy()
     this.levelUpEffect.destroy()

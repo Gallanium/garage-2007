@@ -3,6 +3,7 @@ import PhaserGame from '../game/PhaserGame'
 import DailyRewardButton from './DailyRewardButton'
 import BoostButton from './BoostButton'
 import BoostModal from './BoostModal'
+import { EventBanner } from './EventBanner'
 import { ErrorBoundary } from './ErrorBoundary'
 
 interface GameCanvasProps {
@@ -12,7 +13,6 @@ interface GameCanvasProps {
   dailyRewardStreak: number
   canClaimDaily: boolean
   onOpenDailyRewards: () => void
-  hasAnyActiveBoost: boolean
 }
 
 /**
@@ -25,7 +25,6 @@ export function GameCanvas({
   dailyRewardStreak,
   canClaimDaily,
   onOpenDailyRewards,
-  hasAnyActiveBoost,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
 
@@ -38,7 +37,6 @@ export function GameCanvas({
             onGarageClick={onGarageClick}
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
-            hasAnyActiveBoost={hasAnyActiveBoost}
           />
         </ErrorBoundary>
       </div>
@@ -55,6 +53,8 @@ export function GameCanvas({
         isOpen={showBoostModal}
         onClose={() => setShowBoostModal(false)}
       />
+
+      <EventBanner />
 
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2
                       bg-garage-yellow/20 backdrop-blur-sm rounded-full px-3 py-2

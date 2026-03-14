@@ -34,6 +34,7 @@ export function useGameLifecycle(): void {
   const saveProgress = useGameStore((s) => s.saveProgress)
   const startPassiveIncome = useGameStore((s) => s.startPassiveIncome)
   const startBoostTick  = useGameStore((s) => s.startBoostTick)
+  const startEventTick  = useGameStore((s) => s.startEventTick)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -53,6 +54,12 @@ export function useGameLifecycle(): void {
     const cleanup = startBoostTick()
     return cleanup
   }, [startBoostTick])
+
+  // 4. Запуск тика событий (очистка протухших)
+  useEffect(() => {
+    const cleanup = startEventTick()
+    return cleanup
+  }, [startEventTick])
 
   // 5. Автосохранение каждые 30 секунд
   useEffect(() => {

@@ -16,13 +16,14 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       console.warn(`[ClickUpgrade] Максимальный уровень: ${CLICK_UPGRADE_MAX_LEVEL}`)
       return false
     }
-    if (balance < clickPower.cost) {
-      console.warn(`[ClickUpgrade] Недостаточно средств: нужно ${formatLargeNumber(clickPower.cost)} ₽`)
+    const effectiveCost = Math.floor(clickPower.cost * get().getEventCostMultiplier())
+    if (balance < effectiveCost) {
+      console.warn(`[ClickUpgrade] Недостаточно средств: нужно ${formatLargeNumber(effectiveCost)} ₽`)
       return false
     }
     const newLevel = clickPower.level + 1
     _set((s: GameState) => ({
-      balance: s.balance - clickPower.cost,
+      balance: s.balance - effectiveCost,
       clickValue: calculateClickIncome(newLevel),
       upgrades: {
         ...s.upgrades,
@@ -40,13 +41,14 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован (milestone 5)')
       return
     }
-    if (state.balance < workSpeed.cost) {
-      console.warn(`[Purchase] 💰 Недостаточно средств: нужно ${formatLargeNumber(workSpeed.cost)}₽`)
+    const effectiveWorkSpeedCost = Math.floor(workSpeed.cost * get().getEventCostMultiplier())
+    if (state.balance < effectiveWorkSpeedCost) {
+      console.warn(`[Purchase] 💰 Недостаточно средств: нужно ${formatLargeNumber(effectiveWorkSpeedCost)}₽`)
       return
     }
     const newLevel = workSpeed.level + 1
     _set((s: GameState) => ({
-      balance: s.balance - workSpeed.cost,
+      balance: s.balance - effectiveWorkSpeedCost,
       passiveIncomePerSecond: calculateTotalPassiveIncome(s.workers as unknown as Record<string, { count: number }>, newLevel),
       upgrades: {
         ...s.upgrades,
