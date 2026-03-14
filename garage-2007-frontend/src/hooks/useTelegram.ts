@@ -21,7 +21,7 @@ export interface TelegramUser {
   photoUrl?: string
 }
 
-// Внутренний тип полей user из tgWebAppData (после camelCase-трансформации valibot)
+// Внутренний тип: поля user после camelCase-трансформации valibot (useLaunchParams(true))
 interface TgUser {
   id: number
   firstName: string
@@ -31,10 +31,12 @@ interface TgUser {
   [key: string]: unknown
 }
 
-/** Данные текущего пользователя Telegram или null вне TMA. */
+/** Данные текущего пользователя Telegram или null вне TMA.
+ *  Использует useLaunchParams(true) для получения camelCase-полей user. */
 export function useTelegramUser(): TelegramUser | null {
   try {
-    const lp = useLaunchParams()
+    // true = camelCase: user.firstName / lastName / photoUrl (вместо snake_case first_name etc.)
+    const lp = useLaunchParams(true)
     const u = lp.tgWebAppData?.user as TgUser | undefined
     if (!u) return null
     return {
@@ -50,8 +52,6 @@ export function useTelegramUser(): TelegramUser | null {
 }
 
 // ── Haptic feedback ──────────────────────────────────────────────────────────
-
-const noop = () => {}
 
 export interface TelegramHaptic {
   impactLight: () => void
@@ -113,6 +113,3 @@ export function useTelegramBackButton(visible: boolean, onBack: () => void): voi
     return onBackButtonClick(onBack)
   }, [onBack])
 }
-
-// Re-export noop for potential future use
-export { noop }

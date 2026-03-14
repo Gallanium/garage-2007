@@ -42,7 +42,7 @@ export function initTelegram(): void {
             last_name: 'User',
             username: 'devuser',
             language_code: 'ru',
-            is_premium: 'false',
+            is_premium: false,
           })],
           ['hash', 'mock_hash_dev_only'],
           ['auth_date', String(Math.floor(Date.now() / 1000))],
