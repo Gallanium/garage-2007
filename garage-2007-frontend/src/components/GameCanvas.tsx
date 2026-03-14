@@ -5,7 +5,6 @@ import BoostButton from './BoostButton'
 import BoostModal from './BoostModal'
 import { EventBanner } from './EventBanner'
 import { ErrorBoundary } from './ErrorBoundary'
-import { useActiveEvent, GAME_EVENTS } from '../store/gameStore'
 
 interface GameCanvasProps {
   garageLevel: number
@@ -14,7 +13,6 @@ interface GameCanvasProps {
   dailyRewardStreak: number
   canClaimDaily: boolean
   onOpenDailyRewards: () => void
-  hasAnyActiveBoost: boolean
 }
 
 /**
@@ -27,11 +25,8 @@ export function GameCanvas({
   dailyRewardStreak,
   canClaimDaily,
   onOpenDailyRewards,
-  hasAnyActiveBoost,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
-  const activeEvent = useActiveEvent()
-  const activeEventCategory = activeEvent ? (GAME_EVENTS[activeEvent.id]?.category ?? null) : null
 
   return (
     <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
@@ -42,8 +37,6 @@ export function GameCanvas({
             onGarageClick={onGarageClick}
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
-            hasAnyActiveBoost={hasAnyActiveBoost}
-            activeEventCategory={activeEventCategory}
           />
         </ErrorBoundary>
       </div>
