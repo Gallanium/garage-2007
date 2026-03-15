@@ -19,7 +19,7 @@ export default function NutsPromptModal({ isOpen, deficit, onClose }: NutsPrompt
 
   // Заглушка для покупки гаек (Stage 14)
   const handleBuyNuts = useCallback(() => {
-    console.log('[Stage 14] purchaseNuts — не реализовано')
+    if (import.meta.env.DEV) console.log('[Stage 14] purchaseNuts — не реализовано')
   }, [])
 
   if (!isOpen) return null

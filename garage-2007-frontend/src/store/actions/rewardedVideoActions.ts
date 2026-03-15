@@ -18,8 +18,8 @@ export const createRewardedVideoSlice: StateCreator<GameStore, [], [], Slice> = 
 
   watchRewardedVideo: async () => {
     const state = get()
-    if (!state.canWatchRewardedVideo()) { console.warn('[RewardedVideo] Cooldown'); return false }
-    if (state.rewardedVideo.isWatching) { console.warn('[RewardedVideo] Уже идёт'); return false }
+    if (!state.canWatchRewardedVideo()) { if (import.meta.env.DEV) console.warn('[RewardedVideo] Cooldown'); return false }
+    if (state.rewardedVideo.isWatching) { if (import.meta.env.DEV) console.warn('[RewardedVideo] Уже идёт'); return false }
 
     _set((s: GameState) => ({ rewardedVideo: { ...s.rewardedVideo, isWatching: true } }))
     await new Promise((resolve) => setTimeout(resolve, REWARDED_VIDEO_FAKE_DURATION_MS))
