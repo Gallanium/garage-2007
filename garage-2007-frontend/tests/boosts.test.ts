@@ -26,7 +26,7 @@ describe('boost system', () => {
     expect(useGameStore.getState().boosts.active).toHaveLength(0)
   })
 
-  it('returns false for income_2x when garageLevel < 5', () => {
+  it('returns false for income_2x when milestone 5 not purchased', () => {
     useGameStore.setState({ nuts: 50, garageLevel: 1 })
     const result = useGameStore.getState().activateBoost('income_2x')
     expect(result).toBe(false)
@@ -36,7 +36,7 @@ describe('boost system', () => {
   it('activates income_2x when garageLevel >= 5 and nuts sufficient', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
-    useGameStore.setState({ nuts: 50, garageLevel: 5 })
+    useGameStore.setState({ nuts: 50, garageLevel: 5, milestonesPurchased: [5] })
 
     const result = useGameStore.getState().activateBoost('income_2x')
     expect(result).toBe(true)
@@ -61,6 +61,7 @@ describe('boost system', () => {
     useGameStore.setState({
       nuts: 50,
       garageLevel: 5,
+      milestonesPurchased: [5],
       boosts: { active: [{ type: 'turbo', activatedAt: Date.now(), expiresAt: Date.now() + 999_999 }] },
     })
     const result = useGameStore.getState().replaceBoost('income_2x')
@@ -92,7 +93,7 @@ describe('boost system', () => {
   it('income_2x multiplier applies to both click and income', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
-    useGameStore.setState({ nuts: 50, garageLevel: 5 })
+    useGameStore.setState({ nuts: 50, garageLevel: 5, milestonesPurchased: [5] })
     useGameStore.getState().activateBoost('income_2x')
 
     expect(useGameStore.getState().getActiveMultiplier('income')).toBe(2)
