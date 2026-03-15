@@ -10,7 +10,7 @@ import {
 
 type Slice = Pick<GameStore,
   | 'triggerRandomEvent' | 'clearEvent' | 'tickEvents'
-  | 'getEventMultiplier' | 'getEventCostMultiplier' | 'startEventTick'
+  | 'getEventMultiplier' | 'getEventCostMultiplier'
 >
 
 /** Взвешенный случайный выбор категории */
@@ -91,10 +91,4 @@ export const createEventSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     return def.effect.multiplier
   },
 
-  startEventTick: (): (() => void) => {
-    const id = setInterval(() => {
-      get().tickEvents()
-    }, 1000)
-    return () => clearInterval(id)
-  },
 })

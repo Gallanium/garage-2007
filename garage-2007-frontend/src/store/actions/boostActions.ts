@@ -5,7 +5,7 @@ import { BOOST_DEFINITIONS } from '../constants/boosts'
 
 type Slice = Pick<GameStore,
   | 'activateBoost' | 'replaceBoost' | 'tickBoosts'
-  | 'getActiveMultiplier' | 'startBoostTick'
+  | 'getActiveMultiplier'
 >
 
 export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
@@ -84,10 +84,4 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     return BOOST_DEFINITIONS[active.type].multiplier
   },
 
-  startBoostTick: (): (() => void) => {
-    const id = setInterval(() => {
-      get().tickBoosts()
-    }, 1000)
-    return () => clearInterval(id)
-  },
 })

@@ -193,6 +193,8 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     let tick = 0
     const id = setInterval(() => {
       tick++
+      get().tickBoosts()
+      get().tickEvents()
       const { passiveIncomePerSecond, garageLevel: prevLevel } = get()
       const boostMultiplier = get().getActiveMultiplier('income')
       const eventMultiplier = get().getEventMultiplier('income')

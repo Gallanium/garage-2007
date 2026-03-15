@@ -231,13 +231,11 @@ export interface GameActions {
   replaceBoost: (type: BoostType) => boolean
   tickBoosts: () => void
   getActiveMultiplier: (scope: 'income' | 'click') => number
-  startBoostTick: () => () => void
   triggerRandomEvent: () => boolean
   clearEvent: () => void
   tickEvents: () => void
   getEventMultiplier: (scope: 'income' | 'click') => number
   getEventCostMultiplier: () => number
-  startEventTick: () => () => void
   purchaseDecoration: (id: string) => boolean
   toggleDecoration: (id: string) => void
 }
