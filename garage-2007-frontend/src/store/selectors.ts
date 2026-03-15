@@ -87,3 +87,9 @@ export const usePendingMilestoneInfo = () =>
       return null
     })
   )
+
+export const useDecorations        = () => useGameStore((s) => s.decorations)
+export const useOwnedDecorations   = () => useGameStore(useShallow((s) => s.decorations.owned))
+export const useActiveDecorations  = () => useGameStore(useShallow((s) => s.decorations.active))
+export const usePurchaseDecoration = () => useGameStore((s) => s.purchaseDecoration)
+export const useToggleDecoration   = () => useGameStore((s) => s.toggleDecoration)

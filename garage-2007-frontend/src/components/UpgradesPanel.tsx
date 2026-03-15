@@ -17,6 +17,7 @@ import {
   type WorkerType,
 } from '../store/gameStore'
 import UpgradeCard from './UpgradeCard'
+import { DecorationSection } from './DecorationSection'
 
 // ============================================
 // ОПРЕДЕЛЕНИЯ РАБОТНИКОВ ДЛЯ РЕНДЕРА
@@ -272,6 +273,10 @@ const UpgradesPanel: React.FC = () => {
           })}
         </div>
       </section>
+
+      {/* ======== Секция: Декорации ======== */}
+      <DecorationSection />
+
     </div>
   )
 }

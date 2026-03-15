@@ -29,7 +29,7 @@ export const STORAGE_KEY = 'garage2007_save_data'
  * При изменении структуры SaveData — инкрементируй и добавляй
  * миграцию в loadGame(), чтобы старые сохранения корректно обновлялись.
  */
-export const SAVE_VERSION = 6
+export const SAVE_VERSION = 7
 
 /** Минимальный интервал оффлайна для начисления дохода (60 секунд) */
 const MIN_OFFLINE_SECONDS = 60
@@ -123,6 +123,11 @@ export interface SaveData {
     activeEvent: { id: string; activatedAt: number; expiresAt: number; eventSeed: number } | null
     cooldownEnd: number
   }
+  /** Декорации (backward compat: может отсутствовать в старых сейвах) */
+  decorations?: {
+    owned: string[]
+    active: string[]
+  }
 }
 
 // ============================================
@@ -174,6 +179,7 @@ const DEFAULT_SAVE_DATA: SaveData = {
   },
   boosts: { active: [] },
   events: { activeEvent: null, cooldownEnd: 0 },
+  decorations: { owned: [], active: [] },
 }
 
 // ============================================
@@ -381,6 +387,12 @@ export function loadGame(): SaveData | null {
     if (merged.version < 6) {
       merged.events = { activeEvent: null, cooldownEnd: 0 }
       merged.version = 6
+    }
+
+    // --- Миграция v6 → v7: добавление поля decorations ---
+    if (merged.version < 7) {
+      merged.decorations = { owned: [], active: [] }
+      merged.version = 7
     }
 
     return merged

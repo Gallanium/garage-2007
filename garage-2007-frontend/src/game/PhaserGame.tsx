@@ -16,6 +16,9 @@ interface PhaserGameProps {
 
   /** Активна ли вкладка «Игра» (блокирует клики если false) */
   isActive: boolean
+
+  /** Активные декорации для отображения в сцене */
+  activeDecorations: string[]
 }
 
 /**
@@ -28,7 +31,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, activeDecorations }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -49,6 +52,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
   // FIX Баг 1: Ref для актуального garageLevel, чтобы синхронизировать при готовности сцены
   const garageLevelRef = useRef(garageLevel)
   garageLevelRef.current = garageLevel
+
+  const activeDecorationsRef = useRef(activeDecorations)
+  activeDecorationsRef.current = activeDecorations
 
 
   // Состояние готовности игры (для скрытия индикатора загрузки)
@@ -128,6 +134,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
         mainScene.updateGarageLevel(garageLevelRef.current)
       }
 
+      // Синхронизируем декорации сразу после готовности сцены
+      if (activeDecorationsRef.current.length > 0) {
+        mainScene.syncGameData({ balance: 0, garageLevel: 0, activeDecorations: activeDecorationsRef.current })
+      }
+
       // Подписываемся на событие клика по гаражу из Phaser
       mainScene.events.on('garageClicked', (_data: GarageClickEvent) => {
         // Блокируем клики, если вкладка «Игра» неактивна
@@ -193,6 +204,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
     sceneRef.current.updateGarageLevel(garageLevel)
 
   }, [garageLevel]) // Эффект выполняется при изменении garageLevel
+
+  /**
+   * Эффект синхронизации активных декораций с Phaser сценой
+   */
+  useEffect(() => {
+    if (!sceneRef.current) return
+    sceneRef.current.syncGameData({ balance: 0, garageLevel: 0, activeDecorations })
+  }, [activeDecorations])
 
   /**
    * Рендер контейнера для Phaser canvas
