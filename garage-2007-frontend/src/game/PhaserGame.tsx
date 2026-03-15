@@ -136,7 +136,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
       // Синхронизируем декорации сразу после готовности сцены
       if (activeDecorationsRef.current.length > 0) {
-        mainScene.syncGameData({ balance: 0, garageLevel: 0, activeDecorations: activeDecorationsRef.current })
+        mainScene.syncGameData({ activeDecorations: activeDecorationsRef.current })
       }
 
       // Подписываемся на событие клика по гаражу из Phaser
@@ -210,7 +210,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
    */
   useEffect(() => {
     if (!sceneRef.current) return
-    sceneRef.current.syncGameData({ balance: 0, garageLevel: 0, activeDecorations })
+    sceneRef.current.syncGameData({ activeDecorations })
   }, [activeDecorations])
 
   /**

@@ -62,8 +62,8 @@ export const ANIMATION_CONFIG = {
 // ============================================
 
 export interface SceneData {
-  balance: number;
-  garageLevel: number;
+  balance?: number;
+  garageLevel?: number;
   activeDecorations?: string[];
 }
 
