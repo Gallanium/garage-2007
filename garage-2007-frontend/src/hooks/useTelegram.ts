@@ -64,24 +64,32 @@ export interface TelegramHaptic {
 export function useTelegramHaptic(): TelegramHaptic {
   return {
     impactLight: () => {
-      if (hapticFeedbackImpactOccurred.isAvailable()) {
-        hapticFeedbackImpactOccurred('light')
-      }
+      try {
+        if (hapticFeedbackImpactOccurred.isAvailable()) {
+          hapticFeedbackImpactOccurred('light')
+        }
+      } catch { /* вне Telegram — no-op */ }
     },
     impactMedium: () => {
-      if (hapticFeedbackImpactOccurred.isAvailable()) {
-        hapticFeedbackImpactOccurred('medium')
-      }
+      try {
+        if (hapticFeedbackImpactOccurred.isAvailable()) {
+          hapticFeedbackImpactOccurred('medium')
+        }
+      } catch { /* вне Telegram — no-op */ }
     },
     notificationSuccess: () => {
-      if (hapticFeedbackNotificationOccurred.isAvailable()) {
-        hapticFeedbackNotificationOccurred('success')
-      }
+      try {
+        if (hapticFeedbackNotificationOccurred.isAvailable()) {
+          hapticFeedbackNotificationOccurred('success')
+        }
+      } catch { /* вне Telegram — no-op */ }
     },
     notificationError: () => {
-      if (hapticFeedbackNotificationOccurred.isAvailable()) {
-        hapticFeedbackNotificationOccurred('error')
-      }
+      try {
+        if (hapticFeedbackNotificationOccurred.isAvailable()) {
+          hapticFeedbackNotificationOccurred('error')
+        }
+      } catch { /* вне Telegram — no-op */ }
     },
   }
 }
@@ -93,23 +101,27 @@ export function useTelegramHaptic(): TelegramHaptic {
  *  @param onBack  — callback при нажатии */
 export function useTelegramBackButton(visible: boolean, onBack: () => void): void {
   useEffect(() => {
-    if (!mountBackButton.isAvailable()) return
-    mountBackButton()
-    return () => {
-      unmountBackButton()
-    }
+    try {
+      if (!mountBackButton.isAvailable()) return
+      mountBackButton()
+      return () => { try { unmountBackButton() } catch { /* no-op */ } }
+    } catch { /* вне Telegram — no-op */ }
   }, [])
 
   useEffect(() => {
-    if (visible) {
-      if (showBackButton.isAvailable()) showBackButton()
-    } else {
-      if (hideBackButton.isAvailable()) hideBackButton()
-    }
+    try {
+      if (visible) {
+        if (showBackButton.isAvailable()) showBackButton()
+      } else {
+        if (hideBackButton.isAvailable()) hideBackButton()
+      }
+    } catch { /* вне Telegram — no-op */ }
   }, [visible])
 
   useEffect(() => {
-    if (!onBackButtonClick.isAvailable()) return
-    return onBackButtonClick(onBack)
+    try {
+      if (!onBackButtonClick.isAvailable()) return
+      return onBackButtonClick(onBack)
+    } catch { /* вне Telegram — no-op */ }
   }, [onBack])
 }
