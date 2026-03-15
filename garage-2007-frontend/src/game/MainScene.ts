@@ -44,6 +44,15 @@ export default class MainScene extends Phaser.Scene {
     this.events.on('playSpecialEffect', () => {
       // TODO: Обработка специальных эффектов (Stage 8)
     })
+
+    this.events.once('shutdown', () => {
+      this.events.off('garageClicked')
+      this.events.off('playSpecialEffect')
+      this.garageVisual.destroy()
+      this.clickEffect.destroy()
+      this.levelUpEffect.destroy()
+      this.decorationManager.destroy()
+    })
   }
 
   update(): void {
@@ -85,14 +94,5 @@ export default class MainScene extends Phaser.Scene {
         .filter((d): d is DecorationRenderData => d !== null)
       this.decorationManager.syncDecorations(renderData)
     }
-  }
-
-  shutdown(): void {
-    this.events.off('garageClicked')
-    this.events.off('playSpecialEffect')
-    this.garageVisual.destroy()
-    this.clickEffect.destroy()
-    this.levelUpEffect.destroy()
-    this.decorationManager.destroy()
   }
 }
