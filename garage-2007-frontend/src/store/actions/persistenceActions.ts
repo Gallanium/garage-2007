@@ -4,6 +4,7 @@ import type { GameStore, GameState, UpgradesState, WorkersState, AchievementId, 
 import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSION } from '../../utils/storageService'
 import { roundCurrency } from '../../utils/math'
 import { BASE_COSTS } from '../constants/economy'
+import { DECORATION_CATALOG } from '../constants/decorations'
 import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
@@ -161,7 +162,10 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         : initialState.rewardedVideo,
       boosts: { active: restoredBoosts },
       events: restoredEvents,
-      decorations: saveData.decorations ?? initialState.decorations,
+      decorations: {
+        owned: (saveData.decorations?.owned ?? []).filter(id => DECORATION_CATALOG[id]),
+        active: (saveData.decorations?.active ?? []).filter(id => DECORATION_CATALOG[id]),
+      },
     })
 
     get().checkForMilestone()
