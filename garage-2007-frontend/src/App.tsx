@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import {
   useGameStore,
   useGarageLevel,
@@ -83,6 +84,7 @@ function App() {
   const claimDailyReward = useGameStore((s) => s.claimDailyReward)
   const closeDailyRewardsModal = useGameStore((s) => s.closeDailyRewardsModal)
   const openDailyRewardsModal = useGameStore((s) => s.openDailyRewardsModal)
+  const activeDecorations = useGameStore(useShallow((s) => s.decorations.active))
 
   const canClaimToday = dailyRewards.lastClaimTimestamp === 0
     || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
@@ -141,6 +143,7 @@ function App() {
             dailyRewardStreak={dailyRewards.currentStreak}
             canClaimDaily={canClaimToday}
             onOpenDailyRewards={openDailyRewardsModal}
+            activeDecorations={activeDecorations}
           />
           <GameFooter />
         </div>

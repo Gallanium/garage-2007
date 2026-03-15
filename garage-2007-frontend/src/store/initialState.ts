@@ -56,4 +56,5 @@ export const initialState: GameState = {
   rewardedVideo: { lastWatchedTimestamp: 0, totalWatches: 0, isWatching: false },
   boosts: { active: [] },
   events: { activeEvent: null, cooldownEnd: 0 },
+  decorations: { owned: [], active: [] },
 }

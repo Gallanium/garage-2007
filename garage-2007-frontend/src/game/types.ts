@@ -17,6 +17,7 @@ export const GAME_DIMENSIONS = {
 export const DEPTH_LAYERS = {
   BACKGROUND: 0,
   GARAGE: 10,
+  DECORATIONS: 15,
   EFFECTS: 20,
   UI: 30,
 } as const;
@@ -63,6 +64,17 @@ export const ANIMATION_CONFIG = {
 export interface SceneData {
   balance: number;
   garageLevel: number;
+  activeDecorations?: string[];
+}
+
+/** Данные декорации для рендера в Phaser */
+export interface DecorationRenderData {
+  id: string
+  position: { x: number; y: number }
+  size: { w: number; h: number }
+  color: number
+  icon: string
+  depth: number
 }
 
 /** Данные события клика по гаражу */

@@ -62,6 +62,10 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         activeEvent: s.events.activeEvent,
         cooldownEnd: s.events.cooldownEnd,
       },
+      decorations: {
+        owned: s.decorations.owned,
+        active: s.decorations.active,
+      },
     })
     if (!ok) console.error('[Save] Ошибка сохранения')
   },
@@ -158,6 +162,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         : initialState.rewardedVideo,
       boosts: { active: restoredBoosts },
       events: restoredEvents,
+      decorations: saveData.decorations ?? initialState.decorations,
     })
 
     get().checkForMilestone()

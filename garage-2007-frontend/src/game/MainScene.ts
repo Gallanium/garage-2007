@@ -1,9 +1,12 @@
 // src/game/MainScene.ts
 import Phaser from 'phaser'
-import type { SceneData, GarageClickEvent } from './types'
+import type { SceneData, GarageClickEvent, DecorationRenderData } from './types'
+import { DEPTH_LAYERS } from './types'
 import { GarageVisualManager } from './managers/GarageVisualManager'
 import { ClickEffectManager } from './managers/ClickEffectManager'
 import { LevelUpEffectManager } from './managers/LevelUpEffectManager'
+import { DecorationManager } from './managers/DecorationManager'
+import { DECORATION_CATALOG } from '../store/constants/decorations'
 
 /**
  * Главная игровая сцена «Гараж 2007».
@@ -14,6 +17,7 @@ export default class MainScene extends Phaser.Scene {
   private garageVisual!: GarageVisualManager
   private clickEffect!: ClickEffectManager
   private levelUpEffect!: LevelUpEffectManager
+  private decorationManager!: DecorationManager
 
   constructor() {
     super({ key: 'MainScene' })
@@ -28,6 +32,7 @@ export default class MainScene extends Phaser.Scene {
     this.garageVisual = new GarageVisualManager(this)
     this.clickEffect = new ClickEffectManager(this)
     this.levelUpEffect = new LevelUpEffectManager(this)
+    this.decorationManager = new DecorationManager(this)
 
     this.garageVisual.onPointerDown((x, y) => {
       this.garageVisual.playClickBounce()
@@ -59,8 +64,26 @@ export default class MainScene extends Phaser.Scene {
    * Вызывается из PhaserGame.tsx.
    */
   public syncGameData(data: SceneData): void {
-    if (data.garageLevel !== undefined) {
+    if (data.garageLevel !== undefined && data.garageLevel > 0) {
       this.updateGarageLevel(data.garageLevel)
+    }
+    if (data.activeDecorations !== undefined) {
+      const renderData: DecorationRenderData[] = data.activeDecorations
+        .map(id => {
+          const def = DECORATION_CATALOG[id]
+          if (!def) return null
+          const item: DecorationRenderData = {
+            id,
+            position: def.position,
+            size: def.size,
+            color: def.color,
+            icon: def.icon,
+            depth: DEPTH_LAYERS.DECORATIONS as number,
+          }
+          return item
+        })
+        .filter((d): d is DecorationRenderData => d !== null)
+      this.decorationManager.syncDecorations(renderData)
     }
   }
 
@@ -70,5 +93,6 @@ export default class MainScene extends Phaser.Scene {
     this.garageVisual.destroy()
     this.clickEffect.destroy()
     this.levelUpEffect.destroy()
+    this.decorationManager.destroy()
   }
 }

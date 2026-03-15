@@ -14,6 +14,7 @@ interface GameCanvasProps {
   dailyRewardStreak: number
   canClaimDaily: boolean
   onOpenDailyRewards: () => void
+  activeDecorations: string[]
 }
 
 /**
@@ -26,6 +27,7 @@ export function GameCanvas({
   dailyRewardStreak,
   canClaimDaily,
   onOpenDailyRewards,
+  activeDecorations,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
   const haptic = useTelegramHaptic()
@@ -48,6 +50,7 @@ export function GameCanvas({
             onGarageClick={handleGarageClick}
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
+            activeDecorations={activeDecorations}
           />
         </ErrorBoundary>
       </div>

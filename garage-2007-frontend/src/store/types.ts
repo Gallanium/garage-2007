@@ -127,6 +127,45 @@ export interface EventsState {
   cooldownEnd: number
 }
 
+// ── Decorations ───────────────────────────────────────────────────────────────
+
+export type DecorationCategory = 'tools' | 'wall_decor' | 'lighting' | 'cars' | 'trophies'
+
+export type DecorationSlot =
+  | 'workbench_area'
+  | 'left_wall'
+  | 'back_wall_left'
+  | 'back_wall_center'
+  | 'back_wall_right'
+  | 'floor_main'
+  | 'right_shelf_top'
+  | 'right_shelf_mid'
+  | 'right_shelf_bottom'
+  | 'right_shelf_extra'
+  | 'right_wall'
+
+export type DecorationCurrency = 'rubles' | 'nuts'
+
+export interface DecorationDefinition {
+  id: string
+  category: DecorationCategory
+  slot: DecorationSlot
+  name: string
+  icon: string
+  description: string
+  currency: DecorationCurrency
+  cost: number
+  unlockLevel: number
+  position: { x: number; y: number }
+  size: { w: number; h: number }
+  color: number
+}
+
+export interface DecorationsState {
+  owned: string[]
+  active: string[]
+}
+
 // ── GameState ─────────────────────────────────────────────────────────────────
 
 export interface GameState {
@@ -160,6 +199,7 @@ export interface GameState {
   rewardedVideo: RewardedVideoState
   boosts: BoostsState
   events: EventsState
+  decorations: DecorationsState
 }
 
 // ── GameActions ───────────────────────────────────────────────────────────────
@@ -198,6 +238,8 @@ export interface GameActions {
   getEventMultiplier: (scope: 'income' | 'click') => number
   getEventCostMultiplier: () => number
   startEventTick: () => () => void
+  purchaseDecoration: (id: string) => boolean
+  toggleDecoration: (id: string) => void
 }
 
 export type GameStore = GameState & GameActions
