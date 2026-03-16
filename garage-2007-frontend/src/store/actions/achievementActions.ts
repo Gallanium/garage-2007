@@ -1,7 +1,7 @@
 // src/store/actions/achievementActions.ts
 import type { StateCreator } from 'zustand'
 import type { GameStore, GameState, AchievementId } from '../types'
-import { ACHIEVEMENTS } from '../constants/achievements'
+import { ACHIEVEMENTS, getAchievementProgress } from '../constants/achievements'
 
 type Slice = Pick<GameStore, 'checkAchievements' | 'claimAchievement' | 'clearNewAchievementsFlag'>
 
@@ -13,7 +13,7 @@ export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_
     for (const [id, def] of Object.entries(ACHIEVEMENTS)) {
       const aid = id as AchievementId
       if (state.achievements[aid].unlocked) continue
-      if (def.progressGetter(state) >= def.targetValue) {
+      if (getAchievementProgress(state, def.progressField) >= def.targetValue) {
         newlyUnlocked.push(aid)
         if (import.meta.env.DEV) console.log(`[Achievement] 🏆 Разблокировано: "${def.title}"`)
       }

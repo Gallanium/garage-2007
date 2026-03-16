@@ -1,18 +1,28 @@
 import type { Request, Response } from 'express'
-
-// Placeholder controllers — full implementation in Phase 3
+import { loadState, createInitialState } from '../services/gameStateService.js'
+import { processSync, processAction } from '../services/gameActionService.js'
 
 export async function getState(req: Request, res: Response): Promise<void> {
   const userId = req.user!.id
-  // TODO: gameStateService.loadState(userId)
-  res.json({ gameState: null, serverTime: Date.now(), userId })
+
+  const result = await loadState(userId)
+
+  // New player — create initial state
+  if (!result.gameState) {
+    const gameState = await createInitialState(userId)
+    res.json({ gameState, serverTime: Date.now() })
+    return
+  }
+
+  res.json(result)
 }
 
 export async function syncGame(req: Request, res: Response): Promise<void> {
   const userId = req.user!.id
   const { clicksSinceLastSync } = req.body as { clicksSinceLastSync: number }
-  // TODO: gameActionService.processSync(userId, clicksSinceLastSync)
-  res.json({ gameState: null, serverTime: Date.now(), userId, clicksSinceLastSync })
+
+  const result = await processSync(userId, clicksSinceLastSync)
+  res.json(result)
 }
 
 export async function performAction(req: Request, res: Response): Promise<void> {
@@ -22,6 +32,7 @@ export async function performAction(req: Request, res: Response): Promise<void> 
     payload: Record<string, unknown>
     idempotencyKey?: string
   }
-  // TODO: gameActionService.processAction(userId, type, payload, idempotencyKey)
-  res.json({ success: true, gameState: null, actionResult: {}, userId, type, payload })
+
+  const result = await processAction(userId, type, payload, idempotencyKey)
+  res.json(result)
 }

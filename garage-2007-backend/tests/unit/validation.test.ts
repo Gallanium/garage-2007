@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { syncSchema, actionSchema } from '../../src/validation/gameSchemas'
-import { authSchema } from '../../src/validation/authSchemas'
-import { purchaseSchema } from '../../src/validation/purchaseSchemas'
+import { syncSchema, actionSchema, purchaseMilestonePayload } from '../../src/validation/gameSchemas'
+import { telegramAuthSchema as authSchema } from '../../src/validation/authSchemas'
+import { createInvoiceSchema as purchaseSchema } from '../../src/validation/purchaseSchemas'
 
 describe('validation — Zod schemas', () => {
   // ── syncSchema ──────────────────────────────────────────────────────────────
@@ -105,9 +105,12 @@ describe('validation — Zod schemas', () => {
       const result = actionSchema.safeParse(input)
       expect(result.success).toBe(true)
 
-      const invalidInput = { type: 'purchase_milestone', payload: { level: 'five' } }
-      const invalidResult = actionSchema.safeParse(invalidInput)
-      expect(invalidResult.success).toBe(false)
+      // Per-action payload validation (happens in handler, not actionSchema)
+      const validPayload = purchaseMilestonePayload.safeParse({ level: 5 })
+      expect(validPayload.success).toBe(true)
+
+      const invalidPayload = purchaseMilestonePayload.safeParse({ level: 'five' })
+      expect(invalidPayload.success).toBe(false)
     })
   })
 
