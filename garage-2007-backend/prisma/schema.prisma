@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int           @id @default(autoincrement())
+  telegramId      BigInt        @unique @map("telegram_id")
+  username        String?
+  firstName       String?       @map("first_name")
+  lastName        String?       @map("last_name")
+  isPremium       Boolean       @default(false) @map("is_premium")
+  languageCode    String?       @map("language_code")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  gameSave        GameSave?
+  transactions    Transaction[]
+  balanceLogs     BalanceLog[]
+
+  @@map("users")
+}
+
+model GameSave {
+  id                    Int       @id @default(autoincrement())
+  userId                Int       @unique @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id])
+
+  // === Core state (authoritative) ===
+  balance               Float     @default(0)
+  nuts                  Int       @default(0)
+  garageLevel           Int       @default(1) @map("garage_level")
+  totalClicks           Int       @default(0) @map("total_clicks")
+  totalEarned           Float     @default(0) @map("total_earned")
+  milestonesPurchased   Int[]     @default([]) @map("milestones_purchased")
+
+  // === Upgrades (authoritative) ===
+  clickPowerLevel       Int       @default(0) @map("click_power_level")
+  clickPowerCost        Float     @default(100) @map("click_power_cost")
+  workSpeedLevel        Int       @default(0) @map("work_speed_level")
+  workSpeedCost         Float     @default(500) @map("work_speed_cost")
+
+  // === Workers (authoritative) ===
+  apprenticeCount       Int       @default(0) @map("apprentice_count")
+  apprenticeCost        Float     @default(500) @map("apprentice_cost")
+  mechanicCount         Int       @default(0) @map("mechanic_count")
+  mechanicCost          Float     @default(5000) @map("mechanic_cost")
+  masterCount           Int       @default(0) @map("master_count")
+  masterCost            Float     @default(50000) @map("master_cost")
+  brigadierCount        Int       @default(0) @map("brigadier_count")
+  brigadierCost         Float     @default(500000) @map("brigadier_cost")
+  directorCount         Int       @default(0) @map("director_count")
+  directorCost          Float     @default(5000000) @map("director_cost")
+
+  // === Stats ===
+  sessionCount          Int       @default(0) @map("session_count")
+  lastSessionDate       String    @default("") @map("last_session_date")
+  peakClickIncome       Float     @default(0) @map("peak_click_income")
+  totalPlayTimeSeconds  Int       @default(0) @map("total_play_time_seconds")
+  bestStreak            Int       @default(0) @map("best_streak")
+
+  // === Complex state (JSON — validated by Zod on write) ===
+  achievements          Json      @default("{}") @map("achievements")
+  dailyRewards          Json      @default("{}") @map("daily_rewards")
+  rewardedVideo         Json      @default("{}") @map("rewarded_video")
+  boosts                Json      @default("{}") @map("boosts")
+  events                Json      @default("{}") @map("events")
+  decorationsOwned      String[]  @default([]) @map("decorations_owned")
+  decorationsActive     String[]  @default([]) @map("decorations_active")
+
+  // === Client snapshot (write-only cache) ===
+  gameDataSnapshot      Json?     @map("game_data_snapshot")
+
+  // === Sync tracking ===
+  lastSyncAt            DateTime  @default(now()) @map("last_sync_at")
+  version               Int       @default(7)
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("game_saves")
+}
+
+model Transaction {
+  id                  Int       @id @default(autoincrement())
+  userId              Int       @map("user_id")
+  user                User      @relation(fields: [userId], references: [id])
+
+  telegramPaymentId   String    @unique @map("telegram_payment_id")
+  packId              String    @map("pack_id")
+  starsAmount         Int       @map("stars_amount")
+  nutsAmount          Int       @map("nuts_amount")
+  status              String    @default("completed") // completed | refunded
+  idempotencyKey      String?   @unique @map("idempotency_key")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("transactions")
+}
+
+model BalanceLog {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  user            User      @relation(fields: [userId], references: [id])
+
+  actionType      String    @map("action_type")
+  currency        String    // 'rubles' | 'nuts'
+  amount          Float     // positive = credit, negative = debit
+  balanceBefore   Float     @map("balance_before")
+  balanceAfter    Float     @map("balance_after")
+  metadata        Json?     // action-specific details
+  idempotencyKey  String?   @map("idempotency_key")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([idempotencyKey])
+  @@map("balance_logs")
+}
