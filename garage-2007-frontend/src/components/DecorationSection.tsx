@@ -61,7 +61,7 @@ export const DecorationSection: React.FC = () => {
       </div>
 
       {/* Cards grid */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2">
         {filteredIds.map(id => (
           <DecorationCard key={id} id={id} />
         ))}
