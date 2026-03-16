@@ -73,6 +73,7 @@ export default class MainScene extends Phaser.Scene {
    * Вызывается из PhaserGame.tsx.
    */
   public syncGameData(data: SceneData): void {
+    if (!this.sys?.displayList) return
     if (data.garageLevel !== undefined && data.garageLevel > 0) {
       this.updateGarageLevel(data.garageLevel)
     }
