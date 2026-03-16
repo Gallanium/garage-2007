@@ -13,12 +13,12 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
     const { balance, upgrades } = get()
     const { clickPower } = upgrades
     if (clickPower.level >= CLICK_UPGRADE_MAX_LEVEL) {
-      console.warn(`[ClickUpgrade] Максимальный уровень: ${CLICK_UPGRADE_MAX_LEVEL}`)
+      if (import.meta.env.DEV) console.warn(`[ClickUpgrade] Максимальный уровень: ${CLICK_UPGRADE_MAX_LEVEL}`)
       return false
     }
     const effectiveCost = Math.floor(clickPower.cost * get().getEventCostMultiplier())
     if (balance < effectiveCost) {
-      console.warn(`[ClickUpgrade] Недостаточно средств: нужно ${formatLargeNumber(effectiveCost)} ₽`)
+      if (import.meta.env.DEV) console.warn(`[ClickUpgrade] Недостаточно средств: нужно ${formatLargeNumber(effectiveCost)} ₽`)
       return false
     }
     const newLevel = clickPower.level + 1
@@ -38,12 +38,12 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
     const state = get()
     const { workSpeed } = state.upgrades
     if (!state.milestonesPurchased.includes(5)) {
-      console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован (milestone 5)')
+      if (import.meta.env.DEV) console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован (milestone 5)')
       return
     }
     const effectiveWorkSpeedCost = Math.floor(workSpeed.cost * get().getEventCostMultiplier())
     if (state.balance < effectiveWorkSpeedCost) {
-      console.warn(`[Purchase] 💰 Недостаточно средств: нужно ${formatLargeNumber(effectiveWorkSpeedCost)}₽`)
+      if (import.meta.env.DEV) console.warn(`[Purchase] 💰 Недостаточно средств: нужно ${formatLargeNumber(effectiveWorkSpeedCost)}₽`)
       return
     }
     const newLevel = workSpeed.level + 1

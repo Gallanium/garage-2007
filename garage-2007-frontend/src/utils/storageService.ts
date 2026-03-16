@@ -204,6 +204,7 @@ function deepMerge<T extends object>(
   const result = { ...target }
 
   for (const key of Object.keys(source) as Array<keyof T>) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue
     const sourceVal = source[key]
     const targetVal = target[key]
 

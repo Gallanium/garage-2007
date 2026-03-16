@@ -4,10 +4,10 @@ import type { GameStore, GameState, UpgradesState, WorkersState, AchievementId, 
 import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSION } from '../../utils/storageService'
 import { roundCurrency } from '../../utils/math'
 import { BASE_COSTS } from '../constants/economy'
+import { DECORATION_CATALOG } from '../constants/decorations'
 import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
-import { checkAutoLevel as _checkAutoLevel } from '../formulas/progression'
 
 type Slice = Pick<GameStore,
   | 'saveProgress' | 'loadProgress' | 'addOfflineEarnings'
@@ -140,7 +140,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       balance: saveData.playerData.balance,
       nuts: saveData.playerData.nuts ?? 0,
       totalClicks: saveData.playerData.totalClicks,
-      garageLevel: _checkAutoLevel(saveData.playerData.balance, 1, restoredPurchased),
+      garageLevel: checkAutoLevel(saveData.playerData.balance, 1, restoredPurchased),
       milestonesPurchased: restoredPurchased,
       clickValue: calculateClickIncome(restoredUpgrades.clickPower.level),
       upgrades: restoredUpgrades,
@@ -162,7 +162,10 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         : initialState.rewardedVideo,
       boosts: { active: restoredBoosts },
       events: restoredEvents,
-      decorations: saveData.decorations ?? initialState.decorations,
+      decorations: {
+        owned: (saveData.decorations?.owned ?? []).filter(id => DECORATION_CATALOG[id]),
+        active: (saveData.decorations?.active ?? []).filter(id => DECORATION_CATALOG[id]),
+      },
     })
 
     get().checkForMilestone()
@@ -190,7 +193,11 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     let tick = 0
     const id = setInterval(() => {
       tick++
+      get().tickBoosts()
+      get().tickEvents()
       const { passiveIncomePerSecond, garageLevel: prevLevel } = get()
+      const boostMultiplier = get().getActiveMultiplier('income')
+      const eventMultiplier = get().getEventMultiplier('income')
       _set((s: GameState) => {
         const result: Partial<GameState> = {
           momentaryClickIncome: s._clickIncomeThisTick,
@@ -199,8 +206,6 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
           totalPlayTimeSeconds: s.totalPlayTimeSeconds + 1,
         }
         if (passiveIncomePerSecond > 0) {
-          const boostMultiplier = get().getActiveMultiplier('income')
-          const eventMultiplier = get().getEventMultiplier('income')
           const earned = roundCurrency(passiveIncomePerSecond * boostMultiplier * eventMultiplier)
           const newBalance = roundCurrency(s.balance + earned)
           const newLevel = checkAutoLevel(newBalance, s.garageLevel, s.milestonesPurchased)

@@ -37,7 +37,10 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
     ? `${formatLargeNumber(def.cost)} ₽`
     : `${def.cost} 🔩`
 
-  // Декорация в том же слоте, которая будет вытеснена
+  const slotLabel = SLOT_LABELS[def.slot]
+  const subline = `${def.description} · 📍 ${slotLabel}`
+
+  // Конфликт слота — для покупки
   const slotConflict = !isOwned
     ? active
         .filter(activeId => activeId !== id)
@@ -45,21 +48,18 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
     : null
   const conflictDef = slotConflict ? DECORATION_CATALOG[slotConflict] : null
 
-  const slotLabel = SLOT_LABELS[def.slot]
-
   // State: locked
   if (!isUnlocked) {
     return (
-      <div className="bg-gray-800/50 rounded-lg p-2 border-2 border-dashed border-gray-700 opacity-60">
+      <div className="bg-gray-800/50 rounded-lg p-3 border-2 border-dashed border-gray-700">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xl opacity-40">{def.icon}</span>
-          <div>
-            <p className="text-gray-500 font-mono font-bold text-game-sm sm:text-xs">{def.name}</p>
-            <p className="text-gray-600 font-mono text-[9px]">{def.description}</p>
-            <p className="text-gray-700 font-mono text-[8px]">📍 {slotLabel}</p>
+          <span className="text-xl opacity-30">{def.icon}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-500 font-mono font-bold text-sm sm:text-sm truncate">{def.name}</p>
+            <p className="text-gray-600 font-mono text-game-sm sm:text-xs">{subline}</p>
           </div>
         </div>
-        <p className="text-gray-500 text-center font-mono text-game-sm sm:text-xs">
+        <p className="text-gray-500 text-center font-mono text-game-sm sm:text-xs mt-1">
           🔒 Уровень {def.unlockLevel}
         </p>
       </div>
@@ -69,19 +69,18 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   // State: owned + active
   if (isOwned && isActive) {
     return (
-      <div className="bg-green-900/30 rounded-lg p-2 border-2 border-green-500/60">
+      <div className="bg-green-900/30 rounded-lg p-3 border border-green-500/60">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{def.icon}</span>
-          <div className="flex-1">
-            <p className="text-green-300 font-mono font-bold text-game-sm sm:text-xs">{def.name}</p>
-            <p className="text-gray-400 font-mono text-[9px]">{def.description}</p>
-            <p className="text-gray-600 font-mono text-[8px]">📍 {slotLabel}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-green-300 font-mono font-bold text-sm sm:text-sm">{def.name}</p>
+            <p className="text-gray-400 font-mono text-game-sm sm:text-xs">{subline}</p>
           </div>
-          <span className="text-green-400 text-[10px] font-mono">✓ Активно</span>
+          <span className="text-green-400 text-[10px] font-mono shrink-0">✓ Активно</span>
         </div>
         <button
           onClick={() => toggleDecoration(id)}
-          className="w-full py-1 rounded font-mono font-bold text-game-sm sm:text-xs
+          className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
                      bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
         >
           Скрыть
@@ -92,31 +91,29 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
 
   // State: owned + hidden
   if (isOwned && !isActive) {
-    // slotConflict is null for owned items — compute separately for toggle
     const toggleConflict = active
       .filter(activeId => activeId !== id)
       .find(activeId => DECORATION_CATALOG[activeId]?.slot === def.slot)
     const toggleConflictDef = toggleConflict ? DECORATION_CATALOG[toggleConflict] : null
 
     return (
-      <div className="bg-gray-800/40 rounded-lg p-2 border-2 border-gray-600/50">
+      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl opacity-60">{def.icon}</span>
-          <div className="flex-1">
-            <p className="text-gray-400 font-mono font-bold text-game-sm sm:text-xs">{def.name}</p>
-            <p className="text-gray-500 font-mono text-[9px]">{def.description}</p>
-            <p className="text-gray-600 font-mono text-[8px]">📍 {slotLabel}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-300 font-mono font-bold text-sm sm:text-sm">{def.name}</p>
+            <p className="text-gray-500 font-mono text-game-sm sm:text-xs">{subline}</p>
           </div>
         </div>
         <button
           onClick={() => toggleDecoration(id)}
-          className="w-full py-1 rounded font-mono font-bold text-game-sm sm:text-xs
-                     bg-blue-700 hover:bg-blue-600 text-white transition-colors"
+          className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
+                     bg-blue-600 hover:bg-blue-700 text-white transition-colors"
         >
           Показать
         </button>
         {toggleConflictDef && (
-          <p className="text-yellow-500/80 font-mono text-[8px] text-center mt-1">
+          <p className="text-yellow-500/80 font-mono text-[9px] text-center mt-1">
             ⚠️ Заменит: {toggleConflictDef.icon} {toggleConflictDef.name}
           </p>
         )}
@@ -127,24 +124,23 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   // State: available but cannot afford
   if (!canAfford) {
     return (
-      <div className="bg-gray-800/50 rounded-lg p-2 border-2 border-gray-600">
+      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{def.icon}</span>
-          <div className="flex-1">
-            <p className="text-gray-300 font-mono font-bold text-game-sm sm:text-xs">{def.name}</p>
-            <p className="text-gray-500 font-mono text-[9px]">{def.description}</p>
-            <p className="text-gray-600 font-mono text-[8px]">📍 {slotLabel}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-300 font-mono font-bold text-sm sm:text-sm">{def.name}</p>
+            <p className="text-gray-500 font-mono text-game-sm sm:text-xs">{subline}</p>
           </div>
         </div>
         <button
           disabled
-          className="w-full py-1 rounded font-mono font-bold text-game-sm sm:text-xs
+          className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
                      bg-gray-700 text-gray-500 cursor-not-allowed"
         >
           <span className="text-red-400">{costLabel}</span>
         </button>
         {conflictDef && (
-          <p className="text-yellow-500/80 font-mono text-[8px] text-center mt-1">
+          <p className="text-yellow-500/80 font-mono text-[9px] text-center mt-1">
             ⚠️ Заменит: {conflictDef.icon} {conflictDef.name}
           </p>
         )}
@@ -154,24 +150,23 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
 
   // State: available and can afford
   return (
-    <div className="bg-gray-800/60 rounded-lg p-2 border-2 border-gray-600 hover:border-yellow-500/50 transition-colors">
+    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-yellow-500/50 transition-colors">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xl">{def.icon}</span>
-        <div className="flex-1">
-          <p className="text-white font-mono font-bold text-game-sm sm:text-xs">{def.name}</p>
-          <p className="text-gray-400 font-mono text-[9px]">{def.description}</p>
-          <p className="text-gray-600 font-mono text-[8px]">📍 {slotLabel}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-mono font-bold text-sm sm:text-sm">{def.name}</p>
+          <p className="text-gray-400 font-mono text-game-sm sm:text-xs">{subline}</p>
         </div>
       </div>
       <button
         onClick={() => purchaseDecoration(id)}
-        className="w-full py-1 rounded font-mono font-bold text-game-sm sm:text-xs
+        className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
                    bg-yellow-600 hover:bg-yellow-500 text-black transition-colors"
       >
         Купить {costLabel}
       </button>
       {conflictDef && (
-        <p className="text-yellow-500/80 font-mono text-[8px] text-center mt-1">
+        <p className="text-yellow-500/80 font-mono text-[9px] text-center mt-1">
           ⚠️ Заменит: {conflictDef.icon} {conflictDef.name}
         </p>
       )}

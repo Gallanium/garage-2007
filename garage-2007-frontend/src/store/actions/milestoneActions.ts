@@ -11,9 +11,9 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
   purchaseMilestone: (level: number) => {
     const { balance, milestonesPurchased } = get()
     const upgrade = MILESTONE_UPGRADES[level as MilestoneLevel]
-    if (!upgrade) { console.warn(`[Milestone] Неизвестный уровень: ${level}`); return false }
-    if (milestonesPurchased.includes(level)) { console.warn(`[Milestone] Уровень ${level} уже куплен`); return false }
-    if (balance < upgrade.cost) { console.warn(`[Milestone] Недостаточно средств`); return false }
+    if (!upgrade) { if (import.meta.env.DEV) console.warn(`[Milestone] Неизвестный уровень: ${level}`); return false }
+    if (milestonesPurchased.includes(level)) { if (import.meta.env.DEV) console.warn(`[Milestone] Уровень ${level} уже куплен`); return false }
+    if (balance < upgrade.cost) { if (import.meta.env.DEV) console.warn(`[Milestone] Недостаточно средств`); return false }
 
     _set((s: GameState) => {
       const newBalance = s.balance - upgrade.cost

@@ -17,11 +17,11 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
       return
     }
     if (elapsed < DAILY_STREAK_GRACE_PERIOD_MS) {
-      console.log('[Daily] Награда уже забрана сегодня')
+      if (import.meta.env.DEV) console.log('[Daily] Награда уже забрана сегодня')
       return
     }
     if (elapsed >= DAILY_STREAK_GRACE_PERIOD_MS * 2) {
-      console.log('[Daily] Streak сброшен')
+      if (import.meta.env.DEV) console.log('[Daily] Streak сброшен')
       _set({ dailyRewards: { lastClaimTimestamp: 0, currentStreak: 0 }, showDailyRewardsModal: true })
       return
     }
@@ -36,7 +36,7 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
       now - state.dailyRewards.lastClaimTimestamp < DAILY_STREAK_GRACE_PERIOD_MS
     ) {
       const h = Math.ceil((DAILY_STREAK_GRACE_PERIOD_MS - (now - state.dailyRewards.lastClaimTimestamp)) / 3600000)
-      console.warn(`[Daily] ⛔ Следующая через ${h} ч`)
+      if (import.meta.env.DEV) console.warn(`[Daily] ⛔ Следующая через ${h} ч`)
       return
     }
     const reward = DAILY_REWARDS[state.dailyRewards.currentStreak % 7]

@@ -15,7 +15,7 @@ export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_
       if (state.achievements[aid].unlocked) continue
       if (def.progressGetter(state) >= def.targetValue) {
         newlyUnlocked.push(aid)
-        console.log(`[Achievement] 🏆 Разблокировано: "${def.title}"`)
+        if (import.meta.env.DEV) console.log(`[Achievement] 🏆 Разблокировано: "${def.title}"`)
       }
     }
 
@@ -38,8 +38,8 @@ export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_
     const playerAch = state.achievements[achievementId]
     const def = ACHIEVEMENTS[achievementId]
     if (!def) { console.error(`[Achievement] Неизвестное: ${achievementId}`); return false }
-    if (!playerAch.unlocked) { console.warn(`[Achievement] Не разблокировано`); return false }
-    if (playerAch.claimed)   { console.warn(`[Achievement] Уже забрано`); return false }
+    if (!playerAch.unlocked) { if (import.meta.env.DEV) console.warn(`[Achievement] Не разблокировано`); return false }
+    if (playerAch.claimed)   { if (import.meta.env.DEV) console.warn(`[Achievement] Уже забрано`); return false }
 
     _set((s: GameState) => ({
       nuts: s.nuts + def.nutsReward,

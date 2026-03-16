@@ -149,19 +149,19 @@ function App() {
         </div>
 
         <div
-          className={`absolute inset-0 overflow-auto bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <UpgradesPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-auto bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <AchievementsPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-auto bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <StatsPanel />
         </div>

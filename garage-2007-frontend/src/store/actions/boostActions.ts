@@ -5,7 +5,7 @@ import { BOOST_DEFINITIONS } from '../constants/boosts'
 
 type Slice = Pick<GameStore,
   | 'activateBoost' | 'replaceBoost' | 'tickBoosts'
-  | 'getActiveMultiplier' | 'startBoostTick'
+  | 'getActiveMultiplier'
 >
 
 export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
@@ -17,7 +17,7 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     if (state.nuts < def.costNuts) return false
 
     // Проверить разблокировку по milestone
-    if (def.unlockLevel > 0 && state.garageLevel < def.unlockLevel) return false
+    if (def.unlockLevel > 0 && !state.milestonesPurchased.includes(def.unlockLevel)) return false
 
     // Проверить: нельзя активировать если уже есть активный буст
     // (для замены использовать replaceBoost)
@@ -44,7 +44,7 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     if (state.nuts < def.costNuts) return false
 
     // Проверить разблокировку
-    if (def.unlockLevel > 0 && state.garageLevel < def.unlockLevel) return false
+    if (def.unlockLevel > 0 && !state.milestonesPurchased.includes(def.unlockLevel)) return false
 
     const now = Date.now()
     // Заменяем текущий буст (потерянное время не компенсируется)
@@ -84,10 +84,4 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     return BOOST_DEFINITIONS[active.type].multiplier
   },
 
-  startBoostTick: (): (() => void) => {
-    const id = setInterval(() => {
-      get().tickBoosts()
-    }, 1000)
-    return () => clearInterval(id)
-  },
 })

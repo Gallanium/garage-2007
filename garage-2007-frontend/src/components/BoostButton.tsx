@@ -22,9 +22,10 @@ const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
+    if (activeBoosts.length === 0) return
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [activeBoosts.length])
 
   const activeBoost = activeBoosts.find(b => b.expiresAt > now)
   const remaining = activeBoost ? activeBoost.expiresAt - now : 0

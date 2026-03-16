@@ -15,7 +15,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     const limit = WORKER_LIMITS[workerType]
 
     if (worker.count >= limit) {
-      console.warn(`[Hire] 🚫 Лимит для ${workerType}: ${worker.count}/${limit}`)
+      if (import.meta.env.DEV) console.warn(`[Hire] 🚫 Лимит для ${workerType}: ${worker.count}/${limit}`)
       return
     }
 
@@ -24,13 +24,13 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     }
     const milestone = requiredMilestone[workerType]
     if (milestone > 0 && !state.milestonesPurchased.includes(milestone)) {
-      console.warn(`[Hire] 🔒 ${workerType} не разблокирован (milestone ${milestone})`)
+      if (import.meta.env.DEV) console.warn(`[Hire] 🔒 ${workerType} не разблокирован (milestone ${milestone})`)
       return
     }
 
     const effectiveWorkerCost = Math.floor(worker.cost * get().getEventCostMultiplier())
     if (state.balance < effectiveWorkerCost) {
-      console.warn(`[Hire] 💰 Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(effectiveWorkerCost)}₽`)
+      if (import.meta.env.DEV) console.warn(`[Hire] 💰 Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(effectiveWorkerCost)}₽`)
       return
     }
 

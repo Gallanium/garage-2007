@@ -4,6 +4,11 @@ import { gameConfig } from './gameConfig'
 import MainScene from './MainScene'
 import type { GarageClickEvent, LevelTransitionEvent } from './types'
 
+/** Проверяет что Phaser сцена жива (не уничтожена и не остановлена) */
+function isSceneAlive(scene: MainScene): boolean {
+  return scene.sys?.displayList != null
+}
+
 /**
  * Пропсы компонента PhaserGame
  */
@@ -136,7 +141,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
       // Синхронизируем декорации сразу после готовности сцены
       if (activeDecorationsRef.current.length > 0) {
-        mainScene.syncGameData({ balance: 0, garageLevel: 0, activeDecorations: activeDecorationsRef.current })
+        mainScene.syncGameData({ activeDecorations: activeDecorationsRef.current })
       }
 
       // Подписываемся на событие клика по гаражу из Phaser
@@ -185,7 +190,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
    * (bounce, частицы) при кликах сквозь модальные окна.
    */
   useEffect(() => {
-    if (!sceneRef.current) return
+    if (!sceneRef.current || !isSceneAlive(sceneRef.current)) return
     sceneRef.current.input.enabled = isActive
   }, [isActive])
 
@@ -194,11 +199,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
    * Срабатывает при изменении garageLevel prop
    */
   useEffect(() => {
-    // Проверяем, что сцена доступна
-    if (!sceneRef.current) {
-      console.warn('PhaserGame: Сцена ещё не готова, пропускаем обновление уровня')
-      return
-    }
+    // Проверяем, что сцена доступна и жива
+    if (!sceneRef.current || !isSceneAlive(sceneRef.current)) return
 
     // Вызываем метод обновления уровня у сцены
     sceneRef.current.updateGarageLevel(garageLevel)
@@ -209,8 +211,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
    * Эффект синхронизации активных декораций с Phaser сценой
    */
   useEffect(() => {
-    if (!sceneRef.current) return
-    sceneRef.current.syncGameData({ balance: 0, garageLevel: 0, activeDecorations })
+    if (!sceneRef.current || !isSceneAlive(sceneRef.current)) return
+    sceneRef.current.syncGameData({ activeDecorations })
   }, [activeDecorations])
 
   /**
