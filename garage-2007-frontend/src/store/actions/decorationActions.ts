@@ -2,6 +2,7 @@
 import type { StateCreator } from 'zustand'
 import type { GameStore } from '../types'
 import { DECORATION_CATALOG } from '../constants/decorations'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseDecoration' | 'toggleDecoration'>
 
@@ -36,6 +37,11 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     }))
 
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('purchase_decoration', { decorationId: id }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 
@@ -68,5 +74,10 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     }
 
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('toggle_decoration', { decorationId: id }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
   },
 })

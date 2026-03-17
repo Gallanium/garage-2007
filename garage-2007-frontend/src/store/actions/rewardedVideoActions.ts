@@ -6,6 +6,7 @@ import {
   REWARDED_VIDEO_COOLDOWN_MS,
   REWARDED_VIDEO_FAKE_DURATION_MS,
 } from '../constants/dailyRewards'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'canWatchRewardedVideo' | 'watchRewardedVideo'>
 
@@ -30,6 +31,11 @@ export const createRewardedVideoSlice: StateCreator<GameStore, [], [], Slice> = 
       rewardedVideo: { lastWatchedTimestamp: now, totalWatches: s.rewardedVideo.totalWatches + 1, isWatching: false },
     }))
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('watch_rewarded_video', {}).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 })

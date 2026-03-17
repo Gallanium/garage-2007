@@ -206,6 +206,8 @@ export interface GameState {
   boosts: BoostsState
   events: EventsState
   decorations: DecorationsState
+  /** Clicks accumulated since last server sync (frontend-only counter) */
+  _clicksSinceLastSync: number
 }
 
 // ── Persistence types ────────────────────────────────────────────────────────

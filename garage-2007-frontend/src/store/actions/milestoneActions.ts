@@ -4,6 +4,7 @@ import type { GameStore, GameState } from '../types'
 import { MILESTONE_LEVELS, MILESTONE_UPGRADES, GARAGE_LEVEL_THRESHOLDS } from '../constants/garageLevels'
 import type { MilestoneLevel } from '../constants/garageLevels'
 import { checkAutoLevel } from '../formulas/progression'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseMilestone' | 'checkForMilestone' | 'closeMilestoneModal'>
 
@@ -31,6 +32,11 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
 
     get().saveProgress()
     get().checkAchievements()
+    if (api.isOnline()) {
+      api.performAction('purchase_milestone', { level }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 

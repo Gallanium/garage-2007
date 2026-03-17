@@ -5,6 +5,7 @@ import { BASE_COSTS, CLICK_UPGRADE_MAX_LEVEL } from '../constants/economy'
 import { calculateUpgradeCost } from '../formulas/costs'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { formatLargeNumber } from '../formulas/progression'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseClickUpgrade' | 'purchaseWorkSpeedUpgrade'>
 
@@ -31,6 +32,11 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       },
     }))
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('purchase_upgrade', { upgradeType: 'clickPower' }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 
@@ -56,5 +62,10 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       },
     }))
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('purchase_upgrade', { upgradeType: 'workSpeed' }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
   },
 })

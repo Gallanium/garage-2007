@@ -30,6 +30,7 @@ export const createClickSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     get().checkForMilestone()
     if (get().garageLevel !== prevLevel) get().saveProgress()
     get().checkAchievements()
+    _set((s) => ({ _clicksSinceLastSync: (s._clicksSinceLastSync ?? 0) + 1 }))
     return isCritical
   },
 })

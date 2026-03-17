@@ -80,6 +80,7 @@ export interface GameActions {
   getEventCostMultiplier: () => number
   purchaseDecoration: (id: string) => boolean
   toggleDecoration: (id: string) => void
+  applyServerState: (serverState: Record<string, unknown>) => void
 }
 
 export type GameStore = GameState & GameActions

@@ -5,6 +5,7 @@ import { BASE_COSTS, WORKER_LIMITS } from '../constants/economy'
 import { calculateWorkerCost } from '../formulas/costs'
 import { calculateTotalPassiveIncome } from '../formulas/income'
 import { formatLargeNumber } from '../formulas/progression'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'hireWorker'>
 
@@ -47,5 +48,10 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
 
     get().saveProgress()
     get().checkAchievements()
+    if (api.isOnline()) {
+      api.performAction('hire_worker', { workerType }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
   },
 })

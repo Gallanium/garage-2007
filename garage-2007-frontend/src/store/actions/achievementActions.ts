@@ -2,6 +2,7 @@
 import type { StateCreator } from 'zustand'
 import type { GameStore, GameState, AchievementId } from '../types'
 import { ACHIEVEMENTS, getAchievementProgress } from '../constants/achievements'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'checkAchievements' | 'claimAchievement' | 'clearNewAchievementsFlag'>
 
@@ -47,6 +48,11 @@ export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_
     }))
 
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('claim_achievement', { achievementId }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 

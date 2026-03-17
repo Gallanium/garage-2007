@@ -57,4 +57,5 @@ export const initialState: GameState = {
   boosts: { active: [] },
   events: { activeEvent: null, cooldownEnd: 0 },
   decorations: { owned: [], active: [] },
+  _clicksSinceLastSync: 0,
 }
