@@ -139,11 +139,18 @@ function weightedRandomPick<T extends { weight: number }>(items: T[]): T {
 export async function processSync(
   userId: number,
   clicksSinceLastSync: number,
+  clientTimestamp?: number,
 ): Promise<{ gameState: Record<string, unknown>; serverTime: number }> {
   const gs = await prisma.gameSave.findUnique({ where: { userId } })
   if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
   const now = Date.now()
+
+  // Anti-cheat: detect client timestamp anomaly (> 5 min in the future)
+  if (clientTimestamp) {
+    detectTimingAnomaly(userId, clientTimestamp)
+  }
+
   const secondsSinceLastSync = Math.max(1, (now - gs.lastSyncAt.getTime()) / 1000)
 
   // Validate click rate: max 20 clicks/sec

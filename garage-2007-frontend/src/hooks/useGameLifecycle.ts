@@ -134,12 +134,21 @@ export function useGameLifecycle(): void {
     const handleBeforeUnload = () => {
       // localStorage backup
       saveProgress()
-      // Best-effort sync
+      // Best-effort sync with auth header (keepalive ensures delivery on close)
       if (api.isOnline()) {
         const clicks = useGameStore.getState()._clicksSinceLastSync ?? 0
-        // Use sendBeacon for reliable delivery on close
-        const body = JSON.stringify({ clicksSinceLastSync: clicks, clientTimestamp: Date.now() })
-        navigator.sendBeacon('/api/game/sync', new Blob([body], { type: 'application/json' }))
+        const token = api.getToken()
+        if (token && clicks > 0) {
+          fetch('/api/game/sync', {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ clicksSinceLastSync: clicks, clientTimestamp: Date.now() }),
+          }).catch(() => { /* best-effort — ignore errors on close */ })
+        }
       }
     }
 

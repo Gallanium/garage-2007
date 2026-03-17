@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const syncSchema = z.object({
-  clicksSinceLastSync: z.number().int().min(0).max(600),
+  clicksSinceLastSync: z.number().int().min(0).max(1000),
   clientTimestamp: z.number().int().positive(),
 }).strict()
 

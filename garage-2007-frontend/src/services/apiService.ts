@@ -10,6 +10,11 @@ export function isOnline(): boolean {
   return authToken !== null
 }
 
+/** Get current auth token (for keepalive fetch on page unload) */
+export function getToken(): string | null {
+  return authToken
+}
+
 /** Set auth token (used after successful authentication) */
 export function setToken(token: string): void {
   authToken = token
