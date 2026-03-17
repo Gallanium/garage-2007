@@ -12,14 +12,15 @@ export const NUTS_PACKS = {
   nuts_1500: { stars: 500, nuts: 1500, label: '1500 гаек' },
 } as const
 
-export async function createStarsInvoice(userId: number, packId: NutsPackId): Promise<string> {
+export async function createStarsInvoice(packId: NutsPackId): Promise<string> {
   const pack = NUTS_PACKS[packId]
   if (!pack) {
     throw new AppError(400, 'INVALID_PACK', 'Unknown nuts pack')
   }
 
   const idempotencyKey = uuidv4()
-  const payload = JSON.stringify({ packId, userId, idempotencyKey })
+  // userId intentionally NOT included — user identity resolved from senderTgId at payment time
+  const payload = JSON.stringify({ packId, idempotencyKey })
 
   const invoiceUrl = await createInvoiceLink({
     title: pack.label,
@@ -34,14 +35,13 @@ export async function createStarsInvoice(userId: number, packId: NutsPackId): Pr
 
 interface InvoicePayload {
   packId: NutsPackId
-  userId: number
   idempotencyKey: string
 }
 
 function parsePayload(payloadStr: string): InvoicePayload | null {
   try {
     const parsed = JSON.parse(payloadStr) as InvoicePayload
-    if (!parsed.packId || !parsed.userId || !parsed.idempotencyKey) return null
+    if (!parsed.packId || !parsed.idempotencyKey) return null
     return parsed
   } catch {
     return null

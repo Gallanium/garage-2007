@@ -111,10 +111,9 @@ model BalanceLog {
   balanceBefore   Float     @map("balance_before")
   balanceAfter    Float     @map("balance_after")
   metadata        Json?     // action-specific details
-  idempotencyKey  String?   @map("idempotency_key")
+  idempotencyKey  String?   @unique @map("idempotency_key")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@index([userId, createdAt])
-  @@index([idempotencyKey])
   @@map("balance_logs")
 }

@@ -221,7 +221,7 @@ export function createPreCheckoutPayload(userId: number, packId: string) {
       from: { id: userId, is_bot: false, first_name: 'Test' },
       currency: 'XTR',
       total_amount: 50,
-      invoice_payload: JSON.stringify({ packId, userId, idempotencyKey: 'test-uuid-1' }),
+      invoice_payload: JSON.stringify({ packId, idempotencyKey: 'test-uuid-1' }),
     },
   }
 }
@@ -241,7 +241,7 @@ export function createSuccessfulPaymentPayload(
       successful_payment: {
         currency: 'XTR',
         total_amount: 50,
-        invoice_payload: JSON.stringify({ packId, userId, idempotencyKey: 'test-uuid-1' }),
+        invoice_payload: JSON.stringify({ packId, idempotencyKey: 'test-uuid-1' }),
         telegram_payment_charge_id: telegramPaymentChargeId,
         provider_payment_charge_id: 'provider_123',
       },

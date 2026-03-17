@@ -23,7 +23,7 @@ describe('purchaseService', () => {
 
   describe('createStarsInvoice', () => {
     it('valid packId (nuts_100) returns invoice URL string', async () => {
-      const result = await createStarsInvoice(userId, 'nuts_100' as any)
+      const result = await createStarsInvoice('nuts_100' as any)
 
       expect(result).toBeDefined()
       expect(typeof result).toBe('string')
@@ -32,11 +32,11 @@ describe('purchaseService', () => {
 
     it('invalid packId throws AppError with INVALID_PACK code', async () => {
       await expect(
-        createStarsInvoice(userId, 'nonexistent_pack' as any),
+        createStarsInvoice('nonexistent_pack' as any),
       ).rejects.toThrow(AppError)
 
       try {
-        await createStarsInvoice(userId, 'nonexistent_pack' as any)
+        await createStarsInvoice('nonexistent_pack' as any)
       } catch (err) {
         expect(err).toBeInstanceOf(AppError)
         expect((err as AppError).code).toBe('INVALID_PACK')
@@ -44,7 +44,7 @@ describe('purchaseService', () => {
     })
 
     it('valid packId (nuts_500) returns invoice URL string', async () => {
-      const result = await createStarsInvoice(userId, 'nuts_500' as any)
+      const result = await createStarsInvoice('nuts_500' as any)
 
       expect(typeof result).toBe('string')
       expect(result).toBe('https://t.me/$test_invoice')
@@ -60,7 +60,7 @@ describe('purchaseService', () => {
     it('credits nuts via $transaction for valid payment', async () => {
       const gameSave = createTestGameSave({ userId, nuts: 10 })
       const user = { ...createTestDbUser(), gameSave }
-      const invoicePayload = JSON.stringify({ packId: 'nuts_100', userId, idempotencyKey: 'test-uuid-1' })
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1' })
 
       prisma.transaction.findUnique.mockResolvedValue(null) // no duplicate
       prisma.user.findUnique.mockResolvedValue(user)
@@ -72,7 +72,7 @@ describe('purchaseService', () => {
     })
 
     it('duplicate telegram_payment_charge_id is idempotent (no double credit)', async () => {
-      const invoicePayload = JSON.stringify({ packId: 'nuts_100', userId, idempotencyKey: 'test-uuid-1' })
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1' })
 
       // Simulate existing transaction with same telegramPaymentChargeId
       prisma.transaction.findUnique.mockResolvedValue({
@@ -92,7 +92,7 @@ describe('purchaseService', () => {
     })
 
     it('does nothing if user not found', async () => {
-      const invoicePayload = JSON.stringify({ packId: 'nuts_100', userId, idempotencyKey: 'test-uuid-1' })
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1' })
 
       prisma.transaction.findUnique.mockResolvedValue(null)
       prisma.user.findUnique.mockResolvedValue(null)

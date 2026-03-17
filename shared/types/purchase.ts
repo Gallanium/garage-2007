@@ -17,6 +17,5 @@ export interface PurchaseResult {
 
 export interface InvoicePayload {
   packId: NutsPackId
-  userId: number
   idempotencyKey: string
 }

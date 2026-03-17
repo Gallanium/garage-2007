@@ -6,10 +6,9 @@ import { AppError } from '../middleware/errorHandler.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 
 export async function createInvoice(req: Request, res: Response): Promise<void> {
-  const userId = req.user!.id
   const { packId } = req.body as { packId: NutsPackId }
 
-  const invoiceUrl = await createStarsInvoice(userId, packId)
+  const invoiceUrl = await createStarsInvoice(packId)
   res.json({ invoiceUrl })
 }
 
@@ -24,34 +23,45 @@ export async function handleWebhook(req: Request, res: Response): Promise<void> 
   const update = req.body as Record<string, unknown>
 
   // Handle pre_checkout_query
-  if (update.pre_checkout_query) {
-    const query = update.pre_checkout_query as {
-      id: string
-      invoice_payload: string
+  if (update.pre_checkout_query && typeof update.pre_checkout_query === 'object') {
+    const query = update.pre_checkout_query as Record<string, unknown>
+    const queryId = query.id
+    const invoicePayload = query.invoice_payload
+
+    if (typeof queryId !== 'string' || typeof invoicePayload !== 'string') {
+      logger.warn({ update: 'pre_checkout_query' }, 'Malformed pre_checkout_query — missing id or invoice_payload')
+      res.status(200).send()
+      return
     }
-    await handlePreCheckoutQuery(query.id, query.invoice_payload)
+
+    await handlePreCheckoutQuery(queryId, invoicePayload)
     res.status(200).send()
     return
   }
 
   // Handle successful_payment (inside message)
-  const message = update.message as Record<string, unknown> | undefined
-  if (message?.successful_payment) {
-    const payment = message.successful_payment as {
-      telegram_payment_charge_id: string
-      invoice_payload: string
-    }
-    const from = message.from as { id: number }
+  if (update.message && typeof update.message === 'object') {
+    const message = update.message as Record<string, unknown>
 
-    await processSuccessfulPayment(
-      payment.telegram_payment_charge_id,
-      payment.invoice_payload,
-      from.id,
-    )
-    res.status(200).send()
-    return
+    if (message.successful_payment && typeof message.successful_payment === 'object') {
+      const payment = message.successful_payment as Record<string, unknown>
+      const from = message.from as Record<string, unknown> | undefined
+      const chargeId = payment.telegram_payment_charge_id
+      const invoicePayload = payment.invoice_payload
+      const senderId = from?.id
+
+      if (typeof chargeId !== 'string' || typeof invoicePayload !== 'string' || typeof senderId !== 'number') {
+        logger.warn({ update: 'successful_payment' }, 'Malformed successful_payment — missing required fields')
+        res.status(200).send()
+        return
+      }
+
+      await processSuccessfulPayment(chargeId, invoicePayload, senderId)
+      res.status(200).send()
+      return
+    }
   }
 
-  // Unknown update type — just acknowledge
+  // Unknown update type — acknowledge without processing
   res.status(200).send()
 }

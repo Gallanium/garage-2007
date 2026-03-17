@@ -29,8 +29,8 @@ describe('validation — Zod schemas', () => {
       expect(result.success).toBe(false)
     })
 
-    it('clicksSinceLastSync > 1000 rejected', () => {
-      const input = { clicksSinceLastSync: 1001, clientTimestamp: 1710590400000 }
+    it('clicksSinceLastSync > 600 rejected', () => {
+      const input = { clicksSinceLastSync: 601, clientTimestamp: 1710590400000 }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(false)
