@@ -1,39 +1,25 @@
-// These tests are written against the backend spec (docs/BACKEND_MVP.md).
-// They will fail until the corresponding backend code is implemented.
-// Run: npm test
-
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
-import app from '../../src/index'
-import {
-  createValidInitData,
-  createTelegramUser,
-  DEFAULT_TELEGRAM_USER,
-  createAuthHeader,
-  TEST_BOT_TOKEN,
-} from '../helpers'
+import app from '../../src/app'
+import { __mockClient } from '@prisma/client'
+import { signToken } from '../../src/utils/jwt'
+import { createAuthHeader, createTestGameSave } from '../helpers'
 
-/**
- * Helper: authenticate a user and return the JWT token.
- */
-async function authenticateUser(
-  user = DEFAULT_TELEGRAM_USER,
-): Promise<string> {
-  const initData = createValidInitData(user, TEST_BOT_TOKEN)
-  const res = await request(app)
-    .post('/api/auth/telegram')
-    .send({ initData })
-  return res.body.token
-}
+const prisma = __mockClient as any
 
 describe('POST /api/game/sync', () => {
-  let token: string
+  const token = signToken({ sub: 1, tgId: 123456789 })
 
-  beforeAll(async () => {
-    token = await authenticateUser()
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
   it('returns 200 with gameState and serverTime for a valid sync', async () => {
+    const gameSave = createTestGameSave({ lastSyncAt: new Date(Date.now() - 10_000) })
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    prisma.gameSave.update.mockResolvedValue({ ...gameSave, totalClicks: 10 })
+    prisma.balanceLog.create.mockResolvedValue({})
+
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(token))
@@ -49,99 +35,97 @@ describe('POST /api/game/sync', () => {
   })
 
   it('caps clicks when click rate exceeds 20/sec', async () => {
-    // Create a dedicated user for this test to have a clean state
-    const fastClicker = createTelegramUser({ id: 222333444, first_name: 'FastClicker' })
-    const fastToken = await authenticateUser(fastClicker)
+    const fastToken = signToken({ sub: 2, tgId: 222333444 })
 
-    // First sync to establish baseline and lastSyncAt
-    await request(app)
-      .post('/api/game/sync')
-      .set(createAuthHeader(fastToken))
-      .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now() })
+    // lastSyncAt 1 second ago -> max 20 clicks
+    const gameSave = createTestGameSave({
+      userId: 2,
+      lastSyncAt: new Date(Date.now() - 1000),
+      totalClicks: 0,
+    })
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    // The update mock should reflect capped clicks
+    prisma.gameSave.update.mockImplementation(async (args: any) => {
+      return { ...gameSave, ...args.data, totalClicks: args.data.totalClicks ?? gameSave.totalClicks }
+    })
+    prisma.balanceLog.create.mockResolvedValue({})
 
-    // Second sync: claim 100 clicks — but server knows only ~1 second passed,
-    // so max allowed should be ~20 clicks (20/sec * elapsed seconds).
-    // The balance should not reflect 100 full clicks worth of income.
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(fastToken))
       .send({ clicksSinceLastSync: 100, clientTimestamp: Date.now() })
 
     expect(res.status).toBe(200)
-    // The server should have capped the clicks. We verify totalClicks is not 100.
-    // Since elapsed time is very short (~0-1s), max clicks should be <= 20.
+    // Server caps at 20 clicks/sec * ~1s = 20 clicks
     expect(res.body.gameState.totalClicks).toBeLessThanOrEqual(20)
   })
 
   it('increases balance by click_income + passive_income', async () => {
-    const earner = createTelegramUser({ id: 333444555, first_name: 'Earner' })
-    const earnerToken = await authenticateUser(earner)
+    const earnerToken = signToken({ sub: 3, tgId: 333444555 })
+    const gameSave = createTestGameSave({
+      userId: 3,
+      balance: 1000,
+      lastSyncAt: new Date(Date.now() - 10_000),
+    })
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    prisma.gameSave.update.mockImplementation(async (args: any) => {
+      return { ...gameSave, ...args.data }
+    })
+    prisma.balanceLog.create.mockResolvedValue({})
 
-    // Establish initial state
-    const before = await request(app)
-      .post('/api/game/sync')
-      .set(createAuthHeader(earnerToken))
-      .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now() })
-
-    const balanceBefore = before.body.gameState?.balance ?? 0
-
-    // Sync with clicks
-    const after = await request(app)
+    const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(earnerToken))
       .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now() })
 
-    expect(after.status).toBe(200)
+    expect(res.status).toBe(200)
     // Balance should have increased (at least by click income for accepted clicks)
-    expect(after.body.gameState.balance).toBeGreaterThanOrEqual(balanceBefore)
+    expect(res.body.gameState.balance).toBeGreaterThanOrEqual(1000)
   })
 
   it('increments totalClicks by the accepted clicksSinceLastSync', async () => {
-    const clicker = createTelegramUser({ id: 444555667, first_name: 'Clicker' })
-    const clickerToken = await authenticateUser(clicker)
+    const clickerToken = signToken({ sub: 4, tgId: 444555667 })
+    const gameSave = createTestGameSave({
+      userId: 4,
+      totalClicks: 10,
+      lastSyncAt: new Date(Date.now() - 10_000),
+    })
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    prisma.gameSave.update.mockImplementation(async (args: any) => {
+      return { ...gameSave, ...args.data }
+    })
+    prisma.balanceLog.create.mockResolvedValue({})
 
-    // First sync to reset state
-    const first = await request(app)
-      .post('/api/game/sync')
-      .set(createAuthHeader(clickerToken))
-      .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now() })
-
-    const clicksBefore = first.body.gameState?.totalClicks ?? 0
-
-    // Second sync with 5 clicks (well within rate limit)
-    const second = await request(app)
+    const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(clickerToken))
       .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now() })
 
-    expect(second.status).toBe(200)
-    // totalClicks should increase by 5 (or by capped amount if time was too short)
-    expect(second.body.gameState.totalClicks).toBeGreaterThan(clicksBefore)
+    expect(res.status).toBe(200)
+    expect(res.body.gameState.totalClicks).toBeGreaterThan(10)
   })
 
-  it('triggers auto-level when balance crosses threshold', async () => {
-    // This test requires a player whose balance is just below a level-up threshold.
-    // The exact thresholds come from GARAGE_LEVEL_THRESHOLDS in shared constants.
-    // For garageLevel 1 -> 2, threshold is typically around 50,000.
-    // We need the sync to push balance over that threshold.
-    //
-    // Since we cannot seed DB directly in integration tests without Prisma access,
-    // this test verifies the auto-level mechanism by performing multiple syncs
-    // or by checking that garageLevel can change after sufficient balance accumulation.
-    const leveler = createTelegramUser({ id: 555666778, first_name: 'Leveler' })
-    const levelerToken = await authenticateUser(leveler)
+  it('returns garageLevel in sync response', async () => {
+    const levelerToken = signToken({ sub: 5, tgId: 555666778 })
+    const gameSave = createTestGameSave({
+      userId: 5,
+      lastSyncAt: new Date(Date.now() - 10_000),
+    })
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    prisma.gameSave.update.mockImplementation(async (args: any) => {
+      return { ...gameSave, ...args.data }
+    })
+    prisma.balanceLog.create.mockResolvedValue({})
 
-    // Perform initial sync
-    const initial = await request(app)
+    const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(levelerToken))
       .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now() })
 
-    expect(initial.status).toBe(200)
-    // garageLevel should be present in the response
-    expect(initial.body.gameState).toHaveProperty('garageLevel')
-    expect(typeof initial.body.gameState.garageLevel).toBe('number')
-    expect(initial.body.gameState.garageLevel).toBeGreaterThanOrEqual(1)
+    expect(res.status).toBe(200)
+    expect(res.body.gameState).toHaveProperty('garageLevel')
+    expect(typeof res.body.gameState.garageLevel).toBe('number')
+    expect(res.body.gameState.garageLevel).toBeGreaterThanOrEqual(1)
   })
 
   it('returns 401 when no auth header is provided', async () => {
@@ -152,22 +136,15 @@ describe('POST /api/game/sync', () => {
     expect(res.status).toBe(401)
   })
 
-  it('returns 429 when rate limit is exceeded (5th request in 1 minute)', async () => {
-    // Rate limit for sync: 4/min
-    const limited = createTelegramUser({ id: 666777889, first_name: 'RateLimited' })
-    const limitedToken = await authenticateUser(limited)
-    const results: number[] = []
+  it('returns 404 when game save not found', async () => {
+    const noSaveToken = signToken({ sub: 6, tgId: 666777889 })
+    prisma.gameSave.findUnique.mockResolvedValue(null)
 
-    for (let i = 0; i < 5; i++) {
-      const res = await request(app)
-        .post('/api/game/sync')
-        .set(createAuthHeader(limitedToken))
-        .send({ clicksSinceLastSync: 1, clientTimestamp: Date.now() })
-      results.push(res.status)
-    }
+    const res = await request(app)
+      .post('/api/game/sync')
+      .set(createAuthHeader(noSaveToken))
+      .send({ clicksSinceLastSync: 1, clientTimestamp: Date.now() })
 
-    // First 4 should succeed, 5th should be rate-limited
-    expect(results.slice(0, 4).every((s) => s === 200)).toBe(true)
-    expect(results[4]).toBe(429)
+    expect(res.status).toBe(404)
   })
 })

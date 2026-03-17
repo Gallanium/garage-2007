@@ -7,21 +7,33 @@ const prisma = __mockClient as any
 
 describe('gameStateService — loadState', () => {
   const userId = 1
+  let currentGameSave: ReturnType<typeof createTestGameSave> | null
 
   beforeEach(() => {
     vi.clearAllMocks()
+    currentGameSave = null
+
+    prisma.gameSave.update.mockImplementation(async ({ data }: any) => ({
+      ...currentGameSave,
+      ...data,
+      ...(data.sessionCount?.increment
+        ? { sessionCount: (currentGameSave?.sessionCount ?? 0) + data.sessionCount.increment }
+        : {}),
+    }))
+
+    prisma.balanceLog.create.mockResolvedValue({})
   })
 
   it('existing player returns full gameState object', async () => {
-    const gameSave = createTestGameSave({ userId, balance: 5000, garageLevel: 3 })
-    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    currentGameSave = createTestGameSave({ userId, balance: 5000, garageLevel: 3 })
+    prisma.gameSave.findUnique.mockResolvedValue(currentGameSave)
 
     const result = await loadState(userId)
 
     expect(result).toHaveProperty('gameState')
     expect(result.gameState).not.toBeNull()
-    expect(result.gameState.balance).toBeDefined()
-    expect(result.gameState.garageLevel).toBe(3)
+    expect(result.gameState!.balance).toBeDefined()
+    expect(result.gameState!.garageLevel).toBe(3)
   })
 
   it('new player (no GameSave) returns { gameState: null, serverTime }', async () => {
@@ -40,15 +52,13 @@ describe('gameStateService — loadState', () => {
     vi.setSystemTime(now)
 
     const oneHourAgo = new Date('2026-03-16T11:00:00Z')
-    const gameSave = createTestGameSave({
+    currentGameSave = createTestGameSave({
       userId,
       balance: 1000,
       lastSyncAt: oneHourAgo,
       apprenticeCount: 1, // has passive income
     })
-    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
-    prisma.gameSave.update.mockResolvedValue(gameSave)
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.gameSave.findUnique.mockResolvedValue(currentGameSave)
 
     const result = await loadState(userId)
 
@@ -67,8 +77,9 @@ describe('gameStateService — loadState', () => {
     const now = new Date('2026-03-16T12:00:00Z')
     vi.setSystemTime(now)
 
-    const gameSave = createTestGameSave({
+    currentGameSave = createTestGameSave({
       userId,
+      lastSyncAt: new Date(Date.now() - 3600_000),
       boosts: {
         active: [
           {
@@ -79,14 +90,12 @@ describe('gameStateService — loadState', () => {
         ],
       },
     })
-    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
-    prisma.gameSave.update.mockResolvedValue(gameSave)
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.gameSave.findUnique.mockResolvedValue(currentGameSave)
 
     const result = await loadState(userId)
 
     // Expired boosts should be removed
-    const activeBoosts = result.gameState?.boosts?.active ?? []
+    const activeBoosts = (result.gameState?.boosts as any)?.active ?? []
     const expiredBoost = activeBoosts.find(
       (b: any) => b.type === 'turbo' && b.expiresAt < now.getTime(),
     )
@@ -100,8 +109,9 @@ describe('gameStateService — loadState', () => {
     const now = new Date('2026-03-16T12:00:00Z')
     vi.setSystemTime(now)
 
-    const gameSave = createTestGameSave({
+    currentGameSave = createTestGameSave({
       userId,
+      lastSyncAt: new Date(Date.now() - 3600_000),
       events: {
         activeEvent: {
           id: 'discount_upgrades',
@@ -111,23 +121,19 @@ describe('gameStateService — loadState', () => {
         cooldownEnd: 0,
       },
     })
-    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
-    prisma.gameSave.update.mockResolvedValue(gameSave)
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.gameSave.findUnique.mockResolvedValue(currentGameSave)
 
     const result = await loadState(userId)
 
     // Expired event should be cleared
-    expect(result.gameState?.events?.activeEvent).toBeNull()
+    expect((result.gameState?.events as any)?.activeEvent).toBeNull()
 
     vi.useRealTimers()
   })
 
   it('lastSyncAt updated after load', async () => {
-    const gameSave = createTestGameSave({ userId })
-    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
-    prisma.gameSave.update.mockResolvedValue(gameSave)
-    prisma.balanceLog.create.mockResolvedValue({})
+    currentGameSave = createTestGameSave({ userId })
+    prisma.gameSave.findUnique.mockResolvedValue(currentGameSave)
 
     await loadState(userId)
 
@@ -138,10 +144,8 @@ describe('gameStateService — loadState', () => {
   })
 
   it('response includes serverTime as number', async () => {
-    const gameSave = createTestGameSave({ userId })
-    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
-    prisma.gameSave.update.mockResolvedValue(gameSave)
-    prisma.balanceLog.create.mockResolvedValue({})
+    currentGameSave = createTestGameSave({ userId })
+    prisma.gameSave.findUnique.mockResolvedValue(currentGameSave)
 
     const result = await loadState(userId)
 

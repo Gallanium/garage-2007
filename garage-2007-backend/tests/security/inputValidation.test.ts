@@ -1,29 +1,33 @@
-// Security tests written against the backend spec (docs/BACKEND_MVP.md).
-// These tests validate security requirements from section 2 of the spec.
-// Run: npm test
-
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
-import jwt from 'jsonwebtoken'
-import app from '../../src/index'
+import app from '../../src/app'
+import { __mockClient } from '@prisma/client'
+import { signToken } from '../../src/utils/jwt'
 import {
   createAuthHeader,
   createValidInitData,
   createTelegramUser,
-  TEST_JWT_SECRET,
+  createTestDbUser,
+  createTestGameSave,
   TEST_BOT_TOKEN,
 } from '../helpers'
 
+const prisma = __mockClient as any
+
 /** A valid JWT for authenticated requests. */
-const validToken = jwt.sign({ sub: 1, tgId: 123456789 }, TEST_JWT_SECRET, { expiresIn: '24h' })
+const validToken = signToken({ sub: 1, tgId: 123456789 })
 
 describe('Input validation & security', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('rejects a body larger than 16 KB with 413', async () => {
     // Build a payload that exceeds 16 KB
-    const largePayload = {
+    const largePayload = JSON.stringify({
       type: 'purchase_upgrade',
       payload: { data: 'x'.repeat(17_000) },
-    }
+    })
 
     const res = await request(app)
       .post('/api/game/action')
@@ -35,6 +39,11 @@ describe('Input validation & security', () => {
   })
 
   it('rejects extra fields not in Zod schema with 400', async () => {
+    // Need a valid game save for the sync to reach the Zod validation
+    // But the strict() schema validation happens before the service layer
+    const gameSave = createTestGameSave()
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+
     const res = await request(app)
       .post('/api/game/sync')
       .set('Content-Type', 'application/json')
@@ -49,6 +58,10 @@ describe('Input validation & security', () => {
   })
 
   it('handles SQL injection in string fields safely (no 500)', async () => {
+    const now = new Date()
+    const dbUser = createTestDbUser({ createdAt: now, updatedAt: now })
+    prisma.user.upsert.mockResolvedValue(dbUser)
+
     const maliciousUser = createTelegramUser({
       first_name: "Robert'); DROP TABLE users;--",
       username: "admin' OR '1'='1",
@@ -67,6 +80,14 @@ describe('Input validation & security', () => {
   })
 
   it('handles XSS payload in string fields safely', async () => {
+    const now = new Date()
+    const dbUser = createTestDbUser({
+      createdAt: now,
+      updatedAt: now,
+      firstName: '<script>alert(1)</script>',
+    })
+    prisma.user.upsert.mockResolvedValue(dbUser)
+
     const xssUser = createTelegramUser({
       first_name: '<script>alert(1)</script>',
       username: 'xss_tester',
@@ -83,10 +104,7 @@ describe('Input validation & security', () => {
     expect(res.status).not.toBe(500)
 
     // If the response contains the name, it should be stored as-is (not executed)
-    // or sanitized — but never cause an internal error
     if (res.body?.user?.firstName) {
-      // Verify the raw script tag is either stored literally or stripped,
-      // but not interpreted
       expect(typeof res.body.user.firstName).toBe('string')
     }
   })
@@ -108,6 +126,8 @@ describe('Input validation & security', () => {
       .set(createAuthHeader(validToken))
       .send('clicksSinceLastSync=10')
 
+    // Express json() parser won't parse text/plain, body will be empty/undefined
+    // Zod validation will fail with 400
     expect([400, 415]).toContain(res.status)
   })
 })

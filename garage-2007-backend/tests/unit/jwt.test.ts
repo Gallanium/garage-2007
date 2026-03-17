@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import jwt from 'jsonwebtoken'
 import { signToken, verifyToken } from '../../src/utils/jwt'
 
 describe('jwt — signToken / verifyToken', () => {
@@ -30,15 +31,10 @@ describe('jwt — signToken / verifyToken', () => {
   })
 
   it('token signed with different secret returns null from verifyToken', () => {
-    // Save original JWT_SECRET, create token with different secret
-    const originalSecret = process.env.JWT_SECRET
-    process.env.JWT_SECRET = 'different_secret_that_is_at_least_32_chars!'
+    // Sign with a completely different secret (bypassing our env mock)
+    const token = jwt.sign(payload, 'completely_different_secret_key_here!', { expiresIn: '24h' })
 
-    const token = signToken(payload)
-
-    // Restore original secret and try to verify
-    process.env.JWT_SECRET = originalSecret
-
+    // verifyToken uses the mocked env.JWT_SECRET — should fail
     const decoded = verifyToken(token)
     expect(decoded).toBeNull()
   })

@@ -15,7 +15,7 @@ import {
 import { GAME_EVENTS, EVENT_CATEGORY_WEIGHTS, EVENT_COOLDOWN_MS, EVENT_RANDOM_DELAY_MS } from '@shared/constants/events.js'
 import { DECORATION_CATALOG } from '@shared/constants/decorations.js'
 import { AppError } from '../middleware/errorHandler.js'
-import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
+import { logBalanceChange, logSuspiciousActivity, detectBalanceJump, detectRapidSync, detectTimingAnomaly } from './auditService.js'
 import { buildGameState } from './gameStateService.js'
 import {
   purchaseUpgradePayload, hireWorkerPayload, purchaseMilestonePayload,
@@ -193,6 +193,10 @@ export async function processSync(
     gs.peakClickIncome,
     calculateClickIncome(gs.clickPowerLevel) * boostClickMult,
   )
+
+  // Anti-cheat checks
+  detectBalanceJump(userId, gs.balance, newBalance)
+  detectRapidSync(userId, gs.lastSyncAt)
 
   // Auto-level
   const newLevel = checkAutoLevel(newBalance, gs.garageLevel, gs.milestonesPurchased)

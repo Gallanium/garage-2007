@@ -10,6 +10,20 @@ process.env.NODE_ENV = 'test'
 process.env.FRONTEND_URL = 'http://localhost:5173'
 process.env.LOG_LEVEL = 'silent'
 
+// ── Mock env.ts to prevent process.exit(1) on import ─────────────────────────
+vi.mock('../src/config/env.js', () => ({
+  env: {
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/garage2007_test',
+    BOT_TOKEN: 'test_bot_token_1234567890:ABCDEFghijklmnop',
+    WEBHOOK_SECRET: 'test_webhook_secret_abc123',
+    JWT_SECRET: 'test_jwt_secret_at_least_32_characters_long!',
+    PORT: 3099,
+    NODE_ENV: 'test' as const,
+    FRONTEND_URL: 'http://localhost:5173',
+    LOG_LEVEL: 'silent' as const,
+  },
+}))
+
 // ── Mock pino logger (suppress output in tests) ─────────────────────────────
 vi.mock('pino', () => {
   const noop = () => mockLogger
@@ -67,8 +81,12 @@ vi.mock('@prisma/client', () => {
     $disconnect: vi.fn(),
   }
 
+  // Must be a real constructor (new PrismaClient() must work)
+  function MockPrismaClient() { return mockPrismaClient }
+  Object.assign(MockPrismaClient, { prototype: mockPrismaClient })
+
   return {
-    PrismaClient: vi.fn(() => mockPrismaClient),
+    PrismaClient: MockPrismaClient,
     __mockClient: mockPrismaClient,
   }
 })

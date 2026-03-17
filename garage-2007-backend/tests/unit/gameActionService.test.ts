@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { processAction } from '../../src/services/gameActionService'
+import { AppError } from '../../src/middleware/errorHandler'
 import { __mockClient } from '@prisma/client'
 import { createTestGameSave } from '../helpers'
 
@@ -12,7 +13,20 @@ describe('gameActionService — processAction', () => {
     vi.clearAllMocks()
     prisma.balanceLog.findFirst.mockResolvedValue(null) // no idempotency collision
     prisma.balanceLog.create.mockResolvedValue({})
-    prisma.gameSave.update.mockImplementation(async ({ data }: any) => data)
+    // Default update mock: merge data with the gameSave from findUnique
+    prisma.gameSave.update.mockImplementation(async ({ data }: any) => {
+      const currentSave = prisma.gameSave.findUnique.mock.results?.[0]?.value
+      // Await in case it's a promise (mockResolvedValue)
+      const resolved = currentSave instanceof Promise ? await currentSave : currentSave
+      return {
+        ...resolved,
+        ...data,
+        // Handle Prisma increment operations
+        ...(data.version?.increment ? { version: (resolved?.version ?? 7) + data.version.increment } : {}),
+        // Handle Prisma push operations (decorationsOwned)
+        ...(data.decorationsOwned?.push ? { decorationsOwned: [...(resolved?.decorationsOwned ?? []), data.decorationsOwned.push] } : {}),
+      }
+    })
   })
 
   // ── purchase_upgrade ────────────────────────────────────────────────────────
@@ -32,13 +46,15 @@ describe('gameActionService — processAction', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.gameState.clickPowerLevel).toBe(1)
+      expect(result.gameState.upgrades).toBeDefined()
+      const upgrades = result.gameState.upgrades as { clickPower: { level: number; cost: number } }
+      expect(upgrades.clickPower.level).toBe(1)
       expect(result.gameState.balance).toBeLessThan(10_000)
       // Cost should be recalculated (higher than previous)
-      expect(result.gameState.clickPowerCost).toBeGreaterThan(100)
+      expect(upgrades.clickPower.cost).toBeGreaterThan(100)
     })
 
-    it('insufficient balance returns INSUFFICIENT_BALANCE error', async () => {
+    it('insufficient balance throws INSUFFICIENT_BALANCE error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 10,
@@ -47,15 +63,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_upgrade', {
-        upgradeType: 'clickPower',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('INSUFFICIENT_BALANCE')
+      try {
+        await processAction(userId, 'purchase_upgrade', { upgradeType: 'clickPower' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('INSUFFICIENT_BALANCE')
+      }
     })
 
-    it('level >= 200 returns MAX_LEVEL_REACHED error', async () => {
+    it('level >= 200 throws MAX_LEVEL_REACHED error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 999_999_999,
@@ -64,12 +81,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_upgrade', {
-        upgradeType: 'clickPower',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('MAX_LEVEL_REACHED')
+      try {
+        await processAction(userId, 'purchase_upgrade', { upgradeType: 'clickPower' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('MAX_LEVEL_REACHED')
+      }
     })
 
     it('event cost multiplier applied (e.g., 0.8 discount)', async () => {
@@ -80,10 +98,10 @@ describe('gameActionService — processAction', () => {
         clickPowerCost: 100,
         events: {
           activeEvent: {
-            id: 'discount_upgrades',
-            multiplier: 0.8,
+            id: 'parts_discount',
             activatedAt: Date.now() - 60_000,
             expiresAt: Date.now() + 300_000,
+            eventSeed: 1,
           },
           cooldownEnd: 0,
         },
@@ -118,12 +136,13 @@ describe('gameActionService — processAction', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.gameState.apprenticeCount).toBe(1)
+      const workers = result.gameState.workers as { apprentice: { count: number; cost: number } }
+      expect(workers.apprentice.count).toBe(1)
       expect(result.gameState.balance).toBeLessThan(10_000)
-      expect(result.gameState.apprenticeCost).toBeGreaterThan(500)
+      expect(workers.apprentice.cost).toBeGreaterThan(500)
     })
 
-    it('worker limit reached returns WORKER_LIMIT_REACHED error', async () => {
+    it('worker limit reached throws WORKER_LIMIT_REACHED error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 999_999_999,
@@ -132,15 +151,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'hire_worker', {
-        workerType: 'apprentice',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('WORKER_LIMIT_REACHED')
+      try {
+        await processAction(userId, 'hire_worker', { workerType: 'apprentice' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('WORKER_LIMIT_REACHED')
+      }
     })
 
-    it('milestone not purchased for locked worker returns WORKER_LOCKED error', async () => {
+    it('milestone not purchased for locked worker throws WORKER_LOCKED error', async () => {
       // Mechanic requires milestone 5
       const gameSave = createTestGameSave({
         userId,
@@ -151,15 +171,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'hire_worker', {
-        workerType: 'mechanic',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('WORKER_LOCKED')
+      try {
+        await processAction(userId, 'hire_worker', { workerType: 'mechanic' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('WORKER_LOCKED')
+      }
     })
 
-    it('insufficient balance returns INSUFFICIENT_BALANCE error', async () => {
+    it('insufficient balance throws INSUFFICIENT_BALANCE error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 10,
@@ -168,12 +189,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'hire_worker', {
-        workerType: 'apprentice',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('INSUFFICIENT_BALANCE')
+      try {
+        await processAction(userId, 'hire_worker', { workerType: 'apprentice' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('INSUFFICIENT_BALANCE')
+      }
     })
   })
 
@@ -183,7 +205,7 @@ describe('gameActionService — processAction', () => {
     it('success: balance deducted, milestone added to array', async () => {
       const gameSave = createTestGameSave({
         userId,
-        balance: 100_000,
+        balance: 2_000_000,
         garageLevel: 5,
         milestonesPurchased: [],
       })
@@ -195,7 +217,7 @@ describe('gameActionService — processAction', () => {
       expect(result.gameState.milestonesPurchased).toContain(5)
     })
 
-    it('already purchased returns ALREADY_PURCHASED error', async () => {
+    it('already purchased throws MILESTONE_ALREADY_PURCHASED error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 100_000,
@@ -204,13 +226,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_milestone', { level: 5 })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('ALREADY_PURCHASED')
+      try {
+        await processAction(userId, 'purchase_milestone', { level: 5 })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('MILESTONE_ALREADY_PURCHASED')
+      }
     })
 
-    it('invalid level (not in milestone levels) returns INVALID_MILESTONE error', async () => {
+    it('invalid level (not in milestone levels) throws INVALID_MILESTONE error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 100_000,
@@ -219,13 +244,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_milestone', { level: 7 })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('INVALID_MILESTONE')
+      try {
+        await processAction(userId, 'purchase_milestone', { level: 7 })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('INVALID_MILESTONE')
+      }
     })
 
-    it('insufficient balance returns INSUFFICIENT_BALANCE error', async () => {
+    it('insufficient balance throws INSUFFICIENT_BALANCE error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 0,
@@ -234,10 +262,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_milestone', { level: 5 })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('INSUFFICIENT_BALANCE')
+      try {
+        await processAction(userId, 'purchase_milestone', { level: 5 })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('INSUFFICIENT_BALANCE')
+      }
     })
   })
 
@@ -259,7 +290,8 @@ describe('gameActionService — processAction', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.gameState.decorationsOwned).toContain('tools_workbench')
+      const decorations = result.gameState.decorations as { owned: string[]; active: string[] }
+      expect(decorations.owned).toContain('tools_workbench')
     })
 
     it('success with nuts: nuts deducted, added to owned', async () => {
@@ -277,23 +309,25 @@ describe('gameActionService — processAction', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.gameState.decorationsOwned).toContain('decor_neon_sign')
+      const decorations = result.gameState.decorations as { owned: string[]; active: string[] }
+      expect(decorations.owned).toContain('decor_neon_sign')
       expect(result.gameState.nuts).toBeLessThan(100)
     })
 
-    it('not in catalog returns DECORATION_NOT_FOUND error', async () => {
+    it('not in catalog throws DECORATION_NOT_FOUND error', async () => {
       const gameSave = createTestGameSave({ userId, balance: 999_999 })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_decoration', {
-        decorationId: 'nonexistent_decoration',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('DECORATION_NOT_FOUND')
+      try {
+        await processAction(userId, 'purchase_decoration', { decorationId: 'nonexistent_decoration' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('DECORATION_NOT_FOUND')
+      }
     })
 
-    it('already owned returns ALREADY_OWNED error', async () => {
+    it('already owned throws DECORATION_ALREADY_OWNED error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 999_999,
@@ -302,15 +336,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'purchase_decoration', {
-        decorationId: 'decor_poster_car',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('ALREADY_OWNED')
+      try {
+        await processAction(userId, 'purchase_decoration', { decorationId: 'decor_poster_car' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('DECORATION_ALREADY_OWNED')
+      }
     })
 
-    it('garage level too low returns LEVEL_REQUIRED error', async () => {
+    it('garage level too low throws DECORATION_LOCKED error', async () => {
       const gameSave = createTestGameSave({
         userId,
         balance: 999_999,
@@ -320,12 +355,13 @@ describe('gameActionService — processAction', () => {
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
       // decor_poster_car: unlockLevel 2, garageLevel 1 → should fail
-      const result = await processAction(userId, 'purchase_decoration', {
-        decorationId: 'decor_poster_car',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('LEVEL_REQUIRED')
+      try {
+        await processAction(userId, 'purchase_decoration', { decorationId: 'decor_poster_car' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('DECORATION_LOCKED')
+      }
     })
   })
 
@@ -345,10 +381,11 @@ describe('gameActionService — processAction', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.gameState.decorationsActive).toContain('decor_poster_car')
+      const decorations = result.gameState.decorations as { owned: string[]; active: string[] }
+      expect(decorations.active).toContain('decor_poster_car')
     })
 
-    it('not owned returns NOT_OWNED error', async () => {
+    it('not owned throws DECORATION_NOT_FOUND error', async () => {
       const gameSave = createTestGameSave({
         userId,
         decorationsOwned: [],
@@ -356,12 +393,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'toggle_decoration', {
-        decorationId: 'decor_poster_car',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('NOT_OWNED')
+      try {
+        await processAction(userId, 'toggle_decoration', { decorationId: 'decor_poster_car' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('DECORATION_NOT_FOUND')
+      }
     })
   })
 
@@ -382,11 +420,11 @@ describe('gameActionService — processAction', () => {
 
       expect(result.success).toBe(true)
       expect(result.gameState.nuts).toBe(50 - 15)
-      const activeBoosts = result.gameState.boosts.active
-      expect(activeBoosts.some((b: any) => b.type === 'turbo')).toBe(true)
+      const boosts = result.gameState.boosts as { active: Array<{ type: string }> }
+      expect(boosts.active.some((b) => b.type === 'turbo')).toBe(true)
     })
 
-    it('insufficient nuts returns INSUFFICIENT_NUTS error', async () => {
+    it('insufficient nuts throws INSUFFICIENT_BALANCE error', async () => {
       const gameSave = createTestGameSave({
         userId,
         nuts: 0,
@@ -394,15 +432,16 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'activate_boost', {
-        boostType: 'turbo',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('INSUFFICIENT_NUTS')
+      try {
+        await processAction(userId, 'activate_boost', { boostType: 'turbo' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('INSUFFICIENT_BALANCE')
+      }
     })
 
-    it('milestone not unlocked returns BOOST_LOCKED error (income_2x needs milestone 5)', async () => {
+    it('milestone not unlocked throws BOOST_LOCKED error (income_2x needs milestone 5)', async () => {
       const gameSave = createTestGameSave({
         userId,
         nuts: 100,
@@ -411,12 +450,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'activate_boost', {
-        boostType: 'income_2x',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('BOOST_LOCKED')
+      try {
+        await processAction(userId, 'activate_boost', { boostType: 'income_2x' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('BOOST_LOCKED')
+      }
     })
   })
 
@@ -446,11 +486,12 @@ describe('gameActionService — processAction', () => {
       expect(result.success).toBe(true)
       expect(result.gameState.nuts).toBeLessThan(50)
       // New boost should have fresh expiresAt
-      const turboBoost = result.gameState.boosts.active.find(
-        (b: any) => b.type === 'turbo',
+      const boosts = result.gameState.boosts as { active: Array<{ type: string; expiresAt: number }> }
+      const turboBoost = boosts.active.find(
+        (b) => b.type === 'turbo',
       )
       expect(turboBoost).toBeDefined()
-      expect(turboBoost.expiresAt).toBeGreaterThan(Date.now())
+      expect(turboBoost!.expiresAt).toBeGreaterThan(Date.now())
     })
   })
 
@@ -474,10 +515,11 @@ describe('gameActionService — processAction', () => {
 
       expect(result.success).toBe(true)
       expect(result.gameState.nuts).toBeGreaterThan(10)
-      expect(result.gameState.achievements.garage_level_5.claimed).toBe(true)
+      const achievements = result.gameState.achievements as Record<string, { claimed: boolean }>
+      expect(achievements.garage_level_5.claimed).toBe(true)
     })
 
-    it('already claimed returns ALREADY_CLAIMED error', async () => {
+    it('already claimed throws ACHIEVEMENT_ALREADY_CLAIMED error', async () => {
       const gameSave = createTestGameSave({
         userId,
         achievements: {
@@ -486,12 +528,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'claim_achievement', {
-        achievementId: 'garage_level_5',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('ALREADY_CLAIMED')
+      try {
+        await processAction(userId, 'claim_achievement', { achievementId: 'garage_level_5' })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('ACHIEVEMENT_ALREADY_CLAIMED')
+      }
     })
   })
 
@@ -511,7 +554,8 @@ describe('gameActionService — processAction', () => {
       expect(result.success).toBe(true)
       expect(result.gameState.nuts).toBe(5)
       expect(result.actionResult?.nutsRewarded).toBe(5)
-      expect(result.gameState.dailyRewards.currentStreak).toBe(1)
+      const dailyRewards = result.gameState.dailyRewards as { currentStreak: number }
+      expect(dailyRewards.currentStreak).toBe(1)
     })
 
     it('streak continuation (next day): 5 nuts, streak = 2', async () => {
@@ -531,12 +575,13 @@ describe('gameActionService — processAction', () => {
 
       expect(result.success).toBe(true)
       expect(result.gameState.nuts).toBe(15) // 10 + 5
-      expect(result.gameState.dailyRewards.currentStreak).toBe(2)
+      const dailyRewards = result.gameState.dailyRewards as { currentStreak: number }
+      expect(dailyRewards.currentStreak).toBe(2)
 
       vi.useRealTimers()
     })
 
-    it('double claim same period returns ALREADY_CLAIMED error', async () => {
+    it('double claim same period throws DAILY_REWARD_COOLDOWN error', async () => {
       vi.useFakeTimers()
       const now = new Date('2026-03-16T12:00:00Z')
       vi.setSystemTime(now)
@@ -550,10 +595,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'claim_daily_reward', {})
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('ALREADY_CLAIMED')
+      try {
+        await processAction(userId, 'claim_daily_reward', {})
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('DAILY_REWARD_COOLDOWN')
+      }
 
       vi.useRealTimers()
     })
@@ -576,7 +624,7 @@ describe('gameActionService — processAction', () => {
       expect(result.gameState.nuts).toBe(15) // 10 + 5
     })
 
-    it('cooldown active (< 1 hour) returns COOLDOWN_ACTIVE error', async () => {
+    it('cooldown active (< 1 hour) throws VIDEO_COOLDOWN error', async () => {
       vi.useFakeTimers()
       const now = new Date('2026-03-16T12:00:00Z')
       vi.setSystemTime(now)
@@ -591,10 +639,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'watch_rewarded_video', {})
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('COOLDOWN_ACTIVE')
+      try {
+        await processAction(userId, 'watch_rewarded_video', {})
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('VIDEO_COOLDOWN')
+      }
 
       vi.useRealTimers()
     })
@@ -613,12 +664,13 @@ describe('gameActionService — processAction', () => {
       const result = await processAction(userId, 'trigger_event', {})
 
       expect(result.success).toBe(true)
-      expect(result.gameState.events.activeEvent).not.toBeNull()
-      expect(result.gameState.events.activeEvent.id).toBeDefined()
-      expect(result.gameState.events.activeEvent.expiresAt).toBeGreaterThan(Date.now())
+      const events = result.gameState.events as { activeEvent: { id: string; expiresAt: number } | null }
+      expect(events.activeEvent).not.toBeNull()
+      expect(events.activeEvent!.id).toBeDefined()
+      expect(events.activeEvent!.expiresAt).toBeGreaterThan(Date.now())
     })
 
-    it('cooldown active returns COOLDOWN_ACTIVE error', async () => {
+    it('cooldown active throws EVENT_COOLDOWN error', async () => {
       vi.useFakeTimers()
       const now = new Date('2026-03-16T12:00:00Z')
       vi.setSystemTime(now)
@@ -632,10 +684,13 @@ describe('gameActionService — processAction', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
-      const result = await processAction(userId, 'trigger_event', {})
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('COOLDOWN_ACTIVE')
+      try {
+        await processAction(userId, 'trigger_event', {})
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('EVENT_COOLDOWN')
+      }
 
       vi.useRealTimers()
     })

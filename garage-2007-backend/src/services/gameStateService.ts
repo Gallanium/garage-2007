@@ -4,7 +4,7 @@ import { calculateOfflineEarnings } from '@shared/formulas/offlineEarnings.js'
 import { checkAutoLevel } from '@shared/formulas/progression.js'
 import { roundCurrency } from '@shared/utils/math.js'
 import { BASE_COSTS } from '@shared/constants/economy.js'
-import { logBalanceChange } from './auditService.js'
+import { logBalanceChange, detectBalanceJump } from './auditService.js'
 import { logger } from '../utils/logger.js'
 import type { GameSave } from '@prisma/client'
 
@@ -99,6 +99,8 @@ export async function loadState(userId: number): Promise<{
   if (offlineAmount > 0) {
     updatedBalance = roundCurrency(updatedBalance + offlineAmount)
     updatedTotalEarned = roundCurrency(updatedTotalEarned + offlineAmount)
+
+    detectBalanceJump(userId, gameSave.balance, updatedBalance)
 
     logBalanceChange({
       userId,

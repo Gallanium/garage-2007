@@ -1,140 +1,186 @@
-// Security tests written against the backend spec (docs/BACKEND_MVP.md).
-// These tests validate security requirements from section 2 of the spec.
-// Run: npm test
-
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
-import jwt from 'jsonwebtoken'
-import app from '../../src/index'
-import { createAuthHeader, TEST_JWT_SECRET } from '../helpers'
+import app from '../../src/app'
+import { __mockClient } from '@prisma/client'
+import { signToken } from '../../src/utils/jwt'
+import { createAuthHeader, createTestGameSave } from '../helpers'
+
+const prisma = __mockClient as any
 
 /** A valid JWT for authenticated requests. */
-const validToken = jwt.sign({ sub: 1, tgId: 123456789 }, TEST_JWT_SECRET, { expiresIn: '24h' })
+const validToken = signToken({ sub: 1, tgId: 123456789 })
 
 describe('Idempotency (spec requirement #7)', () => {
-  it('same idempotencyKey sent twice — balance deducted only once', async () => {
-    const idempotencyKey = 'idem-key-001'
-    const actionPayload = {
-      type: 'purchase_upgrade',
-      payload: { upgradeId: 'clickPower' },
-      idempotencyKey,
-    }
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('same idempotencyKey sent twice -- second returns 409', async () => {
+    const idempotencyKey = '550e8400-e29b-41d4-a716-446655440000'
+    const gameSave = createTestGameSave({ balance: 10_000, clickPowerLevel: 0, clickPowerCost: 100 })
+    const updatedSave = { ...gameSave, balance: 9_900, clickPowerLevel: 1 }
+
+    // First request: no existing log entry
+    prisma.balanceLog.findFirst.mockResolvedValueOnce(null)
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave)
+    prisma.gameSave.update.mockResolvedValueOnce(updatedSave)
+    prisma.balanceLog.create.mockResolvedValueOnce({})
+
+    const res1 = await request(app)
+      .post('/api/game/action')
+      .set('Content-Type', 'application/json')
+      .set(createAuthHeader(validToken))
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+        idempotencyKey,
+      })
+
+    expect(res1.status).toBe(200)
+    expect(res1.body.success).toBe(true)
+
+    // Second request: existing log entry found (idempotency check)
+    prisma.balanceLog.findFirst.mockResolvedValueOnce({ id: 1, idempotencyKey })
+    prisma.gameSave.findUnique.mockResolvedValueOnce(updatedSave)
+
+    const res2 = await request(app)
+      .post('/api/game/action')
+      .set('Content-Type', 'application/json')
+      .set(createAuthHeader(validToken))
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+        idempotencyKey,
+      })
+
+    // The service returns 409 IDEMPOTENT_REQUEST for duplicate keys
+    expect(res2.status).toBe(409)
+  })
+
+  it('different idempotencyKey for the same action -- both processed', async () => {
+    const gameSave1 = createTestGameSave({ balance: 10_000, clickPowerLevel: 0, clickPowerCost: 100 })
+    const gameSave2 = { ...gameSave1, balance: 9_900, clickPowerLevel: 1, clickPowerCost: 120 }
 
     // First request
+    prisma.balanceLog.findFirst.mockResolvedValueOnce(null)
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave1)
+    prisma.gameSave.update.mockResolvedValueOnce(gameSave2)
+    prisma.balanceLog.create.mockResolvedValueOnce({})
+
     const res1 = await request(app)
       .post('/api/game/action')
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
-      .send(actionPayload)
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+        idempotencyKey: '550e8400-e29b-41d4-a716-446655440001',
+      })
 
-    // Second request with same idempotencyKey
+    // Second request with different key
+    prisma.balanceLog.findFirst.mockResolvedValueOnce(null)
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave2)
+    prisma.gameSave.update.mockResolvedValueOnce({ ...gameSave2, balance: 9780, clickPowerLevel: 2 })
+    prisma.balanceLog.create.mockResolvedValueOnce({})
+
     const res2 = await request(app)
       .post('/api/game/action')
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
-      .send(actionPayload)
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+        idempotencyKey: '550e8400-e29b-41d4-a716-446655440002',
+      })
 
-    // Both should succeed (second returns cached result)
-    // Key assertion: responses should carry the same resulting balance,
-    // proving the action was not applied twice
-    if (res1.status === 200 && res2.status === 200) {
-      expect(res2.body.balance).toBe(res1.body.balance)
-    }
-
-    // At minimum the second request must not return an error
-    expect([200, 201, 409]).toContain(res2.status)
+    // Both should succeed with 200
+    expect(res1.status).toBe(200)
+    expect(res2.status).toBe(200)
+    // After two purchases the balance should decrease
+    expect(res2.body.gameState.upgrades.clickPower.level).toBeGreaterThan(
+      res1.body.gameState.upgrades.clickPower.level,
+    )
   })
 
-  it('different idempotencyKey for the same action — both processed', async () => {
-    const makePayload = (key: string) => ({
-      type: 'purchase_upgrade',
-      payload: { upgradeId: 'clickPower' },
-      idempotencyKey: key,
-    })
+  it('no idempotencyKey -- action always processes (no dedup)', async () => {
+    const gameSave1 = createTestGameSave({ balance: 10_000, clickPowerLevel: 0, clickPowerCost: 100 })
+    const gameSave2 = { ...gameSave1, balance: 9_900, clickPowerLevel: 1, clickPowerCost: 120 }
+
+    // First request (no idempotencyKey -> no findFirst call for dedup)
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave1)
+    prisma.gameSave.update.mockResolvedValueOnce(gameSave2)
+    prisma.balanceLog.create.mockResolvedValueOnce({})
 
     const res1 = await request(app)
       .post('/api/game/action')
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
-      .send(makePayload('idem-different-A'))
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+      })
+
+    // Second request (no idempotencyKey)
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave2)
+    prisma.gameSave.update.mockResolvedValueOnce({ ...gameSave2, balance: 9780, clickPowerLevel: 2 })
+    prisma.balanceLog.create.mockResolvedValueOnce({})
 
     const res2 = await request(app)
       .post('/api/game/action')
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
-      .send(makePayload('idem-different-B'))
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+      })
 
-    // Both requests should be processed (not deduplicated)
-    if (res1.status === 200 && res2.status === 200) {
-      // After two purchases the balance should be lower than after one
-      expect(res2.body.balance).toBeLessThan(res1.body.balance)
-    }
-  })
-
-  it('no idempotencyKey — action always processes (no dedup)', async () => {
-    const actionPayload = {
-      type: 'purchase_upgrade',
-      payload: { upgradeId: 'clickPower' },
-      // no idempotencyKey
-    }
-
-    const res1 = await request(app)
-      .post('/api/game/action')
-      .set('Content-Type', 'application/json')
-      .set(createAuthHeader(validToken))
-      .send(actionPayload)
-
-    const res2 = await request(app)
-      .post('/api/game/action')
-      .set('Content-Type', 'application/json')
-      .set(createAuthHeader(validToken))
-      .send(actionPayload)
-
-    // Without idempotency key, every request is treated as unique.
-    // If both succeed the balance should decrease from first to second.
-    if (res1.status === 200 && res2.status === 200) {
-      expect(res2.body.balance).toBeLessThan(res1.body.balance)
-    }
+    // Both succeed
+    expect(res1.status).toBe(200)
+    expect(res2.status).toBe(200)
+    // Balance should decrease from first to second
+    expect(res2.body.gameState.balance).toBeLessThan(res1.body.gameState.balance)
   })
 
   it('BalanceLog has only one entry per idempotencyKey despite multiple requests', async () => {
-    const idempotencyKey = 'idem-balance-log-001'
-    const actionPayload = {
-      type: 'purchase_upgrade',
-      payload: { upgradeId: 'clickPower' },
-      idempotencyKey,
+    const idempotencyKey = '550e8400-e29b-41d4-a716-446655440003'
+    const gameSave = createTestGameSave({ balance: 10_000, clickPowerLevel: 0, clickPowerCost: 100 })
+    const updatedSave = { ...gameSave, balance: 9_900, clickPowerLevel: 1 }
+
+    // First request succeeds
+    prisma.balanceLog.findFirst.mockResolvedValueOnce(null)
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave)
+    prisma.gameSave.update.mockResolvedValueOnce(updatedSave)
+    prisma.balanceLog.create.mockResolvedValueOnce({})
+
+    await request(app)
+      .post('/api/game/action')
+      .set('Content-Type', 'application/json')
+      .set(createAuthHeader(validToken))
+      .send({
+        type: 'purchase_upgrade',
+        payload: { upgradeType: 'clickPower' },
+        idempotencyKey,
+      })
+
+    // Subsequent requests return 409 (idempotent)
+    for (let i = 0; i < 2; i++) {
+      prisma.balanceLog.findFirst.mockResolvedValueOnce({ id: 1, idempotencyKey })
+      prisma.gameSave.findUnique.mockResolvedValueOnce(updatedSave)
+
+      const res = await request(app)
+        .post('/api/game/action')
+        .set('Content-Type', 'application/json')
+        .set(createAuthHeader(validToken))
+        .send({
+          type: 'purchase_upgrade',
+          payload: { upgradeType: 'clickPower' },
+          idempotencyKey,
+        })
+
+      expect(res.status).toBe(409)
     }
 
-    // Send the same request three times
-    await request(app)
-      .post('/api/game/action')
-      .set('Content-Type', 'application/json')
-      .set(createAuthHeader(validToken))
-      .send(actionPayload)
-
-    await request(app)
-      .post('/api/game/action')
-      .set('Content-Type', 'application/json')
-      .set(createAuthHeader(validToken))
-      .send(actionPayload)
-
-    await request(app)
-      .post('/api/game/action')
-      .set('Content-Type', 'application/json')
-      .set(createAuthHeader(validToken))
-      .send(actionPayload)
-
-    // Query balance log for this idempotency key via an admin/debug endpoint
-    // or verify through game state. The server should only record one deduction.
-    // This assertion uses the game state endpoint as a proxy:
-    const stateRes = await request(app)
-      .get('/api/game/state')
-      .set(createAuthHeader(validToken))
-
-    if (stateRes.status === 200) {
-      // The balance should reflect only ONE deduction, not three.
-      // Exact value depends on upgrade cost; key point is idempotency.
-      expect(stateRes.body).toBeDefined()
-    }
+    // BalanceLog.create should only have been called once (for the first request)
+    expect(prisma.balanceLog.create).toHaveBeenCalledTimes(1)
   })
 })

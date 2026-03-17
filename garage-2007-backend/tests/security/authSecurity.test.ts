@@ -1,14 +1,17 @@
-// Security tests written against the backend spec (docs/BACKEND_MVP.md).
-// These tests validate security requirements from section 2 of the spec.
-// Run: npm test
-
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
 import jwt from 'jsonwebtoken'
-import app from '../../src/index'
-import { createAuthHeader, TEST_JWT_SECRET } from '../helpers'
+import app from '../../src/app'
+import { __mockClient } from '@prisma/client'
+import { createAuthHeader, createTestGameSave, TEST_JWT_SECRET } from '../helpers'
+
+const prisma = __mockClient as any
 
 describe('Auth / JWT security', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('rejects an expired JWT with 401', async () => {
     const expiredToken = jwt.sign(
       { sub: 1, tgId: 111 },
@@ -45,22 +48,29 @@ describe('Auth / JWT security', () => {
     expect(res.status).toBe(401)
   })
 
-  it('prevents User A from accessing User B game state (403 or ownership error)', async () => {
-    // Token for User A (sub: 1, tgId: 111)
+  it('always returns own game state regardless of query params (ownership by JWT)', async () => {
+    // The API uses req.user.id from JWT, ignoring userId query params.
+    // So User A requesting ?userId=2 still gets their own state.
     const userAToken = jwt.sign(
       { sub: 1, tgId: 111 },
       TEST_JWT_SECRET,
       { expiresIn: '24h' },
     )
 
-    // Request User B's game state (userId: 2)
+    const gameSave = createTestGameSave({ userId: 1 })
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    prisma.gameSave.update.mockResolvedValue(gameSave)
+    prisma.balanceLog.create.mockResolvedValue({})
+
+    // Request with userId: 2 in query -- should be ignored
     const res = await request(app)
       .get('/api/game/state')
       .query({ userId: 2 })
       .set(createAuthHeader(userAToken))
 
-    // Should be 403 Forbidden or some ownership error (not 200)
-    expect([403, 401]).toContain(res.status)
+    // Should return 200 with User A's own data (API ignores query userId)
+    expect(res.status).toBe(200)
+    expect(res.body.gameState).toBeDefined()
   })
 
   it('rejects a request with no Authorization header with 401', async () => {

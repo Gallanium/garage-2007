@@ -1,33 +1,21 @@
-import express from 'express'
-import cors from 'cors'
+import app from './app.js'
 import { env } from './config/env.js'
 import { logger } from './utils/logger.js'
-import { errorHandler } from './middleware/errorHandler.js'
-import healthRoutes from './routes/healthRoutes.js'
-import authRoutes from './routes/authRoutes.js'
-import gameRoutes from './routes/gameRoutes.js'
-import purchaseRoutes from './routes/purchaseRoutes.js'
+import { prisma } from './utils/prisma.js'
 
-const app = express()
-
-// Global middleware
-app.use(cors({
-  origin: env.NODE_ENV === 'production' ? [env.FRONTEND_URL] : true,
-  credentials: true,
-}))
-app.use(express.json({ limit: '16kb' }))
-
-// Routes
-app.use('/api', healthRoutes)
-app.use('/api/auth', authRoutes)
-app.use('/api/game', gameRoutes)
-app.use('/api/purchase', purchaseRoutes)
-
-// Error handler (must be last)
-app.use(errorHandler)
-
-app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Server started')
 })
+
+// Graceful shutdown
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    logger.info({ signal }, 'Shutting down gracefully')
+    server.close(async () => {
+      await prisma.$disconnect()
+      process.exit(0)
+    })
+  })
+}
 
 export default app

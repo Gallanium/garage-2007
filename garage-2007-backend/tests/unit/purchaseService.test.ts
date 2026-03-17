@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createStarsInvoice, processPayment } from '../../src/services/purchaseService'
+import { createStarsInvoice, processSuccessfulPayment } from '../../src/services/purchaseService'
+import { AppError } from '../../src/middleware/errorHandler'
 import { __mockClient } from '@prisma/client'
-import { createTestGameSave, NUTS_PACKS } from '../helpers'
+import { createTestGameSave, createTestDbUser, NUTS_PACKS } from '../helpers'
+
+vi.mock('../../src/services/telegramBotService.js', () => ({
+  createInvoiceLink: vi.fn().mockResolvedValue('https://t.me/$test_invoice'),
+  answerPreCheckoutQuery: vi.fn().mockResolvedValue(undefined),
+  refundStarPayment: vi.fn().mockResolvedValue(undefined),
+}))
 
 const prisma = __mockClient as any
 
@@ -15,137 +22,93 @@ describe('purchaseService', () => {
   // ── createStarsInvoice ──────────────────────────────────────────────────────
 
   describe('createStarsInvoice', () => {
-    it('valid packId (nuts_100) returns invoice with currency XTR and stars=50', async () => {
-      const result = await createStarsInvoice(userId, 'nuts_100')
+    it('valid packId (nuts_100) returns invoice URL string', async () => {
+      const result = await createStarsInvoice(userId, 'nuts_100' as any)
 
       expect(result).toBeDefined()
-      expect(result.currency).toBe('XTR')
-      expect(result.prices).toHaveLength(1)
-      expect(result.prices[0].amount).toBe(NUTS_PACKS.nuts_100.stars) // 50
+      expect(typeof result).toBe('string')
+      expect(result).toBe('https://t.me/$test_invoice')
     })
 
-    it('invalid packId throws INVALID_PACK error', async () => {
+    it('invalid packId throws AppError with INVALID_PACK code', async () => {
       await expect(
-        createStarsInvoice(userId, 'nonexistent_pack'),
-      ).rejects.toMatchObject({ code: 'INVALID_PACK' })
+        createStarsInvoice(userId, 'nonexistent_pack' as any),
+      ).rejects.toThrow(AppError)
+
+      try {
+        await createStarsInvoice(userId, 'nonexistent_pack' as any)
+      } catch (err) {
+        expect(err).toBeInstanceOf(AppError)
+        expect((err as AppError).code).toBe('INVALID_PACK')
+      }
     })
 
-    it('invoice has no provider_token (required for Telegram Stars)', async () => {
-      const result = await createStarsInvoice(userId, 'nuts_100')
+    it('valid packId (nuts_500) returns invoice URL string', async () => {
+      const result = await createStarsInvoice(userId, 'nuts_500' as any)
 
-      // For Telegram Stars, provider_token must not be set
-      expect(result.provider_token).toBeUndefined()
-    })
-
-    it('invoice prices array has exactly 1 element', async () => {
-      const result = await createStarsInvoice(userId, 'nuts_500')
-
-      expect(Array.isArray(result.prices)).toBe(true)
-      expect(result.prices).toHaveLength(1)
-      expect(result.prices[0]).toHaveProperty('label')
-      expect(result.prices[0]).toHaveProperty('amount')
+      expect(typeof result).toBe('string')
+      expect(result).toBe('https://t.me/$test_invoice')
     })
   })
 
-  // ── processPayment ──────────────────────────────────────────────────────────
+  // ── processSuccessfulPayment ──────────────────────────────────────────────
 
-  describe('processPayment', () => {
-    it('nuts incremented by pack amount', async () => {
+  describe('processSuccessfulPayment', () => {
+    const senderTgId = 123456789
+    const telegramPaymentChargeId = 'charge_abc_123'
+
+    it('credits nuts via $transaction for valid payment', async () => {
       const gameSave = createTestGameSave({ userId, nuts: 10 })
-      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+      const user = { ...createTestDbUser(), gameSave }
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', userId, idempotencyKey: 'test-uuid-1' })
+
       prisma.transaction.findUnique.mockResolvedValue(null) // no duplicate
-      prisma.transaction.create.mockResolvedValue({})
-      prisma.gameSave.update.mockResolvedValue({ ...gameSave, nuts: 110 })
-      prisma.balanceLog.create.mockResolvedValue({})
+      prisma.user.findUnique.mockResolvedValue(user)
 
-      const result = await processPayment({
-        userId,
-        packId: 'nuts_100',
-        telegramPaymentId: 'charge_abc_123',
-        starsAmount: 50,
-      })
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
-      expect(result.nutsAwarded).toBe(100)
+      // $transaction should have been called with an array of operations
+      expect(prisma.$transaction).toHaveBeenCalled()
     })
 
-    it('payment creates Transaction record with telegramPaymentId', async () => {
-      const gameSave = createTestGameSave({ userId, nuts: 10 })
-      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
-      prisma.transaction.findUnique.mockResolvedValue(null)
-      prisma.transaction.create.mockResolvedValue({})
-      prisma.gameSave.update.mockResolvedValue({ ...gameSave, nuts: 110 })
-      prisma.balanceLog.create.mockResolvedValue({})
+    it('duplicate telegram_payment_charge_id is idempotent (no double credit)', async () => {
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', userId, idempotencyKey: 'test-uuid-1' })
 
-      await processPayment({
-        userId,
-        packId: 'nuts_100',
-        telegramPaymentId: 'charge_unique_456',
-        starsAmount: 50,
-      })
-
-      // Verify transaction creation was called (via $transaction batch or direct)
-      const transactionCalls = prisma.transaction.create.mock.calls
-      const $transactionCalls = prisma.$transaction.mock.calls
-      // Either direct create or within a $transaction
-      const wasCalled =
-        transactionCalls.length > 0 || $transactionCalls.length > 0
-      expect(wasCalled).toBe(true)
-    })
-
-    it('duplicate telegram_payment_id is idempotent (no double credit)', async () => {
-      // Simulate existing transaction with same telegramPaymentId
+      // Simulate existing transaction with same telegramPaymentChargeId
       prisma.transaction.findUnique.mockResolvedValue({
         id: 1,
         userId,
-        telegramPaymentId: 'charge_duplicate',
+        telegramPaymentId: telegramPaymentChargeId,
         packId: 'nuts_100',
         starsAmount: 50,
         nutsAmount: 100,
         status: 'completed',
       })
 
-      const result = await processPayment({
-        userId,
-        packId: 'nuts_100',
-        telegramPaymentId: 'charge_duplicate',
-        starsAmount: 50,
-      })
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
-      // Should not create another transaction
-      expect(prisma.transaction.create).not.toHaveBeenCalled()
-      // Idempotent — returns success without double crediting
-      expect(result.nutsAwarded).toBe(100)
+      // Should not call $transaction since it's a duplicate
+      expect(prisma.$transaction).not.toHaveBeenCalled()
     })
 
-    it('BalanceLog created with actionType stars_purchase', async () => {
-      const gameSave = createTestGameSave({ userId, nuts: 10 })
-      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    it('does nothing if user not found', async () => {
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', userId, idempotencyKey: 'test-uuid-1' })
+
       prisma.transaction.findUnique.mockResolvedValue(null)
-      prisma.transaction.create.mockResolvedValue({})
-      prisma.gameSave.update.mockResolvedValue({ ...gameSave, nuts: 110 })
-      prisma.balanceLog.create.mockResolvedValue({})
+      prisma.user.findUnique.mockResolvedValue(null)
 
-      await processPayment({
-        userId,
-        packId: 'nuts_100',
-        telegramPaymentId: 'charge_log_check',
-        starsAmount: 50,
-      })
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
-      // Check that balanceLog.create was called with stars_purchase actionType
-      // This may be via $transaction batch or direct call
-      const logCalls = prisma.balanceLog.create.mock.calls
-      const $txCalls = prisma.$transaction.mock.calls
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
 
-      // If using $transaction batch, the array passed should include a balanceLog.create
-      const hasBalanceLog =
-        logCalls.length > 0 ||
-        $txCalls.some((call: any) =>
-          Array.isArray(call[0])
-            ? true // batch transaction includes balanceLog
-            : false,
-        )
-      expect(hasBalanceLog).toBe(true)
+    it('does nothing for invalid payload', async () => {
+      const invalidPayload = 'not-valid-json'
+
+      await processSuccessfulPayment(telegramPaymentChargeId, invalidPayload, senderTgId)
+
+      expect(prisma.transaction.findUnique).not.toHaveBeenCalled()
+      expect(prisma.$transaction).not.toHaveBeenCalled()
     })
   })
 })

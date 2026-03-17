@@ -38,6 +38,37 @@ export function errorHandler(
     return
   }
 
+  // Handle body-parser errors (payload too large, malformed JSON)
+  if ('type' in err) {
+    const errWithType = err as Error & { type?: string; status?: number }
+    if (errWithType.type === 'entity.too.large') {
+      res.status(413).json({
+        success: false,
+        error: 'PAYLOAD_TOO_LARGE',
+        message: 'Request body exceeds size limit',
+      })
+      return
+    }
+    if (errWithType.type === 'entity.parse.failed') {
+      res.status(400).json({
+        success: false,
+        error: 'INVALID_JSON',
+        message: 'Malformed JSON in request body',
+      })
+      return
+    }
+  }
+
+  // Handle SyntaxError from JSON parsing
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({
+      success: false,
+      error: 'INVALID_JSON',
+      message: 'Malformed JSON in request body',
+    })
+    return
+  }
+
   logger.error({ err }, 'Unhandled error')
 
   res.status(500).json({

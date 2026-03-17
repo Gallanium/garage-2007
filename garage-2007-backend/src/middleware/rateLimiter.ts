@@ -1,19 +1,31 @@
 import rateLimit from 'express-rate-limit'
+import type { Request } from 'express'
 
+const rateLimitMessage = { success: false, error: 'RATE_LIMITED', message: 'Too many requests' }
+
+/** Extract userId from authenticated request for per-user rate limiting */
+function userKeyGenerator(req: Request): string {
+  const user = req.user
+  return user ? `user:${user.id}` : req.ip ?? 'unknown'
+}
+
+// Auth: IP-based (runs before authentication)
 export const authLimiter = rateLimit({
   windowMs: 60_000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: 'RATE_LIMITED', message: 'Too many requests' },
+  message: rateLimitMessage,
 })
 
+// Authenticated endpoints: per-userId
 export const stateLimiter = rateLimit({
   windowMs: 60_000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: 'RATE_LIMITED', message: 'Too many requests' },
+  keyGenerator: userKeyGenerator,
+  message: rateLimitMessage,
 })
 
 export const syncLimiter = rateLimit({
@@ -21,7 +33,8 @@ export const syncLimiter = rateLimit({
   max: 4,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: 'RATE_LIMITED', message: 'Too many requests' },
+  keyGenerator: userKeyGenerator,
+  message: rateLimitMessage,
 })
 
 export const actionLimiter = rateLimit({
@@ -29,7 +42,8 @@ export const actionLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: 'RATE_LIMITED', message: 'Too many requests' },
+  keyGenerator: userKeyGenerator,
+  message: rateLimitMessage,
 })
 
 export const purchaseLimiter = rateLimit({
@@ -37,5 +51,6 @@ export const purchaseLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: 'RATE_LIMITED', message: 'Too many requests' },
+  keyGenerator: userKeyGenerator,
+  message: rateLimitMessage,
 })
