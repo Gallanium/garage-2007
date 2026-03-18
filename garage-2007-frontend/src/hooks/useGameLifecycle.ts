@@ -40,6 +40,14 @@ export function useGameLifecycle(): void {
   useEffect(() => {
     let cancelled = false
 
+    // Safety net: if server doesn't respond in 10s, load from localStorage
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled && !useGameStore.getState().isLoaded) {
+        console.warn('[GameLifecycle] Server timeout — falling back to localStorage')
+        loadProgress()
+      }
+    }, 10_000)
+
     async function initServer() {
       const initData = getInitData()
 
@@ -76,7 +84,10 @@ export function useGameLifecycle(): void {
     }
 
     initServer()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      clearTimeout(fallbackTimer)
+    }
   }, [loadProgress])
 
   // 2. Passive income tick (client-side for instant UI feedback)

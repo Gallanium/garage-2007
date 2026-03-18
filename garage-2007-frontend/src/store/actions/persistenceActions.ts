@@ -249,11 +249,15 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       }
     }
 
+    // garageLevel is non-decreasing: if server sends a lower value (pending clicks not yet
+    // synced), keep the local value. Server will catch up on next sync.
+    const currentGarageLevel = get().garageLevel
+
     _set({
       balance: (s.balance as number) ?? 0,
       nuts: (s.nuts as number) ?? 0,
       totalClicks: (s.totalClicks as number) ?? 0,
-      garageLevel: (s.garageLevel as number) ?? 1,
+      garageLevel: Math.max(currentGarageLevel, (s.garageLevel as number) ?? 1),
       milestonesPurchased: (s.milestonesPurchased as number[]) ?? [],
       totalEarned: (s.totalEarned as number) ?? 0,
       sessionCount: (s.sessionCount as number) ?? 0,
@@ -290,7 +294,8 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         ? { owned: decoData.owned.filter(id => DECORATION_CATALOG[id]), active: decoData.active.filter(id => DECORATION_CATALOG[id]) }
         : initialState.decorations,
       isLoaded: true,
-      _clicksSinceLastSync: 0,
+      // NOTE: _clicksSinceLastSync is NOT reset here — pending clicks must survive
+      // action responses and be flushed on the next 30s sync tick.
     })
 
     get().checkForMilestone()

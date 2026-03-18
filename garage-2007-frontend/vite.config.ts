@@ -12,6 +12,10 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true,
+    // Bypass ngrok browser warning interstitial
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
