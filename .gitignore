@@ -59,6 +59,10 @@ coverage/
 *.tmp
 *.temp
 
+# Документация и планы
+docs/
+CLAUDE.md
+
 # Файлы Claude
 .claude/
 
