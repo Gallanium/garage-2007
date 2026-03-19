@@ -253,11 +253,25 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     // synced), keep the local value. Server will catch up on next sync.
     const currentGarageLevel = get().garageLevel
 
+    // Compensate for pending unsynced clicks: server balance is "confirmed" state,
+    // add estimated income from clicks the server hasn't processed yet.
+    const pendingClicks = get()._clicksSinceLastSync ?? 0
+    let pendingClickIncome = 0
+    if (pendingClicks > 0) {
+      const clickLevel = upgrades?.clickPower?.level ?? get().upgrades.clickPower.level
+      const clickIncomePerClick = calculateClickIncome(clickLevel)
+      const boostMult = get().getActiveMultiplier('click')
+      const eventMult = get().getEventMultiplier('click')
+      pendingClickIncome = roundCurrency(pendingClicks * clickIncomePerClick * boostMult * eventMult)
+    }
+    const serverBalance = (s.balance as number) ?? 0
+    const adjustedBalance = roundCurrency(serverBalance + pendingClickIncome)
+
     _set({
-      balance: (s.balance as number) ?? 0,
+      balance: adjustedBalance,
       nuts: (s.nuts as number) ?? 0,
       totalClicks: (s.totalClicks as number) ?? 0,
-      garageLevel: Math.max(currentGarageLevel, (s.garageLevel as number) ?? 1),
+      garageLevel: Math.max(currentGarageLevel, checkAutoLevel(adjustedBalance, currentGarageLevel, (s.milestonesPurchased as number[]) ?? [])),
       milestonesPurchased: (s.milestonesPurchased as number[]) ?? [],
       totalEarned: (s.totalEarned as number) ?? 0,
       sessionCount: (s.sessionCount as number) ?? 0,

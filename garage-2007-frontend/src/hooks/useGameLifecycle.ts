@@ -102,13 +102,18 @@ export function useGameLifecycle(): void {
     if (!api.isOnline()) return
 
     const syncInterval = setInterval(() => {
-      const clicks = useGameStore.getState()._clicksSinceLastSync ?? 0
-      api.sync(clicks).then((result) => {
+      const clicksToSend = useGameStore.getState()._clicksSinceLastSync ?? 0
+      api.sync(clicksToSend).then((result) => {
+        // First: subtract only the clicks we sent (clicks that arrived during
+        // the roundtrip stay in the counter for the next sync)
+        useGameStore.setState((s) => ({
+          _clicksSinceLastSync: Math.max(0, (s._clicksSinceLastSync ?? 0) - clicksToSend),
+        }))
+        // Then: apply server state — applyServerState compensates for any
+        // remaining pending clicks so balance doesn't visually drop
         if (result?.gameState) {
           useGameStore.getState().applyServerState(result.gameState)
         }
-        // Reset click counter after sync
-        useGameStore.setState({ _clicksSinceLastSync: 0 })
       })
     }, SYNC_INTERVAL_MS)
 
