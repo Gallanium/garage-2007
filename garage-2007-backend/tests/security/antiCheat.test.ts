@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import crypto from 'node:crypto'
 import request from 'supertest'
 import app from '../../src/app'
 import { __mockClient } from '@prisma/client'
@@ -13,6 +14,7 @@ const validToken = signToken({ sub: 1, tgId: 123456789 })
 describe('Anti-cheat measures (spec section 6.3)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    prisma.balanceLog.findFirst.mockResolvedValue(null)
   })
 
   it('caps clicks when rate exceeds 20/sec', async () => {
@@ -27,7 +29,7 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
     prisma.gameSave.update.mockImplementation(async (args: any) => {
       return { ...gameSave, ...args.data }
     })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const res = await request(app)
       .post('/api/game/sync')
@@ -36,6 +38,7 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
       .send({
         clicksSinceLastSync: 500,
         clientTimestamp: Date.now(),
+        syncNonce: crypto.randomUUID(),
       })
 
     expect(res.status).toBe(200)
@@ -52,6 +55,7 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
       .send({
         clicksSinceLastSync: -10,
         clientTimestamp: Date.now(),
+        syncNonce: crypto.randomUUID(),
       })
 
     expect(res.status).toBe(400)
@@ -65,6 +69,7 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
       .send({
         clicksSinceLastSync: 10.5,
         clientTimestamp: Date.now(),
+        syncNonce: crypto.randomUUID(),
       })
 
     expect(res.status).toBe(400)
@@ -80,7 +85,7 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
     prisma.gameSave.update.mockImplementation(async (args: any) => {
       return { ...gameSave, ...args.data }
     })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const oneHourFuture = Date.now() + 3_600_000
 
@@ -91,6 +96,7 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
       .send({
         clicksSinceLastSync: 5,
         clientTimestamp: oneHourFuture,
+        syncNonce: crypto.randomUUID(),
       })
 
     expect(res.status).toBe(200)

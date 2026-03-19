@@ -7,8 +7,9 @@ import type { NutsPackId } from '@shared/types/purchase.js'
 
 export async function createInvoice(req: Request, res: Response): Promise<void> {
   const { packId } = req.body as { packId: NutsPackId }
+  const userId = req.user!.id
 
-  const invoiceUrl = await createStarsInvoice(packId)
+  const invoiceUrl = await createStarsInvoice(packId, userId)
   res.json({ invoiceUrl })
 }
 

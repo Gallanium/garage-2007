@@ -3,11 +3,12 @@ import type { StateCreator } from 'zustand'
 import type { GameStore, GameState, UpgradesState, WorkersState, AchievementId, PlayerAchievement } from '../types'
 import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSION } from '../../utils/storageService'
 import { roundCurrency } from '../../utils/math'
-import { BASE_COSTS } from '../constants/economy'
+import { BASE_COSTS, CRITICAL_CLICK_MULTIPLIER } from '../constants/economy'
 import { DECORATION_CATALOG } from '../constants/decorations'
 import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
+import { gameStateResponseSchema } from '../validation/gameStateSchema'
 
 type Slice = Pick<GameStore,
   | 'saveProgress' | 'loadProgress' | 'addOfflineEarnings'
@@ -232,6 +233,11 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
   },
 
   applyServerState: (serverState: Record<string, unknown>) => {
+    const parseResult = gameStateResponseSchema.safeParse(serverState)
+    if (!parseResult.success) {
+      console.warn('[applyServerState] Invalid server response shape:', parseResult.error.issues)
+      return
+    }
     const s = serverState
     const workers = s.workers as Record<string, { count: number; cost: number }> | undefined
     const upgrades = s.upgrades as Record<string, { level: number; cost: number; baseCost: number }> | undefined
@@ -255,14 +261,18 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
 
     // Compensate for pending unsynced clicks: server balance is "confirmed" state,
     // add estimated income from clicks the server hasn't processed yet.
-    const pendingClicks = get()._clicksSinceLastSync ?? 0
+    const pendingBuffer = get()._pendingClickBuffer ?? []
     let pendingClickIncome = 0
-    if (pendingClicks > 0) {
+    if (pendingBuffer.length > 0) {
       const clickLevel = upgrades?.clickPower?.level ?? get().upgrades.clickPower.level
       const clickIncomePerClick = calculateClickIncome(clickLevel)
       const boostMult = get().getActiveMultiplier('click')
       const eventMult = get().getEventMultiplier('click')
-      pendingClickIncome = roundCurrency(pendingClicks * clickIncomePerClick * boostMult * eventMult)
+      const normalClicks = pendingBuffer.filter(c => !c.isCritical).length
+      const criticalClicks = pendingBuffer.filter(c => c.isCritical).length
+      pendingClickIncome = roundCurrency(
+        (normalClicks * clickIncomePerClick + criticalClicks * clickIncomePerClick * CRITICAL_CLICK_MULTIPLIER) * boostMult * eventMult,
+      )
     }
     const serverBalance = (s.balance as number) ?? 0
     const adjustedBalance = roundCurrency(serverBalance + pendingClickIncome)
@@ -312,7 +322,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
         ? { owned: decoData.owned.filter(id => DECORATION_CATALOG[id]), active: decoData.active.filter(id => DECORATION_CATALOG[id]) }
         : initialState.decorations,
       isLoaded: true,
-      // NOTE: _clicksSinceLastSync is NOT reset here — pending clicks must survive
+      // NOTE: _pendingClickBuffer is NOT reset here — pending clicks must survive
       // action responses and be flushed on the next 30s sync tick.
     })
 

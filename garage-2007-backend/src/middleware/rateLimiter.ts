@@ -60,3 +60,11 @@ export const purchaseLimiter = rateLimit({
   keyGenerator: userKeyGenerator,
   handler: rateLimitHandler,
 })
+
+export const webhookLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler,
+})

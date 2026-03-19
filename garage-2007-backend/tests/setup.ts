@@ -84,7 +84,10 @@ vi.mock('@prisma/client', () => {
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      createMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
+    $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
     $transaction: vi.fn((args: unknown) => {
       if (Array.isArray(args)) return Promise.resolve(args)
       if (typeof args === 'function') return (args as (tx: unknown) => unknown)(mockPrismaClient)

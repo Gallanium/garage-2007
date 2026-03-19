@@ -87,7 +87,7 @@ export async function loadState(userId: number): Promise<{
     return { gameState: null, serverTime: Date.now() }
   }
 
-  // Compute offline earnings
+  // Compute offline earnings (base passive income only — boosts intentionally excluded)
   const workers = extractWorkers(gameSave)
   const passiveIncome = calculateTotalPassiveIncome(workers, gameSave.workSpeedLevel)
   const elapsedSeconds = (Date.now() - gameSave.lastSyncAt.getTime()) / 1000

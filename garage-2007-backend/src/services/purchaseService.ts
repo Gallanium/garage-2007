@@ -7,15 +7,14 @@ import { logger } from '../utils/logger.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS } from '@shared/constants/purchase.js'
 
-export async function createStarsInvoice(packId: NutsPackId): Promise<string> {
+export async function createStarsInvoice(packId: NutsPackId, userId: number): Promise<string> {
   const pack = NUTS_PACKS[packId]
   if (!pack) {
     throw new AppError(400, 'INVALID_PACK', 'Unknown nuts pack')
   }
 
   const idempotencyKey = uuidv4()
-  // userId intentionally NOT included — user identity resolved from senderTgId at payment time
-  const payload = JSON.stringify({ packId, idempotencyKey })
+  const payload = JSON.stringify({ packId, idempotencyKey, userId })
 
   const invoiceUrl = await createInvoiceLink({
     title: pack.label,
@@ -31,6 +30,7 @@ export async function createStarsInvoice(packId: NutsPackId): Promise<string> {
 interface InvoicePayload {
   packId: NutsPackId
   idempotencyKey: string
+  userId?: number
 }
 
 function parsePayload(payloadStr: string): InvoicePayload | null {
@@ -92,6 +92,12 @@ export async function processSuccessfulPayment(
 
   if (!user || !user.gameSave) {
     logger.error({ senderTgId }, 'User or game save not found for payment')
+    return
+  }
+
+  // Cross-check: invoice was created for this user
+  if (payload.userId !== undefined && payload.userId !== user.id) {
+    logger.error({ payloadUserId: payload.userId, actualUserId: user.id }, 'Invoice userId mismatch — possible payment fraud')
     return
   }
 

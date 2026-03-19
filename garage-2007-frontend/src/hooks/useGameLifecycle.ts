@@ -35,6 +35,7 @@ export function useGameLifecycle(): void {
   const startPassiveIncome = useGameStore((s) => s.startPassiveIncome)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const syncInFlightRef = useRef(false)
 
   // 1. Auth + Load — server-first, localStorage fallback
   useEffect(() => {
@@ -102,18 +103,23 @@ export function useGameLifecycle(): void {
     if (!api.isOnline()) return
 
     const syncInterval = setInterval(() => {
-      const clicksToSend = useGameStore.getState()._clicksSinceLastSync ?? 0
+      if (syncInFlightRef.current) return
+      const buffer = useGameStore.getState()._pendingClickBuffer ?? []
+      const clicksToSend = buffer.length
+      syncInFlightRef.current = true
       api.sync(clicksToSend).then((result) => {
-        // First: subtract only the clicks we sent (clicks that arrived during
-        // the roundtrip stay in the counter for the next sync)
+        // Remove only the clicks we sent (clicks that arrived during
+        // the roundtrip stay in the buffer for the next sync)
         useGameStore.setState((s) => ({
-          _clicksSinceLastSync: Math.max(0, (s._clicksSinceLastSync ?? 0) - clicksToSend),
+          _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend),
         }))
         // Then: apply server state — applyServerState compensates for any
         // remaining pending clicks so balance doesn't visually drop
         if (result?.gameState) {
           useGameStore.getState().applyServerState(result.gameState)
         }
+      }).finally(() => {
+        syncInFlightRef.current = false
       })
     }, SYNC_INTERVAL_MS)
 
@@ -152,7 +158,7 @@ export function useGameLifecycle(): void {
       saveProgress()
       // Best-effort sync with auth header (keepalive ensures delivery on close)
       if (api.isOnline()) {
-        const clicks = useGameStore.getState()._clicksSinceLastSync ?? 0
+        const clicks = (useGameStore.getState()._pendingClickBuffer ?? []).length
         const token = api.getToken()
         if (token && clicks > 0) {
           fetch('/api/game/sync', {
@@ -162,7 +168,11 @@ export function useGameLifecycle(): void {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ clicksSinceLastSync: clicks, clientTimestamp: Date.now() }),
+            body: JSON.stringify({
+              clicksSinceLastSync: clicks,
+              clientTimestamp: Date.now(),
+              syncNonce: crypto.randomUUID(),
+            }),
           }).catch(() => { /* best-effort — ignore errors on close */ })
         }
       }

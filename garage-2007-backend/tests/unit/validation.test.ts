@@ -8,7 +8,7 @@ describe('validation — Zod schemas', () => {
 
   describe('syncSchema', () => {
     it('valid input passes', () => {
-      const input = { clicksSinceLastSync: 42, clientTimestamp: 1710590400000 }
+      const input = { clicksSinceLastSync: 42, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(true)
@@ -22,6 +22,7 @@ describe('validation — Zod schemas', () => {
       const input = {
         clicksSinceLastSync: 42,
         clientTimestamp: 1710590400000,
+        syncNonce: '550e8400-e29b-41d4-a716-446655440000',
         extraField: 'should_fail',
       }
       const result = syncSchema.safeParse(input)
@@ -30,14 +31,21 @@ describe('validation — Zod schemas', () => {
     })
 
     it('clicksSinceLastSync > 1000 rejected', () => {
-      const input = { clicksSinceLastSync: 1001, clientTimestamp: 1710590400000 }
+      const input = { clicksSinceLastSync: 1001, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(false)
     })
 
     it('negative clicksSinceLastSync rejected', () => {
-      const input = { clicksSinceLastSync: -1, clientTimestamp: 1710590400000 }
+      const input = { clicksSinceLastSync: -1, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
+      const result = syncSchema.safeParse(input)
+
+      expect(result.success).toBe(false)
+    })
+
+    it('missing syncNonce rejected', () => {
+      const input = { clicksSinceLastSync: 10, clientTimestamp: 1710590400000 }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(false)

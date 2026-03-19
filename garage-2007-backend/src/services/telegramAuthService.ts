@@ -15,9 +15,9 @@ export function validateInitData(initData: string, botToken: string): TelegramUs
   if (!hash) return null
   params.delete('hash')
 
-  // Freshness check: 5 minutes
+  // Freshness check: 2 minutes
   const authDate = Number(params.get('auth_date'))
-  if (Number.isNaN(authDate) || Date.now() / 1000 - authDate > 300) return null
+  if (Number.isNaN(authDate) || Date.now() / 1000 - authDate > 120) return null
 
   // Sort and build data-check-string
   const dataCheckString = [...params.entries()]

@@ -72,6 +72,49 @@ describe('gameStateService — loadState', () => {
     vi.useRealTimers()
   })
 
+  it('offline earnings exclude active boost multipliers', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-03-16T12:00:00Z')
+    vi.setSystemTime(now)
+
+    const oneHourAgo = new Date('2026-03-16T11:00:00Z')
+
+    // Save WITHOUT boosts
+    const saveNoBoost = createTestGameSave({
+      userId,
+      balance: 1000,
+      lastSyncAt: oneHourAgo,
+      apprenticeCount: 1,
+      boosts: { active: [] },
+    })
+    prisma.gameSave.findUnique.mockResolvedValue(saveNoBoost)
+    currentGameSave = saveNoBoost
+    const resultNoBoost = await loadState(userId)
+
+    // Save WITH active income_2x boost
+    const saveWithBoost = createTestGameSave({
+      userId,
+      balance: 1000,
+      lastSyncAt: oneHourAgo,
+      apprenticeCount: 1,
+      boosts: {
+        active: [{
+          type: 'income_2x',
+          activatedAt: now.getTime() - 600_000,
+          expiresAt: now.getTime() + 600_000, // still active
+        }],
+      },
+    })
+    prisma.gameSave.findUnique.mockResolvedValue(saveWithBoost)
+    currentGameSave = saveWithBoost
+    const resultWithBoost = await loadState(userId)
+
+    // Offline earnings should be the same regardless of active boosts
+    expect(resultNoBoost.offlineEarnings?.amount).toBe(resultWithBoost.offlineEarnings?.amount)
+
+    vi.useRealTimers()
+  })
+
   it('expired boosts removed from state on load', async () => {
     vi.useFakeTimers()
     const now = new Date('2026-03-16T12:00:00Z')

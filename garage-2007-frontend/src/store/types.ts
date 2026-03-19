@@ -29,6 +29,7 @@ export type {
   DecorationCurrency,
   DecorationDefinition,
   DecorationsState,
+  PendingClick,
   GameState,
   PlayerData,
   SavedUpgrades,

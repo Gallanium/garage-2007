@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import crypto from 'node:crypto'
 import request from 'supertest'
 import app from '../../src/app'
 import { __mockClient } from '@prisma/client'
@@ -12,13 +13,14 @@ describe('POST /api/game/sync', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    prisma.balanceLog.findFirst.mockResolvedValue(null)
   })
 
   it('returns 200 with gameState and serverTime for a valid sync', async () => {
     const gameSave = createTestGameSave({ lastSyncAt: new Date(Date.now() - 10_000) })
     prisma.gameSave.findUnique.mockResolvedValue(gameSave)
     prisma.gameSave.update.mockResolvedValue({ ...gameSave, totalClicks: 10 })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const res = await request(app)
       .post('/api/game/sync')
@@ -26,6 +28,7 @@ describe('POST /api/game/sync', () => {
       .send({
         clicksSinceLastSync: 10,
         clientTimestamp: Date.now(),
+        syncNonce: crypto.randomUUID(),
       })
 
     expect(res.status).toBe(200)
@@ -48,12 +51,12 @@ describe('POST /api/game/sync', () => {
     prisma.gameSave.update.mockImplementation(async (args: any) => {
       return { ...gameSave, ...args.data, totalClicks: args.data.totalClicks ?? gameSave.totalClicks }
     })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(fastToken))
-      .send({ clicksSinceLastSync: 100, clientTimestamp: Date.now() })
+      .send({ clicksSinceLastSync: 100, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     // Server caps at 20 clicks/sec * ~1s = 20 clicks
@@ -71,12 +74,12 @@ describe('POST /api/game/sync', () => {
     prisma.gameSave.update.mockImplementation(async (args: any) => {
       return { ...gameSave, ...args.data }
     })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(earnerToken))
-      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now() })
+      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     // Balance should have increased (at least by click income for accepted clicks)
@@ -94,12 +97,12 @@ describe('POST /api/game/sync', () => {
     prisma.gameSave.update.mockImplementation(async (args: any) => {
       return { ...gameSave, ...args.data }
     })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(clickerToken))
-      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now() })
+      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     expect(res.body.gameState.totalClicks).toBeGreaterThan(10)
@@ -115,12 +118,12 @@ describe('POST /api/game/sync', () => {
     prisma.gameSave.update.mockImplementation(async (args: any) => {
       return { ...gameSave, ...args.data }
     })
-    prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
 
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(levelerToken))
-      .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now() })
+      .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     expect(res.body.gameState).toHaveProperty('garageLevel')
@@ -131,7 +134,7 @@ describe('POST /api/game/sync', () => {
   it('returns 401 when no auth header is provided', async () => {
     const res = await request(app)
       .post('/api/game/sync')
-      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now() })
+      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(401)
   })
@@ -143,7 +146,7 @@ describe('POST /api/game/sync', () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(noSaveToken))
-      .send({ clicksSinceLastSync: 1, clientTimestamp: Date.now() })
+      .send({ clicksSinceLastSync: 1, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(404)
   })

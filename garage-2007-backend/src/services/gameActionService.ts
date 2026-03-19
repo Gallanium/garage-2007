@@ -105,6 +105,15 @@ function getEventCostMultiplier(events: ParsedEvents): number {
   return ev.effect.multiplier
 }
 
+async function checkIdempotencyInTx(
+  tx: { balanceLog: { findFirst: (args: { where: { idempotencyKey: string } }) => Promise<unknown> } },
+  idempotencyKey?: string,
+): Promise<void> {
+  if (!idempotencyKey) return
+  const existing = await tx.balanceLog.findFirst({ where: { idempotencyKey } })
+  if (existing) throw new AppError(409, 'IDEMPOTENT_REQUEST', 'This action has already been processed')
+}
+
 function workerCountField(wt: WorkerType): string { return `${wt}Count` }
 function workerCostField(wt: WorkerType): string { return `${wt}Cost` }
 
@@ -140,6 +149,7 @@ export async function processSync(
   userId: number,
   clicksSinceLastSync: number,
   clientTimestamp?: number,
+  syncNonce?: string,
 ): Promise<{ gameState: Record<string, unknown>; serverTime: number }> {
   // Anti-cheat: detect client timestamp anomaly (read-only, safe outside transaction)
   if (clientTimestamp) {
@@ -149,6 +159,14 @@ export async function processSync(
   return prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    // Idempotency: if this syncNonce was already processed, return current state
+    if (syncNonce) {
+      const existing = await tx.balanceLog.findFirst({ where: { idempotencyKey: syncNonce } })
+      if (existing) {
+        return { gameState: buildGameState(gs), serverTime: Date.now() }
+      }
+    }
 
     const now = Date.now()
 
@@ -213,27 +231,35 @@ export async function processSync(
     const tickedBoosts = parseBoosts(gs.boosts)
     const tickedEvents = parseEvents(gs.events)
 
-    // BalanceLog entries
+    // BalanceLog entries (batch insert)
+    const logEntries: Array<{
+      userId: number; actionType: string; currency: string;
+      amount: number; balanceBefore: number; balanceAfter: number;
+      metadata: object; idempotencyKey?: string;
+    }> = []
+
     if (clickIncome > 0) {
-      await tx.balanceLog.create({
-        data: {
-          userId, actionType: 'click_income', currency: 'rubles',
-          amount: clickIncome, balanceBefore: gs.balance,
-          balanceAfter: roundCurrency(gs.balance + clickIncome),
-          metadata: { clicks, clickPowerLevel: gs.clickPowerLevel },
-        },
+      logEntries.push({
+        userId, actionType: 'click_income', currency: 'rubles',
+        amount: clickIncome, balanceBefore: gs.balance,
+        balanceAfter: roundCurrency(gs.balance + clickIncome),
+        metadata: { clicks, clickPowerLevel: gs.clickPowerLevel },
+        idempotencyKey: syncNonce,
       })
     }
     if (passiveIncome > 0) {
-      await tx.balanceLog.create({
-        data: {
-          userId, actionType: 'passive_income', currency: 'rubles',
-          amount: passiveIncome,
-          balanceBefore: roundCurrency(gs.balance + clickIncome),
-          balanceAfter: newBalance,
-          metadata: { seconds: Math.floor(secondsSinceLastSync), passivePerSec },
-        },
+      logEntries.push({
+        userId, actionType: 'passive_income', currency: 'rubles',
+        amount: passiveIncome,
+        balanceBefore: roundCurrency(gs.balance + clickIncome),
+        balanceAfter: newBalance,
+        metadata: { seconds: Math.floor(secondsSinceLastSync), passivePerSec },
+        idempotencyKey: syncNonce ? `${syncNonce}:passive` : undefined,
       })
+    }
+
+    if (logEntries.length > 0) {
+      await tx.balanceLog.createMany({ data: logEntries })
     }
 
     // Update GameSave
@@ -322,6 +348,7 @@ async function handlePurchaseUpgrade(
     }
 
     const newBalance = roundCurrency(gs.balance - finalCost)
+    if (newBalance < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
     const newLevel = currentLevel + 1
     const baseCost = upgradeType === 'clickPower' ? BASE_COSTS.clickUpgrade : BASE_COSTS.workSpeed
     const newCost = calculateUpgradeCost(baseCost, newLevel)
@@ -386,6 +413,7 @@ async function handleHireWorker(
     }
 
     const newBalance = roundCurrency(gs.balance - finalCost)
+    if (newBalance < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
     const newCount = currentCount + 1
     const baseCost = BASE_COSTS[workerType as keyof typeof BASE_COSTS]
     const newCost = calculateWorkerCost(baseCost, newCount)
@@ -441,6 +469,7 @@ async function handlePurchaseMilestone(
     }
 
     const newBalance = roundCurrency(gs.balance - milestoneData.cost)
+    if (newBalance < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
     const newMilestones = [...gs.milestonesPurchased, level]
     const newLevel = checkAutoLevel(newBalance, gs.garageLevel, newMilestones)
 
@@ -507,6 +536,7 @@ async function handlePurchaseDecoration(
       }
 
       const newBalance = roundCurrency(gs.balance - cost)
+      if (newBalance < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
 
       const updated = await tx.gameSave.update({
         where: { userId },
@@ -537,6 +567,7 @@ async function handlePurchaseDecoration(
       }
 
       const newNuts = gs.nuts - cost
+      if (newNuts < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
 
       const updated = await tx.gameSave.update({
         where: { userId },
@@ -641,6 +672,7 @@ async function handleActivateBoost(
 
     const now = Date.now()
     const newNuts = gs.nuts - def.costNuts
+    if (newNuts < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
     const newBoosts: ParsedBoosts = {
       active: [
         ...boosts.active,
@@ -702,6 +734,7 @@ async function handleReplaceBoost(
 
     const now = Date.now()
     const newNuts = gs.nuts - def.costNuts
+    if (newNuts < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
     // Replace: remove all active boosts, add new one
     const newBoosts: ParsedBoosts = {
       active: [{ type: boostType, activatedAt: now, expiresAt: now + def.durationMs }],
@@ -749,6 +782,8 @@ async function handleClaimAchievement(
     const { achievementId } = claimAchievementPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const def = ACHIEVEMENTS[achievementId as AchievementId]
     if (!def) throw new AppError(400, 'ACHIEVEMENT_NOT_FOUND', 'Achievement not found')
@@ -811,6 +846,8 @@ async function handleClaimDailyReward(
   return prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const daily = gs.dailyRewards as { lastClaimTimestamp: number; currentStreak: number } | null
     const lastClaim = daily?.lastClaimTimestamp ?? 0
@@ -876,6 +913,8 @@ async function handleWatchRewardedVideo(
   return prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const video = gs.rewardedVideo as { lastWatchedTimestamp: number; totalWatches: number } | null
     const lastWatched = video?.lastWatchedTimestamp ?? 0

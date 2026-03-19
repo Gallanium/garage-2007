@@ -169,7 +169,11 @@ export async function loadState(): Promise<GameStateResponse | null> {
 export async function sync(clicksSinceLastSync: number): Promise<GameStateResponse | null> {
   return apiFetch<GameStateResponse>('/game/sync', {
     method: 'POST',
-    body: JSON.stringify({ clicksSinceLastSync, clientTimestamp: Date.now() }),
+    body: JSON.stringify({
+      clicksSinceLastSync,
+      clientTimestamp: Date.now(),
+      syncNonce: crypto.randomUUID(),
+    }),
   }, true)
 }
 

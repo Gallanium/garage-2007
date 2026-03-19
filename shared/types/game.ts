@@ -172,6 +172,13 @@ export interface DecorationsState {
   active: string[]
 }
 
+// ── Click Buffer ─────────────────────────────────────────────────────────
+
+export interface PendingClick {
+  timestamp: number
+  isCritical: boolean
+}
+
 // ── GameState ─────────────────────────────────────────────────────────────────
 
 export interface GameState {
@@ -206,8 +213,8 @@ export interface GameState {
   boosts: BoostsState
   events: EventsState
   decorations: DecorationsState
-  /** Clicks accumulated since last server sync (frontend-only counter) */
-  _clicksSinceLastSync: number
+  /** Clicks accumulated since last server sync (frontend-only buffer) */
+  _pendingClickBuffer: PendingClick[]
 }
 
 // ── Persistence types ────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const syncSchema = z.object({
   clicksSinceLastSync: z.number().int().min(0).max(1000),
   clientTimestamp: z.number().int().positive(),
+  syncNonce: z.string().uuid(),
 }).strict()
 
 export const actionSchema = z.object({
