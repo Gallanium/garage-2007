@@ -20,6 +20,13 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (err instanceof AppError) {
+    if (err.statusCode >= 500) {
+      logger.error({ code: err.code, statusCode: err.statusCode, message: err.message }, 'app_error')
+    } else if (err.statusCode === 401 || err.statusCode === 403) {
+      logger.warn({ code: err.code, statusCode: err.statusCode }, 'auth_error')
+    } else {
+      logger.debug({ code: err.code, statusCode: err.statusCode }, 'client_error')
+    }
     res.status(err.statusCode).json({
       success: false,
       error: err.code,
@@ -29,6 +36,7 @@ export function errorHandler(
   }
 
   if (err instanceof ZodError) {
+    logger.debug({ errors: err.errors }, 'validation_error')
     res.status(400).json({
       success: false,
       error: 'VALIDATION_ERROR',

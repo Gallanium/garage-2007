@@ -24,6 +24,15 @@ vi.mock('../src/config/env.js', () => ({
   },
 }))
 
+// ── Mock pino-http (suppress request logging in tests) ──────────────────────
+vi.mock('pino-http', () => {
+  const passthrough = (_req: unknown, _res: unknown, next: () => void) => next()
+  return {
+    default: vi.fn(() => passthrough),
+    __esModule: true,
+  }
+})
+
 // ── Mock pino logger (suppress output in tests) ─────────────────────────────
 vi.mock('pino', () => {
   const noop = () => mockLogger
@@ -36,6 +45,10 @@ vi.mock('pino', () => {
     trace: vi.fn(),
     child: vi.fn(() => mockLogger),
     level: 'silent',
+    levels: {
+      values: { fatal: 60, error: 50, warn: 40, info: 30, debug: 20, trace: 10 },
+      labels: { 60: 'fatal', 50: 'error', 40: 'warn', 30: 'info', 20: 'debug', 10: 'trace' },
+    },
   }
   return { default: vi.fn(() => mockLogger) }
 })

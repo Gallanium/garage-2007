@@ -3,6 +3,7 @@ import { validateInitData } from '../services/telegramAuthService.js'
 import { signToken } from '../utils/jwt.js'
 import { prisma } from '../utils/prisma.js'
 import { env } from '../config/env.js'
+import { logger } from '../utils/logger.js'
 import { AppError } from '../middleware/errorHandler.js'
 
 export async function telegramAuth(req: Request, res: Response): Promise<void> {
@@ -34,6 +35,8 @@ export async function telegramAuth(req: Request, res: Response): Promise<void> {
 
   const isNew = user.createdAt.getTime() === user.updatedAt.getTime()
   const token = signToken({ sub: user.id, tgId: tgUser.id })
+
+  logger.info({ tgId: tgUser.id, userId: user.id, isNew }, 'auth_success')
 
   res.json({
     token,

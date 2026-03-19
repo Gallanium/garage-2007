@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { loadState, createInitialState } from '../services/gameStateService.js'
 import { processSync, processAction } from '../services/gameActionService.js'
+import { logger } from '../utils/logger.js'
 
 export async function getState(req: Request, res: Response): Promise<void> {
   const userId = req.user!.id
@@ -25,6 +26,7 @@ export async function syncGame(req: Request, res: Response): Promise<void> {
   }
 
   const result = await processSync(userId, clicksSinceLastSync, clientTimestamp)
+  logger.info({ userId, clicks: clicksSinceLastSync }, 'sync')
   res.json(result)
 }
 
@@ -37,5 +39,6 @@ export async function performAction(req: Request, res: Response): Promise<void> 
   }
 
   const result = await processAction(userId, type, payload, idempotencyKey)
+  logger.info({ userId, actionType: type }, 'action')
   res.json(result)
 }
