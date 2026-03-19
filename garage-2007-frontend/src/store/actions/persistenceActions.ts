@@ -271,7 +271,11 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       balance: adjustedBalance,
       nuts: (s.nuts as number) ?? 0,
       totalClicks: (s.totalClicks as number) ?? 0,
-      garageLevel: Math.max(currentGarageLevel, checkAutoLevel(adjustedBalance, currentGarageLevel, (s.milestonesPurchased as number[]) ?? [])),
+      garageLevel: Math.max(
+        currentGarageLevel,
+        (s.garageLevel as number) ?? 1,
+        checkAutoLevel(adjustedBalance, currentGarageLevel, (s.milestonesPurchased as number[]) ?? []),
+      ),
       milestonesPurchased: (s.milestonesPurchased as number[]) ?? [],
       totalEarned: (s.totalEarned as number) ?? 0,
       sessionCount: (s.sessionCount as number) ?? 0,
