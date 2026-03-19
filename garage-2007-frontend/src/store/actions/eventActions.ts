@@ -7,6 +7,7 @@ import {
   EVENT_COOLDOWN_MS,
   EVENT_RANDOM_DELAY_MS,
 } from '../constants/events'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore,
   | 'triggerRandomEvent' | 'clearEvent' | 'tickEvents'
@@ -58,6 +59,12 @@ export const createEventSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
         cooldownEnd: nextCooldownEnd,
       },
     })
+
+    if (api.isOnline()) {
+      api.performAction('trigger_event', {}).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
 
     return true
   },

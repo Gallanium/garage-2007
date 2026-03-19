@@ -2,6 +2,7 @@
 import type { StateCreator } from 'zustand'
 import type { GameStore, GameState } from '../types'
 import { DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS } from '../constants/dailyRewards'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore,
   'checkDailyReward' | 'claimDailyReward' | 'closeDailyRewardsModal' | 'openDailyRewardsModal'>
@@ -47,6 +48,11 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
       bestStreak: Math.max(s.bestStreak, newStreak),
     }))
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('claim_daily_reward', {}).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
   },
 
   closeDailyRewardsModal: () => _set({ showDailyRewardsModal: false }),

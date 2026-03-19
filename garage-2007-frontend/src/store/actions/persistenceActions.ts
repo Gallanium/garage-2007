@@ -11,7 +11,8 @@ import { initialState } from '../initialState'
 
 type Slice = Pick<GameStore,
   | 'saveProgress' | 'loadProgress' | 'addOfflineEarnings'
-  | 'clearOfflineEarnings' | 'startPassiveIncome' | 'resetGame'>
+  | 'clearOfflineEarnings' | 'startPassiveIncome' | 'resetGame'
+  | 'applyServerState'>
 
 export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   saveProgress: () => {
@@ -228,5 +229,77 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
   resetGame: () => {
     clearSave()
     _set({ ...initialState, isLoaded: true })
+  },
+
+  applyServerState: (serverState: Record<string, unknown>) => {
+    const s = serverState
+    const workers = s.workers as Record<string, { count: number; cost: number }> | undefined
+    const upgrades = s.upgrades as Record<string, { level: number; cost: number; baseCost: number }> | undefined
+    const boostsData = s.boosts as { active: Array<{ type: string; activatedAt: number; expiresAt: number }> } | undefined
+    const eventsData = s.events as { activeEvent: { id: string; activatedAt: number; expiresAt: number; eventSeed: number } | null; cooldownEnd: number } | undefined
+    const decoData = s.decorations as { owned: string[]; active: string[] } | undefined
+    const dailyData = s.dailyRewards as { lastClaimTimestamp: number; currentStreak: number } | undefined
+    const videoData = s.rewardedVideo as { lastWatchedTimestamp: number; totalWatches: number } | undefined
+    const achievementsData = s.achievements as Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }> | undefined
+
+    const restoredAchievements: Record<AchievementId, PlayerAchievement> = { ...initialState.achievements }
+    if (achievementsData) {
+      for (const key of Object.keys(achievementsData)) {
+        if (key in restoredAchievements) restoredAchievements[key as AchievementId] = achievementsData[key]
+      }
+    }
+
+    // garageLevel is non-decreasing: if server sends a lower value (pending clicks not yet
+    // synced), keep the local value. Server will catch up on next sync.
+    const currentGarageLevel = get().garageLevel
+
+    _set({
+      balance: (s.balance as number) ?? 0,
+      nuts: (s.nuts as number) ?? 0,
+      totalClicks: (s.totalClicks as number) ?? 0,
+      garageLevel: Math.max(currentGarageLevel, (s.garageLevel as number) ?? 1),
+      milestonesPurchased: (s.milestonesPurchased as number[]) ?? [],
+      totalEarned: (s.totalEarned as number) ?? 0,
+      sessionCount: (s.sessionCount as number) ?? 0,
+      lastSessionDate: (s.lastSessionDate as string) ?? '',
+      peakClickIncome: (s.peakClickIncome as number) ?? 0,
+      totalPlayTimeSeconds: (s.totalPlayTimeSeconds as number) ?? 0,
+      bestStreak: (s.bestStreak as number) ?? 0,
+      clickValue: calculateClickIncome(upgrades?.clickPower?.level ?? 0),
+      passiveIncomePerSecond: calculateTotalPassiveIncome(
+        workers ?? initialState.workers as unknown as Record<string, { count: number }>,
+        upgrades?.workSpeed?.level ?? 0,
+      ),
+      upgrades: upgrades ? {
+        clickPower: { level: upgrades.clickPower.level, cost: upgrades.clickPower.cost, baseCost: upgrades.clickPower.baseCost },
+        workSpeed: { level: upgrades.workSpeed.level, cost: upgrades.workSpeed.cost, baseCost: upgrades.workSpeed.baseCost },
+      } : initialState.upgrades,
+      workers: workers ? {
+        apprentice: workers.apprentice,
+        mechanic: workers.mechanic,
+        master: workers.master,
+        brigadier: workers.brigadier,
+        director: workers.director,
+      } : initialState.workers,
+      achievements: restoredAchievements,
+      dailyRewards: dailyData ?? initialState.dailyRewards,
+      rewardedVideo: videoData
+        ? { ...initialState.rewardedVideo, ...videoData }
+        : initialState.rewardedVideo,
+      boosts: boostsData
+        ? { active: boostsData.active.map(b => ({ type: b.type as import('../types').BoostType, activatedAt: b.activatedAt, expiresAt: b.expiresAt })) }
+        : initialState.boosts,
+      events: eventsData ?? initialState.events,
+      decorations: decoData
+        ? { owned: decoData.owned.filter(id => DECORATION_CATALOG[id]), active: decoData.active.filter(id => DECORATION_CATALOG[id]) }
+        : initialState.decorations,
+      isLoaded: true,
+      // NOTE: _clicksSinceLastSync is NOT reset here — pending clicks must survive
+      // action responses and be flushed on the next 30s sync tick.
+    })
+
+    get().checkForMilestone()
+    get().checkAchievements()
+    get().checkDailyReward()
   },
 })

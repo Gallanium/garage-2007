@@ -2,6 +2,7 @@
 import type { StateCreator } from 'zustand'
 import type { GameStore, BoostType } from '../types'
 import { BOOST_DEFINITIONS } from '../constants/boosts'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore,
   | 'activateBoost' | 'replaceBoost' | 'tickBoosts'
@@ -33,6 +34,11 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     }))
 
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('activate_boost', { boostType: type }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 
@@ -56,6 +62,11 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     }))
 
     get().saveProgress()
+    if (api.isOnline()) {
+      api.performAction('replace_boost', { boostType: type }).then(r => {
+        if (r?.gameState) get().applyServerState(r.gameState)
+      })
+    }
     return true
   },
 

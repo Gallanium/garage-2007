@@ -8,6 +8,8 @@ import {
   setMiniAppBackgroundColor,
   mountViewport,
   expandViewport,
+  retrieveRawInitData,
+  retrieveLaunchParams,
 } from '@telegram-apps/sdk-react'
 
 /** Инициализация Telegram Mini Apps SDK (v3.x).
@@ -81,3 +83,26 @@ export function initTelegram(): void {
 
 /** Работаем внутри реального Telegram (не mock и не браузер)? */
 export { isTMA as isTelegramEnv }
+
+/** Получить initData для серверной валидации */
+export function getInitData(): string | null {
+  try {
+    return retrieveRawInitData() ?? null
+  } catch {
+    return null
+  }
+}
+
+/** ID текущего пользователя Telegram */
+export function getTelegramUserId(): number | null {
+  try {
+    const params = retrieveLaunchParams(true)
+    return (params as Record<string, unknown>).initData
+      ? ((params as Record<string, unknown>).initData as Record<string, unknown>).user
+        ? (((params as Record<string, unknown>).initData as Record<string, unknown>).user as Record<string, unknown>).id as number
+        : null
+      : null
+  } catch {
+    return null
+  }
+}

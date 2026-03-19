@@ -3,6 +3,7 @@ import {
   ACHIEVEMENTS,
   type AchievementId,
 } from '../store/gameStore'
+import { getAchievementProgress } from '../store/constants/achievements'
 import { useShallow } from 'zustand/react/shallow'
 import AchievementCard from './AchievementCard'
 
@@ -93,7 +94,7 @@ const AchievementsPanel: React.FC = () => {
           {sortedAchievements.map(([id, definition]) => {
             const achievementId = id as AchievementId
             const playerState = achievements[achievementId]
-            const currentProgress = definition.progressGetter(useGameStore.getState())
+            const currentProgress = getAchievementProgress(useGameStore.getState(), definition.progressField)
 
             return (
               <AchievementCard
