@@ -1,11 +1,10 @@
 import crypto from 'node:crypto'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import pinoHttp from 'pino-http'
 import { env } from './config/env.js'
-import { logger } from './utils/logger.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import healthRoutes from './routes/healthRoutes.js'
 import authRoutes from './routes/authRoutes.js'
@@ -13,6 +12,9 @@ import gameRoutes from './routes/gameRoutes.js'
 import purchaseRoutes from './routes/purchaseRoutes.js'
 
 const app = express()
+
+// Trust proxy (required for express-rate-limit behind reverse proxy / ngrok)
+app.set('trust proxy', 1)
 
 // Security headers
 app.use(helmet())
@@ -26,10 +28,16 @@ app.use(cors({
 // Body parsing
 app.use(express.json({ limit: '16kb' }))
 
-// HTTP request logging — ESM/CJS interop
+// HTTP request logging
+// pino-http must create its own logger (not reuse app logger) because
+// pino loggers created with `transport` option lose internal symbols
+// that pino-http relies on (stringifySym).
 const pinoHttpFn = typeof pinoHttp === 'function' ? pinoHttp : pinoHttp.default
 const httpLogger = (pinoHttpFn as typeof pinoHttp.default)({
-  logger,
+  level: env.LOG_LEVEL,
+  transport: env.NODE_ENV !== 'production'
+    ? { target: 'pino-pretty', options: { colorize: true } }
+    : undefined,
   genReqId: () => crypto.randomUUID(),
   autoLogging: {
     ignore: (req: IncomingMessage) => req.url === '/api/health',
