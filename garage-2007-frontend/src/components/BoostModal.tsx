@@ -9,6 +9,7 @@ import {
 } from '../store/gameStore'
 import type { BoostType } from '../store/gameStore'
 import NutsPromptModal from './NutsPromptModal'
+import ShopModal from './ShopModal'
 
 interface BoostModalProps {
   isOpen: boolean
@@ -65,6 +66,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
   const [now, setNow] = useState(() => Date.now())
   const [confirmType, setConfirmType] = useState<BoostType | null>(null)  // pending replace
   const [nutsDeficit, setNutsDeficit] = useState<number | null>(null)
+  const [showShop, setShowShop] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
@@ -237,8 +239,11 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
           isOpen
           deficit={nutsDeficit}
           onClose={() => setNutsDeficit(null)}
+          onOpenShop={() => { setNutsDeficit(null); setShowShop(true) }}
         />
       )}
+
+      <ShopModal isOpen={showShop} onClose={() => setShowShop(false)} />
     </>
   )
 }

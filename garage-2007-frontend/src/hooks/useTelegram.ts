@@ -8,6 +8,7 @@ import {
   showBackButton,
   hideBackButton,
   onBackButtonClick,
+  invoice,
 } from '@telegram-apps/sdk-react'
 import { useEffect } from 'react'
 
@@ -91,6 +92,26 @@ export function useTelegramHaptic(): TelegramHaptic {
         }
       } catch { /* вне Telegram — no-op */ }
     },
+  }
+}
+
+// ── Invoice ──────────────────────────────────────────────────────────────────
+
+export type InvoiceStatus = 'paid' | 'failed' | 'pending' | 'cancelled'
+
+/** Opens a Telegram Stars invoice. Returns status or null if unavailable. */
+export async function openTelegramInvoice(url: string): Promise<InvoiceStatus | null> {
+  try {
+    if (invoice.open.isAvailable()) {
+      return await invoice.open(url, 'url') as InvoiceStatus
+    }
+    if (import.meta.env.DEV) {
+      console.log('[DEV] Mock invoice open:', url)
+      return 'paid'
+    }
+    return null
+  } catch {
+    return 'failed'
   }
 }
 

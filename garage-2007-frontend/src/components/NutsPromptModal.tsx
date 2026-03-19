@@ -6,9 +6,10 @@ interface NutsPromptModalProps {
   isOpen: boolean
   deficit: number
   onClose: () => void
+  onOpenShop?: () => void
 }
 
-export default function NutsPromptModal({ isOpen, deficit, onClose }: NutsPromptModalProps) {
+export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }: NutsPromptModalProps) {
   const watchRewardedVideo = useGameStore((s) => s.watchRewardedVideo)
   const canWatchVideo = useGameStore((s) => s.canWatchRewardedVideo())
 
@@ -17,10 +18,10 @@ export default function NutsPromptModal({ isOpen, deficit, onClose }: NutsPrompt
     if (success) onClose()
   }, [watchRewardedVideo, onClose])
 
-  // Заглушка для покупки гаек (Stage 14)
   const handleBuyNuts = useCallback(() => {
-    if (import.meta.env.DEV) console.log('[Stage 14] purchaseNuts — не реализовано')
-  }, [])
+    onClose()
+    onOpenShop?.()
+  }, [onClose, onOpenShop])
 
   if (!isOpen) return null
 

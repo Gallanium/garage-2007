@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useBalance, useNuts, formatLargeNumber } from '../store/gameStore'
+import ShopModal from './ShopModal'
 
 /**
  * Верхняя панель: баланс (₽) и гайки (🔩).
@@ -6,8 +8,10 @@ import { useBalance, useNuts, formatLargeNumber } from '../store/gameStore'
 export function GameHeader() {
   const balance = useBalance()
   const nuts = useNuts()
+  const [showShop, setShowShop] = useState(false)
 
   return (
+  <>
     <header className="relative p-3 bg-gray-900/80 backdrop-blur-sm border-b-2 border-garage-rust shadow-lg z-10">
 
       {/* Центр: Название игры — абсолютно позиционирован, всегда в центре */}
@@ -32,8 +36,11 @@ export function GameHeader() {
           </div>
         </div>
 
-        {/* Правая часть: Гайки */}
-        <div className="flex flex-col items-end">
+        {/* Правая часть: Гайки (тап → ShopModal) */}
+        <button
+          onClick={() => setShowShop(true)}
+          className="flex flex-col items-end border border-transparent hover:border-garage-yellow/30 rounded-lg transition-colors cursor-pointer px-2 py-1 -mr-2"
+        >
           <span className="text-game-xs sm:text-game-sm text-gray-400 uppercase tracking-wider font-mono">Гайки</span>
           <div className="flex items-baseline gap-1">
             <span className="text-lg sm:text-xl font-bold text-orange-400 font-mono tabular-nums">
@@ -41,9 +48,12 @@ export function GameHeader() {
             </span>
             <span className="text-base">🔩</span>
           </div>
-        </div>
+        </button>
       </div>
 
     </header>
+
+    <ShopModal isOpen={showShop} onClose={() => setShowShop(false)} />
+  </>
   )
 }

@@ -5,12 +5,7 @@ import { createInvoiceLink, answerPreCheckoutQuery } from './telegramBotService.
 import { logBalanceChange } from './auditService.js'
 import { logger } from '../utils/logger.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
-
-export const NUTS_PACKS = {
-  nuts_100:  { stars: 50,  nuts: 100,  label: '100 гаек'  },
-  nuts_500:  { stars: 200, nuts: 500,  label: '500 гаек'  },
-  nuts_1500: { stars: 500, nuts: 1500, label: '1500 гаек' },
-} as const
+import { NUTS_PACKS } from '@shared/constants/purchase.js'
 
 export async function createStarsInvoice(packId: NutsPackId): Promise<string> {
   const pack = NUTS_PACKS[packId]

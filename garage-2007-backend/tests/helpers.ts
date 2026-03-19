@@ -249,10 +249,6 @@ export function createSuccessfulPaymentPayload(
   }
 }
 
-// ── NUTS_PACKS (mirrored from spec for test assertions) ──────────────────────
+// ── NUTS_PACKS (re-exported from shared to avoid drift) ─────────────────────
 
-export const NUTS_PACKS = {
-  nuts_100:  { stars: 50,  nuts: 100,  label: '100 гаек'  },
-  nuts_500:  { stars: 200, nuts: 500,  label: '500 гаек'  },
-  nuts_1500: { stars: 500, nuts: 1500, label: '1500 гаек' },
-} as const
+export { NUTS_PACKS } from '@shared/constants/purchase.js'
