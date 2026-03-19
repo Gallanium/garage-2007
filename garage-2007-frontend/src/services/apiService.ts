@@ -4,6 +4,7 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
+let isRefreshing = false
 
 /** Whether we have an active backend connection */
 export function isOnline(): boolean {
@@ -25,20 +26,89 @@ export function clearToken(): void {
   authToken = null
 }
 
+/** Get Telegram initData for re-authentication */
+function getInitData(): string | null {
+  try {
+    return window.Telegram?.WebApp?.initData ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Fetch with auto-re-auth on 401 */
+async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = authToken
+  if (!token) throw new Error('Not authenticated')
+
+  const res = await fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
+  })
+
+  if (res.status === 401 && !isRefreshing) {
+    isRefreshing = true
+    try {
+      const initData = getInitData()
+      if (initData) {
+        const ok = await authenticate(initData)
+        if (ok) {
+          isRefreshing = false
+          // Retry with new token
+          return fetch(url, {
+            ...options,
+            headers: { ...options.headers, Authorization: `Bearer ${authToken}` },
+          })
+        }
+      }
+    } finally {
+      isRefreshing = false
+    }
+  }
+
+  return res
+}
+
+/** Fetch with exponential backoff retry for network errors */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetchWithAuth(url, options)
+    } catch (err) {
+      if (attempt === maxRetries) throw err
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)))
+    }
+  }
+  throw new Error('Unreachable')
+}
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
+  useRetry = false,
 ): Promise<T | null> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> ?? {}),
   }
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`
-  }
+
+  const fetchOptions: RequestInit = { ...options, headers }
+  const url = `${API_BASE}${path}`
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+    let res: Response
+    if (authToken) {
+      // Use fetchWithAuth (auto-re-auth on 401) or fetchWithRetry (+ backoff)
+      res = useRetry
+        ? await fetchWithRetry(url, fetchOptions)
+        : await fetchWithAuth(url, fetchOptions)
+    } else {
+      res = await fetch(url, fetchOptions)
+    }
+
     if (!res.ok) {
       const errorBody = await res.json().catch(() => null)
       if (import.meta.env.DEV) {
@@ -63,14 +133,23 @@ interface AuthResponse {
 }
 
 export async function authenticate(initData: string): Promise<AuthResponse | null> {
-  const data = await apiFetch<AuthResponse>('/auth/telegram', {
-    method: 'POST',
-    body: JSON.stringify({ initData }),
-  })
-  if (data?.token) {
-    authToken = data.token
+  // authenticate does NOT use fetchWithAuth/fetchWithRetry to avoid circular dependency
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  try {
+    const res = await fetch(`${API_BASE}/auth/telegram`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ initData }),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as AuthResponse
+    if (data?.token) {
+      authToken = data.token
+    }
+    return data
+  } catch {
+    return null
   }
-  return data
 }
 
 // ── Game State ──────────────────────────────────────────────────────────────
@@ -91,7 +170,7 @@ export async function sync(clicksSinceLastSync: number): Promise<GameStateRespon
   return apiFetch<GameStateResponse>('/game/sync', {
     method: 'POST',
     body: JSON.stringify({ clicksSinceLastSync, clientTimestamp: Date.now() }),
-  })
+  }, true)
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
@@ -112,7 +191,7 @@ export async function performAction(
   return apiFetch<ActionResponse>('/game/action', {
     method: 'POST',
     body: JSON.stringify({ type, payload, idempotencyKey }),
-  })
+  }, true)
 }
 
 // ── Purchases ───────────────────────────────────────────────────────────────

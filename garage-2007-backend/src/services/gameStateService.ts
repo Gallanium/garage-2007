@@ -101,16 +101,6 @@ export async function loadState(userId: number): Promise<{
     updatedTotalEarned = roundCurrency(updatedTotalEarned + offlineAmount)
 
     detectBalanceJump(userId, gameSave.balance, updatedBalance)
-
-    logBalanceChange({
-      userId,
-      actionType: 'offline_income',
-      currency: 'rubles',
-      amount: offlineAmount,
-      balanceBefore: gameSave.balance,
-      balanceAfter: updatedBalance,
-      metadata: { elapsedSeconds: Math.floor(elapsedSeconds), passiveIncome },
-    })
   }
 
   // Tick boosts and events
@@ -135,7 +125,7 @@ export async function loadState(userId: number): Promise<{
     },
   })
 
-  // Write BalanceLog for offline earnings
+  // Write BalanceLog + audit log AFTER DB update
   if (offlineAmount > 0) {
     await prisma.balanceLog.create({
       data: {
@@ -147,6 +137,15 @@ export async function loadState(userId: number): Promise<{
         balanceAfter: updatedBalance,
         metadata: { elapsedSeconds: Math.floor(elapsedSeconds) },
       },
+    })
+    logBalanceChange({
+      userId,
+      actionType: 'offline_income',
+      currency: 'rubles',
+      amount: offlineAmount,
+      balanceBefore: gameSave.balance,
+      balanceAfter: updatedBalance,
+      metadata: { elapsedSeconds: Math.floor(elapsedSeconds), passiveIncome },
     })
   }
 
