@@ -23,6 +23,11 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
     if (milestonesPurchased.includes(level)) { if (import.meta.env.DEV) console.warn(`[Milestone] Уровень ${level} уже куплен`); return false }
     if (balance < upgrade.cost) { if (import.meta.env.DEV) console.warn(`[Milestone] Недостаточно средств`); return false }
 
+    if (!api.isOnline()) {
+      console.warn('[Milestone] Cannot purchase: not connected to server')
+      return false
+    }
+
     // Optimistic + rollback: ruble action
     const snapshot = {
       balance: state.balance,
@@ -50,17 +55,17 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
     get().saveProgress()
     get().checkAchievements()
 
-    if (api.isOnline()) {
-      const r = await api.performAction('purchase_milestone', { level })
-      if (!r) {
-        // Rollback on network failure (server unreachable)
-        _set(snapshot)
-        get().saveProgress()
-        console.warn(`[Milestone] Server rejected purchase_milestone (level ${level}) — rolled back`)
-        // TODO: show user-facing error toast
-      } else if (r.gameState) {
-        get().applyServerState(r.gameState)
-      }
+    const r = await api.performAction('purchase_milestone', { level })
+    if (!r) {
+      // Rollback on network failure (server unreachable)
+      _set(snapshot)
+      get().saveProgress()
+      console.warn(`[Milestone] Server rejected purchase_milestone (level ${level}) — rolled back`)
+      // TODO: show user-facing error toast
+      return false
+    }
+    if (r.gameState) {
+      get().applyServerState(r.gameState)
     }
     return true
     } finally { _milestonePending = false }

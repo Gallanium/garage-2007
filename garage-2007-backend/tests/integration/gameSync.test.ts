@@ -37,6 +37,38 @@ describe('POST /api/game/sync', () => {
     expect(typeof res.body.serverTime).toBe('number')
   })
 
+  it('writes raw sync marker for passive-only sync retries', async () => {
+    const syncNonce = crypto.randomUUID()
+    const gameSave = createTestGameSave({
+      userId: 7,
+      apprenticeCount: 1,
+      lastSyncAt: new Date(Date.now() - 10_000),
+    })
+    const markerToken = signToken({ sub: 7, tgId: 777888999 })
+
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+    prisma.balanceLog.createMany.mockResolvedValue({ count: 2 })
+
+    const res = await request(app)
+      .post('/api/game/sync')
+      .set(createAuthHeader(markerToken))
+      .send({
+        clicksSinceLastSync: 0,
+        clientTimestamp: Date.now(),
+        syncNonce,
+      })
+
+    expect(res.status).toBe(200)
+    expect(prisma.balanceLog.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          actionType: 'sync_marker',
+          idempotencyKey: syncNonce,
+        }),
+      ]),
+    }))
+  })
+
   it('caps clicks when click rate exceeds 20/sec', async () => {
     const fastToken = signToken({ sub: 2, tgId: 222333444 })
 

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { logger } from '../utils/logger.js'
 import { ZodError } from 'zod'
+import { isPrismaUniqueConstraintError } from '../utils/prismaErrors.js'
 
 export class AppError extends Error {
   constructor(
@@ -42,6 +43,36 @@ export function errorHandler(
       error: 'VALIDATION_ERROR',
       message: 'Invalid request data',
       details: err.errors,
+    })
+    return
+  }
+
+  if (isPrismaUniqueConstraintError(err, ['idempotency_key'])) {
+    logger.warn({ err }, 'idempotent_request_conflict')
+    res.status(409).json({
+      success: false,
+      error: 'IDEMPOTENT_REQUEST',
+      message: 'This action has already been processed',
+    })
+    return
+  }
+
+  if (isPrismaUniqueConstraintError(err, ['telegram_payment_id'])) {
+    logger.warn({ err }, 'duplicate_payment_conflict')
+    res.status(409).json({
+      success: false,
+      error: 'DUPLICATE_PAYMENT',
+      message: 'This payment has already been processed',
+    })
+    return
+  }
+
+  if (isPrismaUniqueConstraintError(err)) {
+    logger.warn({ err }, 'unique_constraint_conflict')
+    res.status(409).json({
+      success: false,
+      error: 'CONFLICT',
+      message: 'Unique constraint conflict',
     })
     return
   }

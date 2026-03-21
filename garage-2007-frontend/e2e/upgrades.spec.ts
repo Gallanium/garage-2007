@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitForGameLoaded, switchTab, injectBalance } from './helpers'
+import { waitForGameLoaded, switchTab, injectBalance, getStoreValue } from './helpers'
 
 test.describe('upgrades', () => {
   test.beforeEach(async ({ page }) => {
@@ -54,9 +54,7 @@ test.describe('upgrades', () => {
     await injectBalance(page, 1000)
     await switchTab(page, 'Улучшения')
 
-    const balanceBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().balance ?? 0
-    )
+    const balanceBefore = await getStoreValue(page, 'balance', 0)
 
     // Find the Инструменты card via its containing div and click its buy button
     // UpgradeCard structure: div > div(header with title) + p(description) + div(level + button)
@@ -70,9 +68,7 @@ test.describe('upgrades', () => {
       await buyBtn.click()
       await page.waitForTimeout(300)
 
-      const balanceAfter = await page.evaluate(() =>
-        (window as any).__store?.getState().balance ?? 0
-      )
+      const balanceAfter = await getStoreValue(page, 'balance', 0)
       expect(balanceAfter).toBeLessThan(balanceBefore)
     }
   })
@@ -81,9 +77,7 @@ test.describe('upgrades', () => {
     await injectBalance(page, 1000)
     await switchTab(page, 'Улучшения')
 
-    const levelBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().upgrades?.clickPower?.level ?? 0
-    )
+    const levelBefore = await getStoreValue(page, 'upgrades.clickPower.level', 0)
 
     const toolsCard = page
       .locator('div.bg-gray-800')
@@ -95,9 +89,7 @@ test.describe('upgrades', () => {
       await buyBtn.click()
       await page.waitForTimeout(300)
 
-      const levelAfter = await page.evaluate(() =>
-        (window as any).__store?.getState().upgrades?.clickPower?.level ?? 0
-      )
+      const levelAfter = await getStoreValue(page, 'upgrades.clickPower.level', 0)
       expect(levelAfter).toBe(levelBefore + 1)
     }
   })
@@ -108,9 +100,7 @@ test.describe('upgrades', () => {
     await injectBalance(page, 1000)
     await switchTab(page, 'Улучшения')
 
-    const workersBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().workers?.apprentice?.count ?? 0
-    )
+    const workersBefore = await getStoreValue(page, 'workers.apprentice.count', 0)
 
     // Find Подмастерье UpgradeCard and click its enabled buy button
     const apprenticeCard = page
@@ -123,9 +113,7 @@ test.describe('upgrades', () => {
       await hireBtn.click()
       await page.waitForTimeout(300)
 
-      const workersAfter = await page.evaluate(() =>
-        (window as any).__store?.getState().workers?.apprentice?.count ?? 0
-      )
+      const workersAfter = await getStoreValue(page, 'workers.apprentice.count', 0)
       expect(workersAfter).toBe(workersBefore + 1)
     }
   })
@@ -134,9 +122,7 @@ test.describe('upgrades', () => {
     await injectBalance(page, 1000)
     await switchTab(page, 'Улучшения')
 
-    const balanceBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().balance ?? 0
-    )
+    const balanceBefore = await getStoreValue(page, 'balance', 0)
 
     const apprenticeCard = page
       .locator('div.bg-gray-800')
@@ -148,9 +134,7 @@ test.describe('upgrades', () => {
       await hireBtn.click()
       await page.waitForTimeout(300)
 
-      const balanceAfter = await page.evaluate(() =>
-        (window as any).__store?.getState().balance ?? 0
-      )
+      const balanceAfter = await getStoreValue(page, 'balance', 0)
       expect(balanceAfter).toBeLessThan(balanceBefore)
     }
   })

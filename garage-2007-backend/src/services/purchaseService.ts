@@ -5,6 +5,8 @@ import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { createInvoiceLink, answerPreCheckoutQuery, refundStarPayment } from './telegramBotService.js'
 import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { logger } from '../utils/logger.js'
+import { buildInitialGameSaveData } from './gameStateService.js'
+import { isPrismaUniqueConstraintError } from '../utils/prismaErrors.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS } from '@shared/constants/purchase.js'
 
@@ -120,11 +122,17 @@ export async function processSuccessfulPayment(
   // Find user by telegram ID
   const user = await prisma.user.findUnique({
     where: { telegramId: BigInt(senderTgId) },
-    include: { gameSave: true },
+    select: { id: true },
   })
 
-  if (!user || !user.gameSave) {
-    logger.error({ senderTgId }, 'User or game save not found for payment')
+  if (!user) {
+    logger.error({ senderTgId, telegramPaymentChargeId }, 'User not found for payment — initiating refund')
+    try {
+      await refundStarPayment(senderTgId, telegramPaymentChargeId)
+      logger.info({ senderTgId, telegramPaymentChargeId }, 'Refund issued for missing user')
+    } catch (refundErr) {
+      logger.error({ senderTgId, telegramPaymentChargeId, error: refundErr }, 'Failed to issue refund for missing user')
+    }
     return
   }
 
@@ -147,43 +155,61 @@ export async function processSuccessfulPayment(
 
   const userId = user.id
 
-  // Interactive transaction with OCC: read fresh gameSave, version-check the update
-  const { nutsBefore, nutsAfter } = await withOccRetry(() => prisma.$transaction(async (tx) => {
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
-    if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+  let nutsBefore = 0
+  let nutsAfter = 0
 
-    const before = gs.nuts
-    const after = before + pack.nuts
+  try {
+    // Interactive transaction with OCC: read fresh gameSave, version-check the update
+    const paymentResult = await withOccRetry(() => prisma.$transaction(async (tx) => {
+      let gs = await tx.gameSave.findUnique({ where: { userId } })
+      if (!gs) {
+        gs = await tx.gameSave.create({
+          data: buildInitialGameSaveData(userId),
+        })
+      }
 
-    await tx.transaction.create({
-      data: {
-        userId,
-        telegramPaymentId: telegramPaymentChargeId,
-        packId: payload.packId,
-        starsAmount: pack.stars,
-        nutsAmount: pack.nuts,
-        status: 'completed',
-        idempotencyKey: payload.idempotencyKey,
-      },
-    })
+      const before = gs.nuts
+      const after = before + pack.nuts
 
-    await updateGameSaveWithLock(tx, userId, gs, { nuts: after })
+      await tx.transaction.create({
+        data: {
+          userId,
+          telegramPaymentId: telegramPaymentChargeId,
+          packId: payload.packId,
+          starsAmount: pack.stars,
+          nutsAmount: pack.nuts,
+          status: 'completed',
+          idempotencyKey: payload.idempotencyKey,
+        },
+      })
 
-    await tx.balanceLog.create({
-      data: {
-        userId,
-        actionType: 'stars_purchase',
-        currency: 'nuts',
-        amount: pack.nuts,
-        balanceBefore: before,
-        balanceAfter: after,
-        metadata: { packId: payload.packId, starsAmount: pack.stars, telegramPaymentChargeId },
-        idempotencyKey: payload.idempotencyKey,
-      },
-    })
+      await updateGameSaveWithLock(tx, userId, gs, { nuts: after })
 
-    return { nutsBefore: before, nutsAfter: after }
-  }))
+      await tx.balanceLog.create({
+        data: {
+          userId,
+          actionType: 'stars_purchase',
+          currency: 'nuts',
+          amount: pack.nuts,
+          balanceBefore: before,
+          balanceAfter: after,
+          metadata: { packId: payload.packId, starsAmount: pack.stars, telegramPaymentChargeId },
+          idempotencyKey: payload.idempotencyKey,
+        },
+      })
+
+      return { nutsBefore: before, nutsAfter: after }
+    }))
+
+    nutsBefore = paymentResult.nutsBefore
+    nutsAfter = paymentResult.nutsAfter
+  } catch (err) {
+    if (isPrismaUniqueConstraintError(err, ['telegram_payment_id', 'idempotency_key'])) {
+      logger.warn({ telegramPaymentChargeId }, 'Duplicate payment detected during transaction — already processed')
+      return
+    }
+    throw err
+  }
 
   logBalanceChange({
     userId,

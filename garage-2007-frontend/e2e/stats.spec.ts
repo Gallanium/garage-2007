@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitForGameLoaded, switchTab, clickGarage } from './helpers'
+import { waitForGameLoaded, switchTab, clickGarage, getStoreValue } from './helpers'
 
 test.describe('stats panel', () => {
   test.beforeEach(async ({ page }) => {
@@ -35,16 +35,12 @@ test.describe('stats panel', () => {
   })
 
   test('click count updates in store after clicking garage', async ({ page }) => {
-    const clicksBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().totalClicks ?? 0
-    )
+    const clicksBefore = await getStoreValue(page, 'totalClicks', 0)
 
     await clickGarage(page, 5)
     await page.waitForTimeout(300)
 
-    const clicksAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().totalClicks ?? 0
-    )
+    const clicksAfter = await getStoreValue(page, 'totalClicks', 0)
 
     expect(clicksAfter).toBe(clicksBefore + 5)
   })
@@ -53,9 +49,7 @@ test.describe('stats panel', () => {
     await clickGarage(page, 3)
     await page.waitForTimeout(300)
 
-    const totalClicks = await page.evaluate(() =>
-      (window as any).__store?.getState().totalClicks ?? 0
-    )
+    const totalClicks = await getStoreValue(page, 'totalClicks', 0)
 
     await switchTab(page, 'Статистика')
 
@@ -64,16 +58,12 @@ test.describe('stats panel', () => {
   })
 
   test('total earned increases after clicking', async ({ page }) => {
-    const earnedBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().totalEarned ?? 0
-    )
+    const earnedBefore = await getStoreValue(page, 'totalEarned', 0)
 
     await clickGarage(page, 10)
     await page.waitForTimeout(300)
 
-    const earnedAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().totalEarned ?? 0
-    )
+    const earnedAfter = await getStoreValue(page, 'totalEarned', 0)
 
     expect(earnedAfter).toBeGreaterThan(earnedBefore)
   })
@@ -85,33 +75,25 @@ test.describe('stats panel', () => {
     await expect(page.getByText('Уровень гаража', { exact: false })).toBeVisible({ timeout: 3_000 })
 
     // Garage starts at level 1 — verify the level value is present
-    const garageLevel = await page.evaluate(() =>
-      (window as any).__store?.getState().garageLevel ?? 1
-    )
+    const garageLevel = await getStoreValue(page, 'garageLevel', 1)
     expect(garageLevel).toBeGreaterThanOrEqual(1)
   })
 
   test('session count is at least 1 after loading', async ({ page }) => {
     await switchTab(page, 'Статистика')
 
-    const sessionCount = await page.evaluate(() =>
-      (window as any).__store?.getState().sessionCount ?? 0
-    )
+    const sessionCount = await getStoreValue(page, 'sessionCount', 0)
     // At least one session has been started
     expect(sessionCount).toBeGreaterThanOrEqual(1)
   })
 
   test('play time timer increases with time', async ({ page }) => {
-    const timeBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().totalPlayTimeSeconds ?? 0
-    )
+    const timeBefore = await getStoreValue(page, 'totalPlayTimeSeconds', 0)
 
     // Wait a couple of seconds for the ticker to advance play time
     await page.waitForTimeout(2_000)
 
-    const timeAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().totalPlayTimeSeconds ?? 0
-    )
+    const timeAfter = await getStoreValue(page, 'totalPlayTimeSeconds', 0)
 
     expect(timeAfter).toBeGreaterThanOrEqual(timeBefore)
   })

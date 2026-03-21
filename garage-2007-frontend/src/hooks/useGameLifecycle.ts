@@ -111,15 +111,21 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       const clicksToSend = buffer.length
       syncInFlightRef.current = true
       api.sync(clicksToSend).then((result) => {
-        // Remove only the clicks we sent (clicks that arrived during
-        // the roundtrip stay in the buffer for the next sync)
-        useGameStore.setState((s) => ({
-          _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend),
-        }))
-        // Then: apply server state — applyServerState compensates for any
-        // remaining pending clicks so balance doesn't visually drop
         if (result?.gameState) {
+          // Remove only the clicks we sent after the server acknowledged them.
+          // Clicks that arrived during the roundtrip stay in the buffer.
+          useGameStore.setState((s) => ({
+            _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend),
+          }))
+
+          // Then: apply server state — applyServerState compensates for any
+          // remaining pending clicks so balance doesn't visually drop.
           useGameStore.getState().applyServerState(result.gameState)
+          return
+        }
+
+        if (!api.isOnline()) {
+          useGameStore.setState({ serverError: true })
         }
       }).finally(() => {
         syncInFlightRef.current = false

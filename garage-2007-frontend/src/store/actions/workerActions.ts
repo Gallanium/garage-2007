@@ -41,6 +41,11 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
       return
     }
 
+    if (!api.isOnline()) {
+      console.warn(`[Hire] Cannot purchase (${workerType}): not connected to server`)
+      return
+    }
+
     // Optimistic + rollback: ruble action
     const snapshot = {
       balance: state.balance,

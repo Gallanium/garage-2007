@@ -26,14 +26,14 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       if (state.nuts < def.cost) return false
     }
 
+    if (!api.isOnline()) {
+      console.warn('[Decoration] Cannot purchase: not connected to server')
+      // TODO: show user-facing error toast
+      return false
+    }
+
     if (def.currency === 'nuts') {
       // Server-first: premium action (nuts). No optimistic mutation.
-      if (!api.isOnline()) {
-        console.warn('[Decoration] Cannot purchase (nuts): not connected to server')
-        // TODO: show user-facing error toast
-        return false
-      }
-
       const r = await api.performAction('purchase_decoration', { decorationId: id })
       if (r?.gameState) {
         get().applyServerState(r.gameState)
@@ -66,17 +66,17 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     }))
 
     get().saveProgress()
-    if (api.isOnline()) {
-      const r = await api.performAction('purchase_decoration', { decorationId: id })
-      if (!r) {
-        // Rollback on network failure (server unreachable)
-        _set(snapshot)
-        get().saveProgress()
-        console.warn('[Decoration] Server rejected purchase_decoration (rubles) — rolled back')
-        // TODO: show user-facing error toast
-      } else if (r.gameState) {
-        get().applyServerState(r.gameState)
-      }
+    const r = await api.performAction('purchase_decoration', { decorationId: id })
+    if (!r) {
+      // Rollback on network failure (server unreachable)
+      _set(snapshot)
+      get().saveProgress()
+      console.warn('[Decoration] Server rejected purchase_decoration (rubles) — rolled back')
+      // TODO: show user-facing error toast
+      return false
+    }
+    if (r.gameState) {
+      get().applyServerState(r.gameState)
     }
     return true
     } finally { _decorationPending = false }

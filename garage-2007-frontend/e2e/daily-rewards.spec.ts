@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { waitForGameLoaded, resetGameState } from './helpers'
+import {
+  resetGameState,
+  getStoreValue,
+  callStoreAction,
+} from './helpers'
 
 test.describe('daily rewards', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,10 +38,7 @@ test.describe('daily rewards', () => {
 
   test('daily rewards modal shows title and 7 day cards', async ({ page }) => {
     // Open modal programmatically
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (store) store.getState().openDailyRewardsModal()
-    })
+    await callStoreAction(page, 'openDailyRewardsModal')
     await page.waitForTimeout(300)
 
     const modal = page.getByRole('dialog', { name: 'Ежедневные награды' })
@@ -55,10 +56,7 @@ test.describe('daily rewards', () => {
   })
 
   test('daily rewards modal can be closed', async ({ page }) => {
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (store) store.getState().openDailyRewardsModal()
-    })
+    await callStoreAction(page, 'openDailyRewardsModal')
     await page.waitForTimeout(300)
 
     const modal = page.getByRole('dialog', { name: 'Ежедневные награды' })
@@ -70,75 +68,49 @@ test.describe('daily rewards', () => {
 
     await expect(modal).not.toBeVisible()
 
-    const isOpen = await page.evaluate(() =>
-      (window as any).__store?.getState().showDailyRewardsModal ?? false
-    )
+    const isOpen = await getStoreValue(page, 'showDailyRewardsModal', false)
     expect(isOpen).toBe(false)
   })
 
   test('on first visit modal opens automatically', async ({ page }) => {
     // After resetGameState, lastClaimTimestamp === 0 → checkDailyReward opens modal
-    const modalVisible = await page.evaluate(() =>
-      (window as any).__store?.getState().showDailyRewardsModal ?? false
-    )
+    const modalVisible = await getStoreValue(page, 'showDailyRewardsModal', false)
     expect(modalVisible).toBe(true)
   })
 
   test('claiming daily reward awards nuts', async ({ page }) => {
-    const nutsBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsBefore = await getStoreValue(page, 'nuts', 0)
 
     // Claim via store action directly
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (store) store.getState().claimDailyReward()
-    })
+    await callStoreAction(page, 'claimDailyReward')
     await page.waitForTimeout(200)
 
-    const nutsAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsAfter = await getStoreValue(page, 'nuts', 0)
     expect(nutsAfter).toBeGreaterThan(nutsBefore)
   })
 
   test('claiming daily reward increases streak', async ({ page }) => {
-    const streakBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().dailyRewards.currentStreak ?? 0
-    )
+    const streakBefore = await getStoreValue(page, 'dailyRewards.currentStreak', 0)
 
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (store) store.getState().claimDailyReward()
-    })
+    await callStoreAction(page, 'claimDailyReward')
     await page.waitForTimeout(200)
 
-    const streakAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().dailyRewards.currentStreak ?? 0
-    )
+    const streakAfter = await getStoreValue(page, 'dailyRewards.currentStreak', 0)
     expect(streakAfter).toBe(streakBefore + 1)
   })
 
   test('daily reward cannot be claimed twice in a row', async ({ page }) => {
     // First claim
-    await page.evaluate(() =>
-      (window as any).__store?.getState().claimDailyReward()
-    )
+    await callStoreAction(page, 'claimDailyReward')
     await page.waitForTimeout(100)
 
-    const nutsAfterFirst = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsAfterFirst = await getStoreValue(page, 'nuts', 0)
 
     // Immediate second claim — blocked because lastClaimTimestamp is now set
-    await page.evaluate(() =>
-      (window as any).__store?.getState().claimDailyReward()
-    )
+    await callStoreAction(page, 'claimDailyReward')
     await page.waitForTimeout(100)
 
-    const nutsAfterSecond = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsAfterSecond = await getStoreValue(page, 'nuts', 0)
 
     // Nuts must not increase on the second claim
     expect(nutsAfterSecond).toBe(nutsAfterFirst)
@@ -146,10 +118,7 @@ test.describe('daily rewards', () => {
 
   test('modal shows "Забрать" button when reward is available', async ({ page }) => {
     // Open modal — fresh state means canClaim=true
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (store) store.getState().openDailyRewardsModal()
-    })
+    await callStoreAction(page, 'openDailyRewardsModal')
     await page.waitForTimeout(300)
 
     const modal = page.getByRole('dialog', { name: 'Ежедневные награды' })
@@ -161,15 +130,10 @@ test.describe('daily rewards', () => {
 
   test('claiming via modal button awards nuts', async ({ page }) => {
     // Open modal
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (store) store.getState().openDailyRewardsModal()
-    })
+    await callStoreAction(page, 'openDailyRewardsModal')
     await page.waitForTimeout(300)
 
-    const nutsBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsBefore = await getStoreValue(page, 'nuts', 0)
 
     const modal = page.getByRole('dialog', { name: 'Ежедневные награды' })
     const claimBtn = modal.getByRole('button', { name: /Забрать.*🔩/i })
@@ -177,9 +141,7 @@ test.describe('daily rewards', () => {
     await claimBtn.click()
     await page.waitForTimeout(300)
 
-    const nutsAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsAfter = await getStoreValue(page, 'nuts', 0)
     expect(nutsAfter).toBeGreaterThan(nutsBefore)
   })
 })

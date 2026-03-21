@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitForGameLoaded, switchTab, resetGameState } from './helpers'
+import { waitForGameLoaded, switchTab } from './helpers'
 
 test.describe('tab navigation', () => {
   test.beforeEach(async ({ page }) => {

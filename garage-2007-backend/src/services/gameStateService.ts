@@ -8,7 +8,7 @@ import { logBalanceChange, detectBalanceJump } from './auditService.js'
 import { AppError } from '../middleware/errorHandler.js'
 import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logger } from '../utils/logger.js'
-import type { GameSave } from '@prisma/client'
+import type { GameSave, Prisma } from '@prisma/client'
 
 interface WorkersMap {
   [key: string]: { count: number; cost: number }
@@ -177,43 +177,49 @@ export async function loadState(userId: number): Promise<{
 
 export async function createInitialState(userId: number): Promise<Record<string, unknown>> {
   const gameSave = await prisma.gameSave.create({
-    data: {
-      userId,
-      balance: 0,
-      nuts: 0,
-      garageLevel: 1,
-      totalClicks: 0,
-      totalEarned: 0,
-      milestonesPurchased: [],
-      clickPowerLevel: 0,
-      clickPowerCost: BASE_COSTS.clickUpgrade,
-      workSpeedLevel: 0,
-      workSpeedCost: BASE_COSTS.workSpeed,
-      apprenticeCount: 0,
-      apprenticeCost: BASE_COSTS.apprentice,
-      mechanicCount: 0,
-      mechanicCost: BASE_COSTS.mechanic,
-      masterCount: 0,
-      masterCost: BASE_COSTS.master,
-      brigadierCount: 0,
-      brigadierCost: BASE_COSTS.brigadier,
-      directorCount: 0,
-      directorCost: BASE_COSTS.director,
-      sessionCount: 1,
-      lastSessionDate: new Date().toISOString().split('T')[0],
-      peakClickIncome: 0,
-      totalPlayTimeSeconds: 0,
-      bestStreak: 0,
-      achievements: {},
-      dailyRewards: { lastClaimTimestamp: 0, currentStreak: 0 },
-      rewardedVideo: { lastWatchedTimestamp: 0, totalWatches: 0 },
-      boosts: { active: [] },
-      events: { activeEvent: null, cooldownEnd: 0 },
-      decorationsOwned: [],
-      decorationsActive: [],
-    },
+    data: buildInitialGameSaveData(userId),
   })
 
   logger.info({ userId }, 'Created initial game state')
   return buildGameState(gameSave)
+}
+
+export function buildInitialGameSaveData(userId: number): Prisma.GameSaveUncheckedCreateInput {
+  const today = new Date().toISOString().split('T')[0]
+
+  return {
+    userId,
+    balance: 0,
+    nuts: 0,
+    garageLevel: 1,
+    totalClicks: 0,
+    totalEarned: 0,
+    milestonesPurchased: [],
+    clickPowerLevel: 0,
+    clickPowerCost: BASE_COSTS.clickUpgrade,
+    workSpeedLevel: 0,
+    workSpeedCost: BASE_COSTS.workSpeed,
+    apprenticeCount: 0,
+    apprenticeCost: BASE_COSTS.apprentice,
+    mechanicCount: 0,
+    mechanicCost: BASE_COSTS.mechanic,
+    masterCount: 0,
+    masterCost: BASE_COSTS.master,
+    brigadierCount: 0,
+    brigadierCost: BASE_COSTS.brigadier,
+    directorCount: 0,
+    directorCost: BASE_COSTS.director,
+    sessionCount: 1,
+    lastSessionDate: today,
+    peakClickIncome: 0,
+    totalPlayTimeSeconds: 0,
+    bestStreak: 0,
+    achievements: {},
+    dailyRewards: { lastClaimTimestamp: 0, currentStreak: 0 },
+    rewardedVideo: { lastWatchedTimestamp: 0, totalWatches: 0 },
+    boosts: { active: [] },
+    events: { activeEvent: null, cooldownEnd: 0 },
+    decorationsOwned: [],
+    decorationsActive: [],
+  }
 }

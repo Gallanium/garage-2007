@@ -10,7 +10,7 @@ import { BOOST_DEFINITIONS } from '@shared/constants/boosts.js'
 import { ACHIEVEMENTS, getTotalWorkerCount } from '@shared/constants/achievements.js'
 import {
   DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS,
-  REWARDED_VIDEO_NUTS,
+  REWARDED_VIDEO_COOLDOWN_MS, REWARDED_VIDEO_NUTS,
 } from '@shared/constants/dailyRewards.js'
 import { GAME_EVENTS, EVENT_CATEGORY_WEIGHTS, EVENT_COOLDOWN_MS, EVENT_RANDOM_DELAY_MS } from '@shared/constants/events.js'
 import { DECORATION_CATALOG } from '@shared/constants/decorations.js'
@@ -240,13 +240,31 @@ export async function processSync(
       metadata: object; idempotencyKey?: string;
     }> = []
 
+    if (syncNonce) {
+      logEntries.push({
+        userId,
+        actionType: 'sync_marker',
+        currency: 'rubles',
+        amount: 0,
+        balanceBefore: gs.balance,
+        balanceAfter: gs.balance,
+        metadata: {
+          clicksSinceLastSync: clicks,
+          clickIncome,
+          passiveIncome,
+          seconds: Math.floor(secondsSinceLastSync),
+        },
+        idempotencyKey: syncNonce,
+      })
+    }
+
     if (clickIncome > 0) {
       logEntries.push({
         userId, actionType: 'click_income', currency: 'rubles',
         amount: clickIncome, balanceBefore: gs.balance,
         balanceAfter: roundCurrency(gs.balance + clickIncome),
         metadata: { clicks, clickPowerLevel: gs.clickPowerLevel },
-        idempotencyKey: syncNonce,
+        idempotencyKey: syncNonce ? `${syncNonce}:click` : undefined,
       })
     }
     if (passiveIncome > 0) {
@@ -261,7 +279,7 @@ export async function processSync(
     }
 
     if (logEntries.length > 0) {
-      await tx.balanceLog.createMany({ data: logEntries })
+      await tx.balanceLog.createMany({ data: logEntries, skipDuplicates: true })
     }
 
     // Update GameSave with optimistic lock
@@ -327,6 +345,7 @@ async function handlePurchaseUpgrade(
     const { upgradeType } = purchaseUpgradePayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const levelField = upgradeType === 'clickPower' ? 'clickPowerLevel' : 'workSpeedLevel'
     const costField = upgradeType === 'clickPower' ? 'clickPowerCost' : 'workSpeedCost'
@@ -384,6 +403,7 @@ async function handleHireWorker(
     const { workerType } = hireWorkerPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const countKey = workerCountField(workerType as WorkerType) as keyof GameSave
     const costKey = workerCostField(workerType as WorkerType) as keyof GameSave
@@ -445,6 +465,7 @@ async function handlePurchaseMilestone(
     const { level } = purchaseMilestonePayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     if (!(MILESTONE_LEVELS as readonly number[]).includes(level)) {
       throw new AppError(400, 'INVALID_MILESTONE', 'Invalid milestone level')
@@ -496,6 +517,7 @@ async function handlePurchaseDecoration(
     const { decorationId } = purchaseDecorationPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const dec = DECORATION_CATALOG[decorationId]
     if (!dec) throw new AppError(400, 'DECORATION_NOT_FOUND', 'Decoration not found')
@@ -630,6 +652,7 @@ async function handleActivateBoost(
     const { boostType } = activateBoostPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const def = BOOST_DEFINITIONS[boostType as BoostType]
     if (!def) throw new AppError(400, 'BOOST_NOT_FOUND', 'Boost type not found')
@@ -693,6 +716,7 @@ async function handleReplaceBoost(
     const { boostType } = replaceBoostPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     const def = BOOST_DEFINITIONS[boostType as BoostType]
     if (!def) throw new AppError(400, 'BOOST_NOT_FOUND', 'Boost type not found')
@@ -881,7 +905,12 @@ async function handleWatchRewardedVideo(
 
     const video = gs.rewardedVideo as { lastWatchedTimestamp: number; totalWatches: number } | null
     const totalWatches = video?.totalWatches ?? 0
+    const lastWatchedTimestamp = video?.lastWatchedTimestamp ?? 0
     const now = Date.now()
+
+    if (lastWatchedTimestamp > 0 && now - lastWatchedTimestamp < REWARDED_VIDEO_COOLDOWN_MS) {
+      throw new AppError(400, 'VIDEO_COOLDOWN', 'Rewarded video is still on cooldown')
+    }
 
     // Daily cap: count video_reward actions for the current UTC day
     const todayStart = new Date()

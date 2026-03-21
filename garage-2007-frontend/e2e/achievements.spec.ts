@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { waitForGameLoaded, switchTab } from './helpers'
+import {
+  waitForGameLoaded,
+  switchTab,
+  getStoreValue,
+  setAchievementState,
+} from './helpers'
 
 test.describe('achievements', () => {
   test.beforeEach(async ({ page }) => {
@@ -29,19 +34,7 @@ test.describe('achievements', () => {
   })
 
   test('claim button "ЗАБРАТЬ" appears on unlocked unclaimed achievement', async ({ page }) => {
-    // Inject unlocked+unclaimed state for garage_level_2 via store
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (!store) return
-      const state = store.getState()
-      store.setState({
-        achievements: {
-          ...state.achievements,
-          garage_level_2: { unlocked: true, claimed: false },
-        },
-        hasNewAchievements: true,
-      })
-    })
+    await setAchievementState(page, 'garage_level_2', { unlocked: true, claimed: false }, true)
 
     await switchTab(page, 'Ачивки')
     await page.waitForTimeout(300)
@@ -52,25 +45,12 @@ test.describe('achievements', () => {
   })
 
   test('claiming an unlocked achievement awards nuts', async ({ page }) => {
-    // Inject unlocked+unclaimed state
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (!store) return
-      const state = store.getState()
-      store.setState({
-        achievements: {
-          ...state.achievements,
-          garage_level_2: { unlocked: true, claimed: false },
-        },
-      })
-    })
+    await setAchievementState(page, 'garage_level_2', { unlocked: true, claimed: false })
 
     await switchTab(page, 'Ачивки')
     await page.waitForTimeout(300)
 
-    const nutsBefore = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsBefore = await getStoreValue(page, 'nuts', 0)
 
     // Click the claim button
     const claimBtn = page.getByRole('button', { name: /ЗАБРАТЬ/i }).first()
@@ -78,25 +58,12 @@ test.describe('achievements', () => {
     await claimBtn.click()
     await page.waitForTimeout(300)
 
-    const nutsAfter = await page.evaluate(() =>
-      (window as any).__store?.getState().nuts ?? 0
-    )
+    const nutsAfter = await getStoreValue(page, 'nuts', 0)
     expect(nutsAfter).toBeGreaterThan(nutsBefore)
   })
 
   test('claimed achievement shows "Забрано" text and checkmark', async ({ page }) => {
-    // Inject already-claimed achievement
-    await page.evaluate(() => {
-      const store = (window as any).__store
-      if (!store) return
-      const state = store.getState()
-      store.setState({
-        achievements: {
-          ...state.achievements,
-          garage_level_2: { unlocked: true, claimed: true },
-        },
-      })
-    })
+    await setAchievementState(page, 'garage_level_2', { unlocked: true, claimed: true })
 
     await switchTab(page, 'Ачивки')
     await page.waitForTimeout(300)

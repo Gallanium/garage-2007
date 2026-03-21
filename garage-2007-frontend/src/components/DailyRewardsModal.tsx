@@ -74,7 +74,7 @@ interface DayCardProps {
   isBonusDay: boolean
 }
 
-const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay: _isBonusDay }) => {
+const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay }) => {
   const base = 'rounded-lg p-1.5 text-center font-mono transition-all duration-200'
   const styles: Record<DayCardState, string> = {
     claimed: 'bg-green-900/40 border border-green-500/50',
@@ -83,11 +83,12 @@ const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay: 
     future: 'bg-gray-800/60 border border-gray-700/50 opacity-60',
     weekDone: 'bg-gray-800/40 border border-gray-700/30 opacity-40',
   }
+  const bonusStyle = isBonusDay ? 'ring-1 ring-yellow-500/40' : ''
   const isClaimed = state === 'claimed' || state === 'current'
   const isDone = state === 'weekDone'
 
   return (
-    <div className={`${base} ${styles[state]}`}>
+    <div className={`${base} ${styles[state]} ${bonusStyle}`}>
       <p className={`text-game-xs sm:text-game-sm uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
         Д{dayLabel}
       </p>
@@ -117,8 +118,12 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
   onClaim,
   onClose,
 }) => {
-  const [countdown, setCountdown] = useState<string | null>(null)
-  const [timerExpired, setTimerExpired] = useState(false)
+  const [, setTimerTick] = useState(0)
+  const countdown = !isOpen ? null : getTimeUntilNextReward(dailyRewards.lastClaimTimestamp)
+  const timerExpired = isOpen
+    && !canClaim
+    && dailyRewards.lastClaimTimestamp > 0
+    && countdown === null
   const effectiveCanClaim = canClaim || timerExpired
 
   const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
@@ -132,23 +137,14 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
     return () => window.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
-  // --- Sync timerExpired с canClaim ---
-  useEffect(() => { setTimerExpired(false) }, [canClaim])
-
-  // --- Reset при закрытии ---
-  useEffect(() => {
-    if (!isOpen) { setTimerExpired(false); setCountdown(null) }
-  }, [isOpen])
-
   // --- Таймер ---
   useEffect(() => {
-    if (!isOpen) return
-    setCountdown(getTimeUntilNextReward(dailyRewards.lastClaimTimestamp))
+    if (!isOpen || canClaim) return
+
     const interval = setInterval(() => {
-      const time = getTimeUntilNextReward(dailyRewards.lastClaimTimestamp)
-      setCountdown(time)
-      if (!time && !canClaim) setTimerExpired(true)
+      setTimerTick(currentTick => currentTick + 1)
     }, 1000)
+
     return () => clearInterval(interval)
   }, [isOpen, dailyRewards.lastClaimTimestamp, canClaim])
 

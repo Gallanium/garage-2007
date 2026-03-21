@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
 import { gameConfig } from './gameConfig'
 import MainScene from './MainScene'
-import type { GarageClickEvent, LevelTransitionEvent } from './types'
 
 /** Проверяет что Phaser сцена жива (не уничтожена и не остановлена) */
 function isSceneAlive(scene: MainScene): boolean {
@@ -48,19 +47,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
   // Ref для актуального коллбэка (защита от stale closure в Phaser event)
   const onGarageClickRef = useRef(onGarageClick)
-  onGarageClickRef.current = onGarageClick
 
   // Ref для активности вкладки (блокирует клики, когда вкладка «Игра» неактивна)
   const isActiveRef = useRef(isActive)
-  isActiveRef.current = isActive
 
   // FIX Баг 1: Ref для актуального garageLevel, чтобы синхронизировать при готовности сцены
   const garageLevelRef = useRef(garageLevel)
-  garageLevelRef.current = garageLevel
 
   const activeDecorationsRef = useRef(activeDecorations)
-  activeDecorationsRef.current = activeDecorations
-
 
   // Состояние готовности игры (для скрытия индикатора загрузки)
   const [isGameReady, setIsGameReady] = useState(false)
@@ -70,6 +64,28 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
   // Ref для таймаута ready-события
   const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const reportGameError = useCallback((message: string): void => {
+    queueMicrotask(() => {
+      setGameError(message)
+    })
+  }, [])
+
+  useEffect(() => {
+    onGarageClickRef.current = onGarageClick
+  }, [onGarageClick])
+
+  useEffect(() => {
+    isActiveRef.current = isActive
+  }, [isActive])
+
+  useEffect(() => {
+    garageLevelRef.current = garageLevel
+  }, [garageLevel])
+
+  useEffect(() => {
+    activeDecorationsRef.current = activeDecorations
+  }, [activeDecorations])
 
   /**
    * Эффект инициализации Phaser при монтировании компонента
@@ -96,7 +112,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       })
     } catch (error) {
       console.error('PhaserGame: Ошибка инициализации', error)
-      setGameError('Не удалось запустить игровой движок')
+      reportGameError('Не удалось запустить игровой движок')
       return
     }
 
@@ -145,7 +161,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       }
 
       // Подписываемся на событие клика по гаражу из Phaser
-      mainScene.events.on('garageClicked', (_data: GarageClickEvent) => {
+      mainScene.events.on('garageClicked', () => {
         // Блокируем клики, если вкладка «Игра» неактивна
         if (!isActiveRef.current) return
         // Вызываем коллбэк через ref (защита от stale closure)
@@ -153,7 +169,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       })
 
       // Подписываемся на событие завершения анимации перехода уровня
-      mainScene.events.on('levelTransitionComplete', (_data: LevelTransitionEvent) => {
+      mainScene.events.on('levelTransitionComplete', () => {
         // Событие используется для возможных будущих обработок
       })
     })
@@ -182,7 +198,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
         gameRef.current = null
       }
     }
-  }, []) // Пустой массив зависимостей = эффект выполняется только при монтировании/размонтировании
+  }, [reportGameError]) // Инициализация Phaser при монтировании
 
   /**
    * Эффект блокировки ввода Phaser при открытых модалках / неактивном табе.

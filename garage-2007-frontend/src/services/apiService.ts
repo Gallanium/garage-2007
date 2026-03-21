@@ -1,6 +1,7 @@
 // src/services/apiService.ts
 // API client for server-authoritative backend.
 // All game state mutations go through the server.
+import { getInitData as getTelegramInitData } from './telegramService'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
@@ -31,15 +32,6 @@ export function clearToken(): void {
   authToken = null
 }
 
-/** Get Telegram initData for re-authentication */
-function getInitData(): string | null {
-  try {
-    return window.Telegram?.WebApp?.initData ?? null
-  } catch {
-    return null
-  }
-}
-
 /** Fetch with auto-re-auth on 401 */
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = authToken
@@ -53,7 +45,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
   if (res.status === 401 && !isRefreshing) {
     isRefreshing = true
     try {
-      const initData = getInitData()
+      const initData = getTelegramInitData()
       if (initData) {
         const ok = await authenticate(initData)
         if (ok) {
@@ -65,6 +57,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
           })
         }
       }
+      clearToken()
     } finally {
       isRefreshing = false
     }

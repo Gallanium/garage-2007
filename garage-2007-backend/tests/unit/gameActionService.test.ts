@@ -617,7 +617,7 @@ describe('gameActionService — processAction', () => {
       const gameSave = createTestGameSave({
         userId,
         rewardedVideo: {
-          lastWatchedTimestamp: Date.now() - 30 * 60_000, // 30 min ago
+          lastWatchedTimestamp: Date.now() - 2 * 60 * 60_000, // 2h ago
           totalWatches: 3,
           isWatching: false,
         },
@@ -631,6 +631,27 @@ describe('gameActionService — processAction', () => {
       } catch (e) {
         expect(e).toBeInstanceOf(AppError)
         expect((e as AppError).code).toBe('VIDEO_DAILY_CAP')
+      }
+    })
+
+    it('cooldown active throws VIDEO_COOLDOWN error', async () => {
+      const gameSave = createTestGameSave({
+        userId,
+        rewardedVideo: {
+          lastWatchedTimestamp: Date.now() - 30 * 60_000, // 30 min ago
+          totalWatches: 1,
+          isWatching: false,
+        },
+      })
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+      prisma.balanceLog.count.mockResolvedValue(1)
+
+      try {
+        await processAction(userId, 'watch_rewarded_video', {})
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('VIDEO_COOLDOWN')
       }
     })
   })

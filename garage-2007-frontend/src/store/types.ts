@@ -50,7 +50,7 @@ import type {
 export interface GameActions {
   handleClick: () => boolean
   purchaseClickUpgrade: () => Promise<boolean>
-  purchaseWorkSpeedUpgrade: () => Promise<void>
+  purchaseWorkSpeedUpgrade: () => Promise<boolean>
   hireWorker: (workerType: WorkerType) => Promise<void>
   startPassiveIncome: () => () => void
   resetGame: () => void

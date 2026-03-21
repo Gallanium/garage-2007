@@ -150,6 +150,8 @@ ok "Schema up to date."
 # ---------------------------------------------------------------------------
 
 section "6. Starting backend (port 3001)..."
+# Kill any leftover process on port 3001 from a previous run
+lsof -ti:3001 2>/dev/null | xargs kill -9 2>/dev/null || true
 (cd "$BACKEND_DIR" && npm run dev) &>/tmp/garage-backend.log &
 PIDS+=($!)
 
@@ -166,7 +168,9 @@ wait_for "backend" \
 # ---------------------------------------------------------------------------
 
 section "7. Starting frontend (port 5173)..."
-(cd "$FRONTEND_DIR" && npm run dev) &>/tmp/garage-frontend.log &
+# Kill any leftover process on port 5173 from a previous run
+lsof -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null || true
+(cd "$FRONTEND_DIR" && npx vite --port 5173 --strictPort) &>/tmp/garage-frontend.log &
 PIDS+=($!)
 
 wait_for "frontend" \

@@ -59,7 +59,7 @@ describe('purchaseService', () => {
 
     it('credits nuts via $transaction for valid payment', async () => {
       const gameSave = createTestGameSave({ userId, nuts: 10 })
-      const user = { ...createTestDbUser(), gameSave }
+      const user = createTestDbUser()
       const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
 
       prisma.transaction.findUnique.mockResolvedValue(null) // no duplicate
@@ -102,6 +102,22 @@ describe('purchaseService', () => {
       await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
       expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
+
+    it('creates initial game save when payment arrives before first state load', async () => {
+      const initialGameSave = createTestGameSave({ userId, nuts: 0 })
+      const user = createTestDbUser()
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
+
+      prisma.transaction.findUnique.mockResolvedValue(null)
+      prisma.user.findUnique.mockResolvedValue(user)
+      prisma.gameSave.findUnique.mockResolvedValue(null)
+      prisma.gameSave.create.mockResolvedValue(initialGameSave)
+
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
+
+      expect(prisma.gameSave.create).toHaveBeenCalledTimes(1)
+      expect(prisma.$transaction).toHaveBeenCalled()
     })
 
     it('does nothing for invalid payload', async () => {
