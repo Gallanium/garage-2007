@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import {
   useGameStore,
   useIsLoaded,
@@ -16,7 +16,7 @@ const SYNC_INTERVAL_MS = 30_000
 const SAVE_DEBOUNCE_MS = 5_000
 
 /**
- * Game lifecycle hook — server-first with localStorage fallback.
+ * Game lifecycle hook — server-first, no offline fallback.
  *
  * Flow:
  *   Mount → getInitData() → authenticate() → loadState() → populate store
@@ -24,72 +24,75 @@ const SAVE_DEBOUNCE_MS = 5_000
  *   sync(clicksSinceLastSync) → update store from server response
  *   ↓ (on close)
  *   sync(finalClicks) → best-effort + localStorage backup
+ *
+ * If auth/loadState fails: sets serverError flag → App shows error screen.
+ * Clicks do NOT accumulate without authentication.
  */
-export function useGameLifecycle(): void {
+export function useGameLifecycle(): { retryAuth: () => void } {
   const isLoaded = useIsLoaded()
   const balance = useBalance()
   const garageLevel = useGarageLevel()
   const checkForMilestone = useCheckForMilestone()
-  const loadProgress = useGameStore((s) => s.loadProgress)
   const saveProgress = useGameStore((s) => s.saveProgress)
   const startPassiveIncome = useGameStore((s) => s.startPassiveIncome)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const syncInFlightRef = useRef(false)
+  const authInProgressRef = useRef(false)
 
-  // 1. Auth + Load — server-first, localStorage fallback
-  useEffect(() => {
-    let cancelled = false
+  // Auth + Load function — extracted so it can be retried.
+  // Guard prevents concurrent execution (React StrictMode fires effects twice).
+  const attemptAuth = useCallback(async () => {
+    if (authInProgressRef.current) return
+    authInProgressRef.current = true
+    try {
+      useGameStore.setState({ serverError: false })
 
-    // Safety net: if server doesn't respond in 10s, load from localStorage
-    const fallbackTimer = setTimeout(() => {
-      if (!cancelled && !useGameStore.getState().isLoaded) {
-        console.warn('[GameLifecycle] Server timeout — falling back to localStorage')
-        loadProgress()
-      }
-    }, 10_000)
-
-    async function initServer() {
-      const initData = getInitData()
-
-      if (initData) {
+      // If already authenticated (token from a prior call), skip straight to loadState
+      if (!api.isOnline()) {
+        const initData = getInitData()
+        if (!initData) {
+          useGameStore.setState({ serverError: true })
+          return
+        }
         const authResult = await api.authenticate(initData)
-        if (authResult && !cancelled) {
-          // Load state from server
-          const stateResult = await api.loadState()
-          if (stateResult?.gameState && !cancelled) {
-            // Apply server state to store
-            useGameStore.getState().applyServerState(stateResult.gameState)
-
-            // Show offline earnings if any
-            if (stateResult.offlineEarnings && stateResult.offlineEarnings.amount > 0) {
-              useGameStore.setState({
-                lastOfflineEarnings: stateResult.offlineEarnings.amount,
-                lastOfflineTimeAway: stateResult.offlineEarnings.timeAway,
-              })
-            }
-            return
-          }
-          // New player — server returned null gameState, initial state was created
-          if (stateResult && !stateResult.gameState && !cancelled) {
-            useGameStore.setState({ isLoaded: true })
-            return
-          }
+        if (!authResult) {
+          useGameStore.setState({ serverError: true })
+          return
         }
       }
 
-      // Fallback: load from localStorage
-      if (!cancelled) {
-        loadProgress()
-      }
-    }
+      // Load state from server
+      const stateResult = await api.loadState()
+      if (stateResult?.gameState) {
+        useGameStore.getState().applyServerState(stateResult.gameState)
+        useGameStore.setState({ serverError: false })
 
-    initServer()
-    return () => {
-      cancelled = true
-      clearTimeout(fallbackTimer)
+        // Show offline earnings if any
+        if (stateResult.offlineEarnings && stateResult.offlineEarnings.amount > 0) {
+          useGameStore.setState({
+            lastOfflineEarnings: stateResult.offlineEarnings.amount,
+            lastOfflineTimeAway: stateResult.offlineEarnings.timeAway,
+          })
+        }
+        return
+      }
+      // New player — server returned null gameState, initial state was created
+      if (stateResult && !stateResult.gameState) {
+        useGameStore.setState({ isLoaded: true, serverError: false })
+        return
+      }
+
+      useGameStore.setState({ serverError: true })
+    } finally {
+      authInProgressRef.current = false
     }
-  }, [loadProgress])
+  }, [])
+
+  // 1. Auth + Load — server-first, no offline fallback
+  useEffect(() => {
+    attemptAuth()
+  }, [attemptAuth])
 
   // 2. Passive income tick (client-side for instant UI feedback)
   useEffect(() => {
@@ -161,7 +164,7 @@ export function useGameLifecycle(): void {
         const clicks = (useGameStore.getState()._pendingClickBuffer ?? []).length
         const token = api.getToken()
         if (token && clicks > 0) {
-          fetch('/api/game/sync', {
+          fetch(`${api.getApiBase()}/game/sync`, {
             method: 'POST',
             keepalive: true,
             headers: {
@@ -181,4 +184,6 @@ export function useGameLifecycle(): void {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [saveProgress])
+
+  return { retryAuth: attemptAuth }
 }

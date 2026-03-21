@@ -9,6 +9,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  TRUST_PROXY: z.coerce.number().int().min(0).max(3).default(1),
+  REDIS_URL: z.string().url().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

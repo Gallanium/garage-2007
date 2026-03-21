@@ -49,29 +49,29 @@ import type {
 
 export interface GameActions {
   handleClick: () => boolean
-  purchaseClickUpgrade: () => boolean
-  purchaseWorkSpeedUpgrade: () => void
-  hireWorker: (workerType: WorkerType) => void
+  purchaseClickUpgrade: () => Promise<boolean>
+  purchaseWorkSpeedUpgrade: () => Promise<void>
+  hireWorker: (workerType: WorkerType) => Promise<void>
   startPassiveIncome: () => () => void
   resetGame: () => void
   saveProgress: () => void
   loadProgress: () => void
   addOfflineEarnings: (amount: number) => void
   clearOfflineEarnings: () => void
-  purchaseMilestone: (level: number) => boolean
+  purchaseMilestone: (level: number) => Promise<boolean>
   checkForMilestone: () => void
   closeMilestoneModal: () => void
   checkAchievements: () => AchievementId[]
-  claimAchievement: (achievementId: AchievementId) => boolean
+  claimAchievement: (achievementId: AchievementId) => Promise<boolean>
   clearNewAchievementsFlag: () => void
   checkDailyReward: () => void
-  claimDailyReward: () => void
+  claimDailyReward: () => Promise<void>
   closeDailyRewardsModal: () => void
   openDailyRewardsModal: () => void
   canWatchRewardedVideo: () => boolean
   watchRewardedVideo: () => Promise<boolean>
-  activateBoost: (type: BoostType) => boolean
-  replaceBoost: (type: BoostType) => boolean
+  activateBoost: (type: BoostType) => Promise<boolean>
+  replaceBoost: (type: BoostType) => Promise<boolean>
   tickBoosts: () => void
   getActiveMultiplier: (scope: 'income' | 'click') => number
   triggerRandomEvent: () => boolean
@@ -79,7 +79,7 @@ export interface GameActions {
   tickEvents: () => void
   getEventMultiplier: (scope: 'income' | 'click') => number
   getEventCostMultiplier: () => number
-  purchaseDecoration: (id: string) => boolean
+  purchaseDecoration: (id: string) => Promise<boolean>
   toggleDecoration: (id: string) => void
   applyServerState: (serverState: Record<string, unknown>) => void
 }

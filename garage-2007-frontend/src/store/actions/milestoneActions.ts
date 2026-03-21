@@ -8,13 +8,30 @@ import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseMilestone' | 'checkForMilestone' | 'closeMilestoneModal'>
 
+// Concurrency guard — prevent double-fire from mobile tap events
+let _milestonePending = false
+
 export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
-  purchaseMilestone: (level: number) => {
-    const { balance, milestonesPurchased } = get()
+  purchaseMilestone: async (level: number) => {
+    if (_milestonePending) return false
+    _milestonePending = true
+    try {
+    const state = get()
+    const { balance, milestonesPurchased } = state
     const upgrade = MILESTONE_UPGRADES[level as MilestoneLevel]
     if (!upgrade) { if (import.meta.env.DEV) console.warn(`[Milestone] Неизвестный уровень: ${level}`); return false }
     if (milestonesPurchased.includes(level)) { if (import.meta.env.DEV) console.warn(`[Milestone] Уровень ${level} уже куплен`); return false }
     if (balance < upgrade.cost) { if (import.meta.env.DEV) console.warn(`[Milestone] Недостаточно средств`); return false }
+
+    // Optimistic + rollback: ruble action
+    const snapshot = {
+      balance: state.balance,
+      milestonesPurchased: [...state.milestonesPurchased],
+      garageLevel: state.garageLevel,
+      showMilestoneModal: state.showMilestoneModal,
+      pendingMilestoneLevel: state.pendingMilestoneLevel,
+      _milestoneDismissedAt: state._milestoneDismissedAt,
+    }
 
     _set((s: GameState) => {
       const newBalance = s.balance - upgrade.cost
@@ -32,12 +49,21 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
 
     get().saveProgress()
     get().checkAchievements()
+
     if (api.isOnline()) {
-      api.performAction('purchase_milestone', { level }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+      const r = await api.performAction('purchase_milestone', { level })
+      if (!r) {
+        // Rollback on network failure (server unreachable)
+        _set(snapshot)
+        get().saveProgress()
+        console.warn(`[Milestone] Server rejected purchase_milestone (level ${level}) — rolled back`)
+        // TODO: show user-facing error toast
+      } else if (r.gameState) {
+        get().applyServerState(r.gameState)
+      }
     }
     return true
+    } finally { _milestonePending = false }
   },
 
   checkForMilestone: () => {

@@ -29,7 +29,7 @@ test.describe('persistence', () => {
 
     // Verify the save key exists in localStorage
     const hasSave = await page.evaluate(() =>
-      localStorage.getItem('garage2007_save') !== null
+      localStorage.getItem('garage2007_save_data') !== null
     )
     expect(hasSave).toBe(true)
 

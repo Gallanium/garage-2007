@@ -23,7 +23,7 @@ export const gameStateResponseSchema = z.object({
     brigadier: z.object({ count: z.number(), cost: z.number() }),
     director: z.object({ count: z.number(), cost: z.number() }),
   }),
-  achievements: z.record(z.object({
+  achievements: z.record(z.string(), z.object({
     unlocked: z.boolean(),
     claimed: z.boolean(),
     unlockedAt: z.number().optional(),

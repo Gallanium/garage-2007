@@ -58,4 +58,5 @@ export const initialState: GameState = {
   events: { activeEvent: null, cooldownEnd: 0 },
   decorations: { owned: [], active: [] },
   _pendingClickBuffer: [],
+  serverError: false,
 }

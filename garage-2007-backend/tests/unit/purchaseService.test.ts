@@ -60,19 +60,21 @@ describe('purchaseService', () => {
     it('credits nuts via $transaction for valid payment', async () => {
       const gameSave = createTestGameSave({ userId, nuts: 10 })
       const user = { ...createTestDbUser(), gameSave }
-      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1' })
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
 
       prisma.transaction.findUnique.mockResolvedValue(null) // no duplicate
       prisma.user.findUnique.mockResolvedValue(user)
+      // Interactive transaction reads gameSave inside the tx callback
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
       await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
-      // $transaction should have been called with an array of operations
+      // $transaction should have been called with a function (interactive transaction)
       expect(prisma.$transaction).toHaveBeenCalled()
     })
 
     it('duplicate telegram_payment_charge_id is idempotent (no double credit)', async () => {
-      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1' })
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
 
       // Simulate existing transaction with same telegramPaymentChargeId
       prisma.transaction.findUnique.mockResolvedValue({
@@ -92,7 +94,7 @@ describe('purchaseService', () => {
     })
 
     it('does nothing if user not found', async () => {
-      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1' })
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
 
       prisma.transaction.findUnique.mockResolvedValue(null)
       prisma.user.findUnique.mockResolvedValue(null)

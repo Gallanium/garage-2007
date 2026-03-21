@@ -5,6 +5,8 @@ import { checkAutoLevel } from '@shared/formulas/progression.js'
 import { roundCurrency } from '@shared/utils/math.js'
 import { BASE_COSTS } from '@shared/constants/economy.js'
 import { logBalanceChange, detectBalanceJump } from './auditService.js'
+import { AppError } from '../middleware/errorHandler.js'
+import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logger } from '../utils/logger.js'
 import type { GameSave } from '@prisma/client'
 
@@ -81,70 +83,85 @@ export async function loadState(userId: number): Promise<{
   offlineEarnings?: { amount: number; timeAway: number }
   serverTime: number
 }> {
-  const gameSave = await prisma.gameSave.findUnique({ where: { userId } })
-
-  if (!gameSave) {
+  // Quick check: does the user have a game save at all?
+  // (avoids spinning up retries for brand-new users)
+  const exists = await prisma.gameSave.findUnique({ where: { userId }, select: { userId: true } })
+  if (!exists) {
     return { gameState: null, serverTime: Date.now() }
   }
 
-  // Compute offline earnings (base passive income only — boosts intentionally excluded)
-  const workers = extractWorkers(gameSave)
-  const passiveIncome = calculateTotalPassiveIncome(workers, gameSave.workSpeedLevel)
-  const elapsedSeconds = (Date.now() - gameSave.lastSyncAt.getTime()) / 1000
-  const offlineAmount = calculateOfflineEarnings(passiveIncome, elapsedSeconds)
+  // Read + compute + update inside the retry lambda so that on version
+  // conflict the retry re-reads the FRESH row instead of using stale data.
+  const { updated, offlineAmount, elapsedSeconds, passiveIncome, balanceBefore } =
+    await withOccRetry(() => prisma.$transaction(async (tx) => {
+      const gameSave = await tx.gameSave.findUnique({ where: { userId } })
+      if (!gameSave) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
-  let updatedBalance = gameSave.balance
-  let updatedTotalEarned = gameSave.totalEarned
+      // Compute offline earnings (base passive income only — boosts intentionally excluded)
+      const workers = extractWorkers(gameSave)
+      const pi = calculateTotalPassiveIncome(workers, gameSave.workSpeedLevel)
+      const elapsed = (Date.now() - gameSave.lastSyncAt.getTime()) / 1000
+      const offline = calculateOfflineEarnings(pi, elapsed)
 
-  if (offlineAmount > 0) {
-    updatedBalance = roundCurrency(updatedBalance + offlineAmount)
-    updatedTotalEarned = roundCurrency(updatedTotalEarned + offlineAmount)
+      let updatedBalance = gameSave.balance
+      let updatedTotalEarned = gameSave.totalEarned
 
-    detectBalanceJump(userId, gameSave.balance, updatedBalance)
-  }
+      if (offline > 0) {
+        updatedBalance = roundCurrency(updatedBalance + offline)
+        updatedTotalEarned = roundCurrency(updatedTotalEarned + offline)
 
-  // Tick boosts and events
-  const boosts = tickBoosts(gameSave.boosts)
-  const events = tickEvents(gameSave.events)
+        detectBalanceJump(userId, gameSave.balance, updatedBalance)
+      }
 
-  // Auto-level
-  const newLevel = checkAutoLevel(updatedBalance, gameSave.garageLevel, gameSave.milestonesPurchased)
+      // Tick boosts and events
+      const boosts = tickBoosts(gameSave.boosts)
+      const events = tickEvents(gameSave.events)
 
-  // Update DB
-  const updated = await prisma.gameSave.update({
-    where: { userId },
-    data: {
-      balance: updatedBalance,
-      totalEarned: updatedTotalEarned,
-      garageLevel: newLevel,
-      boosts: boosts as object,
-      events: events as object,
-      lastSyncAt: new Date(),
-      sessionCount: { increment: 1 },
-      lastSessionDate: new Date().toISOString().split('T')[0],
-    },
-  })
+      // Auto-level
+      const newLevel = checkAutoLevel(updatedBalance, gameSave.garageLevel, gameSave.milestonesPurchased)
 
-  // Write BalanceLog + audit log AFTER DB update
-  if (offlineAmount > 0) {
-    await prisma.balanceLog.create({
-      data: {
-        userId,
-        actionType: 'offline_income',
-        currency: 'rubles',
-        amount: offlineAmount,
+      const result = await updateGameSaveWithLock(tx, userId, gameSave, {
+        balance: updatedBalance,
+        totalEarned: updatedTotalEarned,
+        garageLevel: newLevel,
+        boosts: boosts as object,
+        events: events as object,
+        lastSyncAt: new Date(),
+      })
+
+      // Write BalanceLog inside transaction
+      if (offline > 0) {
+        await tx.balanceLog.create({
+          data: {
+            userId,
+            actionType: 'offline_income',
+            currency: 'rubles',
+            amount: offline,
+            balanceBefore: gameSave.balance,
+            balanceAfter: updatedBalance,
+            metadata: { elapsedSeconds: Math.floor(elapsed) },
+          },
+        })
+      }
+
+      return {
+        updated: result,
+        offlineAmount: offline,
+        elapsedSeconds: elapsed,
+        passiveIncome: pi,
         balanceBefore: gameSave.balance,
-        balanceAfter: updatedBalance,
-        metadata: { elapsedSeconds: Math.floor(elapsedSeconds) },
-      },
-    })
+      }
+    }))
+
+  // Audit log AFTER DB update (non-transactional, logging only)
+  if (offlineAmount > 0) {
     logBalanceChange({
       userId,
       actionType: 'offline_income',
       currency: 'rubles',
       amount: offlineAmount,
-      balanceBefore: gameSave.balance,
-      balanceAfter: updatedBalance,
+      balanceBefore,
+      balanceAfter: roundCurrency(balanceBefore + offlineAmount),
       metadata: { elapsedSeconds: Math.floor(elapsedSeconds), passiveIncome },
     })
   }

@@ -6,6 +6,11 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
 let isRefreshing = false
 
+/** Get the API base URL (used by keepalive fetch on beforeunload) */
+export function getApiBase(): string {
+  return API_BASE
+}
+
 /** Whether we have an active backend connection */
 export function isOnline(): boolean {
   return authToken !== null
@@ -192,9 +197,12 @@ export async function performAction(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResponse | null> {
+  // Auto-generate idempotencyKey if not provided.
+  // Key is generated BEFORE fetchWithRetry — same key for all retries.
+  const key = idempotencyKey ?? crypto.randomUUID()
   return apiFetch<ActionResponse>('/game/action', {
     method: 'POST',
-    body: JSON.stringify({ type, payload, idempotencyKey }),
+    body: JSON.stringify({ type, payload, idempotencyKey: key }),
   }, true)
 }
 

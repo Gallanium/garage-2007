@@ -6,6 +6,10 @@ import {
   initialState,
   useGameStore,
 } from '../src/store/gameStore'
+import * as api from '../src/services/apiService'
+import { buildMockServerState } from './setup'
+
+const mockPerformAction = vi.mocked(api.performAction)
 
 describe('game store actions', () => {
   beforeEach(() => {
@@ -24,10 +28,11 @@ describe('game store actions', () => {
     expect(state.totalClicks).toBe(1)
   })
 
-  it('purchases a click upgrade and recalculates click value', () => {
+  it('purchases a click upgrade and recalculates click value', async () => {
     useGameStore.setState({ balance: 1_000 })
 
-    const success = useGameStore.getState().purchaseClickUpgrade()
+    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    const success = await useGameStore.getState().purchaseClickUpgrade()
     const state = useGameStore.getState()
 
     expect(success).toBe(true)
@@ -37,10 +42,11 @@ describe('game store actions', () => {
     expect(state.upgrades.clickPower.cost).toBe(114)
   })
 
-  it('hires a worker and recalculates passive income', () => {
+  it('hires a worker and recalculates passive income', async () => {
     useGameStore.setState({ balance: 1_000 })
 
-    useGameStore.getState().hireWorker('apprentice')
+    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    await useGameStore.getState().hireWorker('apprentice')
     const state = useGameStore.getState()
 
     expect(state.balance).toBe(500)
@@ -49,14 +55,15 @@ describe('game store actions', () => {
     expect(state.passiveIncomePerSecond).toBe(2)
   })
 
-  it('opens and purchases a milestone when the threshold is reached', () => {
+  it('opens and purchases a milestone when the threshold is reached', async () => {
     useGameStore.setState({ balance: 1_000_000, garageLevel: 4 })
 
     useGameStore.getState().checkForMilestone()
     expect(useGameStore.getState().pendingMilestoneLevel).toBe(5)
     expect(useGameStore.getState().showMilestoneModal).toBe(true)
 
-    const purchased = useGameStore.getState().purchaseMilestone(5)
+    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    const purchased = await useGameStore.getState().purchaseMilestone(5)
     const state = useGameStore.getState()
 
     expect(purchased).toBe(true)
@@ -65,37 +72,60 @@ describe('game store actions', () => {
     expect(state.showMilestoneModal).toBe(false)
   })
 
-  it('claims a daily reward once and blocks immediate re-claim', () => {
+  it('claims a daily reward once and blocks immediate re-claim', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-12T12:00:00.000Z'))
 
-    useGameStore.getState().claimDailyReward()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: 5,
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 1 },
+        bestStreak: 1,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
     let state = useGameStore.getState()
 
     expect(state.nuts).toBe(5)
     expect(state.dailyRewards.currentStreak).toBe(1)
     expect(state.bestStreak).toBe(1)
 
-    useGameStore.getState().claimDailyReward()
+    await useGameStore.getState().claimDailyReward()
     state = useGameStore.getState()
-
     expect(state.nuts).toBe(5)
     expect(state.dailyRewards.currentStreak).toBe(1)
 
     vi.advanceTimersByTime(DAILY_STREAK_GRACE_PERIOD_MS)
-    useGameStore.getState().claimDailyReward()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: 10,
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 2 },
+        bestStreak: 2,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
     state = useGameStore.getState()
 
     expect(state.nuts).toBe(10)
     expect(state.dailyRewards.currentStreak).toBe(2)
   })
 
-  it('activates and expires turbo boost with correct multipliers', () => {
+  it('activates and expires turbo boost with correct multipliers', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-12T12:00:00.000Z'))
     useGameStore.setState({ nuts: 20 })
 
-    const success = useGameStore.getState().activateBoost('turbo')
+    const now = Date.now()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: 5,
+        boosts: { active: [{ type: 'turbo', activatedAt: now, expiresAt: now + BOOST_DEFINITIONS.turbo.durationMs }] },
+      }),
+    })
+    const success = await useGameStore.getState().activateBoost('turbo')
     expect(success).toBe(true)
     expect(useGameStore.getState().nuts).toBe(5)
     expect(useGameStore.getState().getActiveMultiplier('click')).toBe(5)
@@ -108,22 +138,36 @@ describe('game store actions', () => {
     expect(useGameStore.getState().getActiveMultiplier('click')).toBe(1)
   })
 
-  it('triggers a deterministic random event and exposes its multiplier', () => {
+  it('triggers a random event via server and exposes its multiplier', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-12T12:00:00.000Z'))
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0.5)
-      .mockReturnValueOnce(0)
+
+    const now = Date.now()
+    let resolvePromise: (v: unknown) => void
+    const promise = new Promise(r => { resolvePromise = r })
+    mockPerformAction.mockReturnValueOnce(promise as ReturnType<typeof api.performAction>)
 
     const triggered = useGameStore.getState().triggerRandomEvent()
-    const state = useGameStore.getState()
-
     expect(triggered).toBe(true)
+
+    // Resolve the server response
+    resolvePromise!({
+      success: true,
+      gameState: buildMockServerState({
+        events: {
+          activeEvent: { id: 'client_rush', activatedAt: now, expiresAt: now + 60_000, eventSeed: 123 },
+          cooldownEnd: now + 180_000,
+        },
+      }),
+    })
+
+    // Wait for microtask to flush
+    await vi.advanceTimersByTimeAsync(0)
+
+    const state = useGameStore.getState()
     expect(state.events.activeEvent?.id).toBe('client_rush')
     expect(state.getEventMultiplier('income')).toBe(GAME_EVENTS.client_rush.effect.multiplier)
     expect(state.getEventMultiplier('click')).toBe(1)
-    expect(state.events.cooldownEnd).toBeGreaterThan(Date.now())
+    expect(state.events.cooldownEnd).toBeGreaterThan(now)
   })
 })

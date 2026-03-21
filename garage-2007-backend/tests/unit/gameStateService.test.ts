@@ -13,13 +13,8 @@ describe('gameStateService — loadState', () => {
     vi.clearAllMocks()
     currentGameSave = null
 
-    prisma.gameSave.update.mockImplementation(async ({ data }: any) => ({
-      ...currentGameSave,
-      ...data,
-      ...(data.sessionCount?.increment
-        ? { sessionCount: (currentGameSave?.sessionCount ?? 0) + data.sessionCount.increment }
-        : {}),
-    }))
+    // OCC: updateMany returns { count: 1 } (optimistic lock succeeds)
+    prisma.gameSave.updateMany.mockResolvedValue({ count: 1 })
 
     prisma.balanceLog.create.mockResolvedValue({})
   })
@@ -180,9 +175,9 @@ describe('gameStateService — loadState', () => {
 
     await loadState(userId)
 
-    // Verify that gameSave.update was called to update lastSyncAt
-    expect(prisma.gameSave.update).toHaveBeenCalled()
-    const updateCall = prisma.gameSave.update.mock.calls[0][0]
+    // Verify that gameSave.updateMany was called (OCC) to update lastSyncAt
+    expect(prisma.gameSave.updateMany).toHaveBeenCalled()
+    const updateCall = prisma.gameSave.updateMany.mock.calls[0][0]
     expect(updateCall.data).toHaveProperty('lastSyncAt')
   })
 

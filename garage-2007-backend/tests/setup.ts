@@ -71,6 +71,7 @@ vi.mock('@prisma/client', () => {
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       upsert: vi.fn(),
       delete: vi.fn(),
     },
@@ -83,6 +84,7 @@ vi.mock('@prisma/client', () => {
     balanceLog: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn().mockResolvedValue(0),
       create: vi.fn(),
       createMany: vi.fn(),
       deleteMany: vi.fn(),
@@ -103,15 +105,20 @@ vi.mock('@prisma/client', () => {
 
   return {
     PrismaClient: MockPrismaClient,
+    Prisma: { DbNull: Symbol('DbNull') },
     __mockClient: mockPrismaClient,
   }
 })
 
 // ── Global hooks ─────────────────────────────────────────────────────────────
-beforeEach(() => {
+beforeEach(async () => {
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  // Clear initData replay cache between tests
+  const { _resetReplayCache } = await import('../src/services/telegramAuthService.js')
+  _resetReplayCache()
 })
 
 afterEach(() => {

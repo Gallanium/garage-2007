@@ -2,7 +2,6 @@
 import type { StateCreator } from 'zustand'
 import type { GameStore, GameState } from '../types'
 import {
-  REWARDED_VIDEO_NUTS,
   REWARDED_VIDEO_COOLDOWN_MS,
   REWARDED_VIDEO_FAKE_DURATION_MS,
 } from '../constants/dailyRewards'
@@ -22,20 +21,25 @@ export const createRewardedVideoSlice: StateCreator<GameStore, [], [], Slice> = 
     if (!state.canWatchRewardedVideo()) { if (import.meta.env.DEV) console.warn('[RewardedVideo] Cooldown'); return false }
     if (state.rewardedVideo.isWatching) { if (import.meta.env.DEV) console.warn('[RewardedVideo] Уже идёт'); return false }
 
+    // Server-first: premium action (nuts). No optimistic mutation.
+    if (!api.isOnline()) {
+      console.warn('[RewardedVideo] Cannot watch: not connected to server')
+      // TODO: show user-facing error toast
+      return false
+    }
+
     _set((s: GameState) => ({ rewardedVideo: { ...s.rewardedVideo, isWatching: true } }))
     await new Promise((resolve) => setTimeout(resolve, REWARDED_VIDEO_FAKE_DURATION_MS))
 
-    const now = Date.now()
-    _set((s: GameState) => ({
-      nuts: s.nuts + REWARDED_VIDEO_NUTS,
-      rewardedVideo: { lastWatchedTimestamp: now, totalWatches: s.rewardedVideo.totalWatches + 1, isWatching: false },
-    }))
-    get().saveProgress()
-    if (api.isOnline()) {
-      api.performAction('watch_rewarded_video', {}).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+    const r = await api.performAction('watch_rewarded_video', {})
+    _set((s: GameState) => ({ rewardedVideo: { ...s.rewardedVideo, isWatching: false } }))
+
+    if (r?.gameState) {
+      get().applyServerState(r.gameState)
+      return true
     }
-    return true
+    console.warn('[RewardedVideo] Server rejected watch_rewarded_video')
+    // TODO: show user-facing error toast
+    return false
   },
 })

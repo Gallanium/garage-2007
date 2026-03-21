@@ -6,6 +6,10 @@ import {
   initialState,
   useGameStore,
 } from '../src/store/gameStore'
+import * as api from '../src/services/apiService'
+import { buildMockServerState } from './setup'
+
+const mockPerformAction = vi.mocked(api.performAction)
 
 beforeEach(() => {
   useGameStore.setState({ ...initialState })
@@ -153,12 +157,20 @@ describe('store method: getActiveMultiplier (boost)', () => {
     expect(useGameStore.getState().getActiveMultiplier('click')).toBe(1)
   })
 
-  it('returns the correct multiplier for an active turbo boost (click scope)', () => {
+  it('returns the correct multiplier for an active turbo boost (click scope)', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 20 })
 
-    const success = useGameStore.getState().activateBoost('turbo')
+    const now = Date.now()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: 5,
+        boosts: { active: [{ type: 'turbo', activatedAt: now, expiresAt: now + 900_000 }] },
+      }),
+    })
+    const success = await useGameStore.getState().activateBoost('turbo')
     expect(success).toBe(true)
     expect(useGameStore.getState().getActiveMultiplier('click')).toBeGreaterThan(1)
     expect(useGameStore.getState().getActiveMultiplier('income')).toBe(1)
@@ -178,12 +190,20 @@ describe('store method: getActiveMultiplier (boost)', () => {
     expect(useGameStore.getState().getActiveMultiplier('click')).toBe(2)
   })
 
-  it('returns 1 after boost expires and tickBoosts is called', () => {
+  it('returns 1 after boost expires and tickBoosts is called', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 20 })
 
-    useGameStore.getState().activateBoost('turbo')
+    const now = Date.now()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: 5,
+        boosts: { active: [{ type: 'turbo', activatedAt: now, expiresAt: now + 900_000 }] },
+      }),
+    })
+    await useGameStore.getState().activateBoost('turbo')
     expect(useGameStore.getState().getActiveMultiplier('click')).toBeGreaterThan(1)
 
     vi.advanceTimersByTime(100 * 60 * 1000) // advance 100 minutes
@@ -307,21 +327,32 @@ describe('store method: getEventMultiplier', () => {
     expect(useGameStore.getState().getEventMultiplier('click')).toBe(1)
   })
 
-  it('returns the event multiplier for the correct scope after triggering an event', () => {
+  it('returns the event multiplier for the correct scope after triggering an event', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0)   // pick first event (client_rush)
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0.5)
-      .mockReturnValueOnce(0)
+
+    const now = Date.now()
+    let resolvePromise: (v: unknown) => void
+    const promise = new Promise(r => { resolvePromise = r })
+    mockPerformAction.mockReturnValueOnce(promise as ReturnType<typeof api.performAction>)
 
     const triggered = useGameStore.getState().triggerRandomEvent()
     expect(triggered).toBe(true)
 
+    resolvePromise!({
+      success: true,
+      gameState: buildMockServerState({
+        events: {
+          activeEvent: { id: 'client_rush', activatedAt: now, expiresAt: now + 60_000, eventSeed: 123 },
+          cooldownEnd: now + 180_000,
+        },
+      }),
+    })
+
+    await vi.advanceTimersByTimeAsync(0)
+
     const incomeMultiplier = useGameStore.getState().getEventMultiplier('income')
     const clickMultiplier = useGameStore.getState().getEventMultiplier('click')
-    // client_rush is a positive income event, so income > 1, click = 1
     expect(incomeMultiplier).toBeGreaterThan(1)
     expect(clickMultiplier).toBe(1)
   })
@@ -329,13 +360,15 @@ describe('store method: getEventMultiplier', () => {
   it('returns 1 after the event expires and tickEvents is called', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0.5)
-      .mockReturnValueOnce(0)
 
-    useGameStore.getState().triggerRandomEvent()
+    // Set up event via setState (already-active event, no need to trigger)
+    const now = Date.now()
+    useGameStore.setState({
+      events: {
+        activeEvent: { id: 'client_rush', activatedAt: now, expiresAt: now + 60_000, eventSeed: 0 },
+        cooldownEnd: now + 180_000,
+      },
+    })
     expect(useGameStore.getState().getEventMultiplier('income')).toBeGreaterThan(1)
 
     vi.advanceTimersByTime(60 * 60 * 1000) // advance 1 hour

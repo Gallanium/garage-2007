@@ -1,8 +1,9 @@
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../utils/prisma.js'
 import { AppError } from '../middleware/errorHandler.js'
-import { createInvoiceLink, answerPreCheckoutQuery } from './telegramBotService.js'
-import { logBalanceChange } from './auditService.js'
+import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
+import { createInvoiceLink, answerPreCheckoutQuery, refundStarPayment } from './telegramBotService.js'
+import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { logger } from '../utils/logger.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS } from '@shared/constants/purchase.js'
@@ -30,13 +31,14 @@ export async function createStarsInvoice(packId: NutsPackId, userId: number): Pr
 interface InvoicePayload {
   packId: NutsPackId
   idempotencyKey: string
-  userId?: number
+  userId: number
 }
 
 function parsePayload(payloadStr: string): InvoicePayload | null {
   try {
     const parsed = JSON.parse(payloadStr) as InvoicePayload
     if (!parsed.packId || !parsed.idempotencyKey) return null
+    if (typeof parsed.userId !== 'number') return null
     return parsed
   } catch {
     return null
@@ -46,11 +48,42 @@ function parsePayload(payloadStr: string): InvoicePayload | null {
 export async function handlePreCheckoutQuery(
   queryId: string,
   invoicePayload: string,
+  senderTgId: number,
+  totalAmount?: number,
+  currency?: string,
 ): Promise<void> {
   const payload = parsePayload(invoicePayload)
 
   if (!payload || !NUTS_PACKS[payload.packId]) {
     await answerPreCheckoutQuery(queryId, false, 'Invalid purchase data')
+    return
+  }
+
+  const pack = NUTS_PACKS[payload.packId]
+
+  // Validate currency is Telegram Stars
+  if (currency !== undefined && currency !== 'XTR') {
+    logger.warn({ queryId, currency }, 'Pre-checkout: unexpected currency')
+    await answerPreCheckoutQuery(queryId, false, 'Invalid currency')
+    return
+  }
+
+  // Validate total_amount matches expected pack price
+  if (totalAmount !== undefined && totalAmount !== pack.stars) {
+    logger.warn({ queryId, totalAmount, expectedStars: pack.stars }, 'Pre-checkout: amount mismatch')
+    await answerPreCheckoutQuery(queryId, false, 'Amount mismatch')
+    return
+  }
+
+  // Verify sender matches invoice owner
+  const user = await prisma.user.findUnique({
+    where: { telegramId: BigInt(senderTgId) },
+    select: { id: true },
+  })
+
+  if (!user || user.id !== payload.userId) {
+    logger.warn({ queryId, senderTgId, payloadUserId: payload.userId }, 'Pre-checkout: payment user mismatch')
+    await answerPreCheckoutQuery(queryId, false, 'Payment user mismatch')
     return
   }
 
@@ -96,18 +129,33 @@ export async function processSuccessfulPayment(
   }
 
   // Cross-check: invoice was created for this user
-  if (payload.userId !== undefined && payload.userId !== user.id) {
-    logger.error({ payloadUserId: payload.userId, actualUserId: user.id }, 'Invoice userId mismatch — possible payment fraud')
+  if (payload.userId !== user.id) {
+    logger.error({ payloadUserId: payload.userId, actualUserId: user.id, senderTgId, chargeId: telegramPaymentChargeId }, 'Invoice userId mismatch — initiating refund')
+    logSuspiciousActivity({
+      userId: user.id,
+      reason: 'payment_user_mismatch',
+      details: { payloadUserId: payload.userId, actualUserId: user.id, senderTgId, telegramPaymentChargeId },
+    })
+    try {
+      await refundStarPayment(senderTgId, telegramPaymentChargeId)
+      logger.info({ senderTgId, telegramPaymentChargeId }, 'Refund issued for userId mismatch')
+    } catch (refundErr) {
+      logger.error({ senderTgId, telegramPaymentChargeId, error: refundErr }, 'Failed to issue refund for userId mismatch')
+    }
     return
   }
 
   const userId = user.id
-  const nutsBefore = user.gameSave.nuts
-  const nutsAfter = nutsBefore + pack.nuts
 
-  // Prisma transaction: create Transaction + credit nuts + BalanceLog
-  await prisma.$transaction([
-    prisma.transaction.create({
+  // Interactive transaction with OCC: read fresh gameSave, version-check the update
+  const { nutsBefore, nutsAfter } = await withOccRetry(() => prisma.$transaction(async (tx) => {
+    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    const before = gs.nuts
+    const after = before + pack.nuts
+
+    await tx.transaction.create({
       data: {
         userId,
         telegramPaymentId: telegramPaymentChargeId,
@@ -117,24 +165,25 @@ export async function processSuccessfulPayment(
         status: 'completed',
         idempotencyKey: payload.idempotencyKey,
       },
-    }),
-    prisma.gameSave.update({
-      where: { userId },
-      data: { nuts: { increment: pack.nuts } },
-    }),
-    prisma.balanceLog.create({
+    })
+
+    await updateGameSaveWithLock(tx, userId, gs, { nuts: after })
+
+    await tx.balanceLog.create({
       data: {
         userId,
         actionType: 'stars_purchase',
         currency: 'nuts',
         amount: pack.nuts,
-        balanceBefore: nutsBefore,
-        balanceAfter: nutsAfter,
+        balanceBefore: before,
+        balanceAfter: after,
         metadata: { packId: payload.packId, starsAmount: pack.stars, telegramPaymentChargeId },
         idempotencyKey: payload.idempotencyKey,
       },
-    }),
-  ])
+    })
+
+    return { nutsBefore: before, nutsAfter: after }
+  }))
 
   logBalanceChange({
     userId,

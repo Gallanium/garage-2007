@@ -3,13 +3,24 @@ import { logger } from '../utils/logger.js'
 
 const BOT_API_BASE = 'https://api.telegram.org/bot'
 
-async function callBotApi(method: string, params: Record<string, unknown>): Promise<unknown> {
+/** Default timeout for Bot API calls (8 seconds) */
+const DEFAULT_TIMEOUT_MS = 8_000
+
+/** Stricter timeout for answerPreCheckoutQuery (Telegram waits max 10s) */
+const PRECHECKOUT_TIMEOUT_MS = 5_000
+
+async function callBotApi(
+  method: string,
+  params: Record<string, unknown>,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<unknown> {
   const url = `${BOT_API_BASE}${env.BOT_TOKEN}/${method}`
 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
+    signal: AbortSignal.timeout(timeoutMs),
   })
 
   const data = await res.json() as { ok: boolean; result?: unknown; description?: string }
@@ -42,7 +53,7 @@ export async function answerPreCheckoutQuery(
     pre_checkout_query_id: preCheckoutQueryId,
     ok,
     ...(errorMessage ? { error_message: errorMessage } : {}),
-  })
+  }, PRECHECKOUT_TIMEOUT_MS)
 }
 
 export async function refundStarPayment(

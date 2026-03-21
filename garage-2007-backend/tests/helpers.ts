@@ -27,7 +27,7 @@ export function createValidInitData(
   overrides?: { authDate?: number; queryId?: string },
 ): string {
   const authDate = overrides?.authDate ?? Math.floor(Date.now() / 1000)
-  const queryId = overrides?.queryId ?? 'test_query_id_123'
+  const queryId = overrides?.queryId ?? `test_query_id_${crypto.randomUUID()}`
 
   const params = new URLSearchParams()
   params.set('query_id', queryId)
@@ -213,7 +213,7 @@ export function createAuthHeader(token: string): Record<string, string> {
 
 // ── Webhook payload helpers ──────────────────────────────────────────────────
 
-export function createPreCheckoutPayload(userId: number, packId: string) {
+export function createPreCheckoutPayload(userId: number, packId: string, dbUserId: number = 1) {
   return {
     update_id: 1,
     pre_checkout_query: {
@@ -221,7 +221,7 @@ export function createPreCheckoutPayload(userId: number, packId: string) {
       from: { id: userId, is_bot: false, first_name: 'Test' },
       currency: 'XTR',
       total_amount: 50,
-      invoice_payload: JSON.stringify({ packId, idempotencyKey: 'test-uuid-1' }),
+      invoice_payload: JSON.stringify({ packId, idempotencyKey: 'test-uuid-1', userId: dbUserId }),
     },
   }
 }
@@ -230,6 +230,7 @@ export function createSuccessfulPaymentPayload(
   userId: number,
   packId: string,
   telegramPaymentChargeId: string = 'charge_123',
+  dbUserId: number = 1,
 ) {
   return {
     update_id: 2,
@@ -241,7 +242,7 @@ export function createSuccessfulPaymentPayload(
       successful_payment: {
         currency: 'XTR',
         total_amount: 50,
-        invoice_payload: JSON.stringify({ packId, idempotencyKey: 'test-uuid-1' }),
+        invoice_payload: JSON.stringify({ packId, idempotencyKey: 'test-uuid-1', userId: dbUserId }),
         telegram_payment_charge_id: telegramPaymentChargeId,
         provider_payment_charge_id: 'provider_123',
       },

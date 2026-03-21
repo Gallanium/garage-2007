@@ -1,7 +1,7 @@
 // src/store/actions/dailyRewardActions.ts
 import type { StateCreator } from 'zustand'
-import type { GameStore, GameState } from '../types'
-import { DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS } from '../constants/dailyRewards'
+import type { GameStore } from '../types'
+import { DAILY_STREAK_GRACE_PERIOD_MS } from '../constants/dailyRewards'
 import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore,
@@ -29,7 +29,7 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
     _set({ showDailyRewardsModal: true })
   },
 
-  claimDailyReward: () => {
+  claimDailyReward: async () => {
     const state = get()
     const now = Date.now()
     if (
@@ -37,21 +37,23 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
       now - state.dailyRewards.lastClaimTimestamp < DAILY_STREAK_GRACE_PERIOD_MS
     ) {
       const h = Math.ceil((DAILY_STREAK_GRACE_PERIOD_MS - (now - state.dailyRewards.lastClaimTimestamp)) / 3600000)
-      if (import.meta.env.DEV) console.warn(`[Daily] ⛔ Следующая через ${h} ч`)
+      if (import.meta.env.DEV) console.warn(`[Daily] Следующая через ${h} ч`)
       return
     }
-    const reward = DAILY_REWARDS[state.dailyRewards.currentStreak % 7]
-    const newStreak = state.dailyRewards.currentStreak + 1
-    _set((s: GameState) => ({
-      nuts: s.nuts + reward,
-      dailyRewards: { lastClaimTimestamp: now, currentStreak: newStreak },
-      bestStreak: Math.max(s.bestStreak, newStreak),
-    }))
-    get().saveProgress()
-    if (api.isOnline()) {
-      api.performAction('claim_daily_reward', {}).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+
+    // Server-first: premium action (nuts). No optimistic mutation.
+    if (!api.isOnline()) {
+      console.warn('[Daily] Cannot claim: not connected to server')
+      // TODO: show user-facing error toast
+      return
+    }
+
+    const r = await api.performAction('claim_daily_reward', {})
+    if (r?.gameState) {
+      get().applyServerState(r.gameState)
+    } else {
+      console.warn('[Daily] Server rejected claim_daily_reward')
+      // TODO: show user-facing error toast
     }
   },
 

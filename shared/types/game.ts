@@ -215,6 +215,8 @@ export interface GameState {
   decorations: DecorationsState
   /** Clicks accumulated since last server sync (frontend-only buffer) */
   _pendingClickBuffer: PendingClick[]
+  /** Server connection error — auth or loadState failed */
+  serverError: boolean
 }
 
 // ── Persistence types ────────────────────────────────────────────────────────
