@@ -6,8 +6,14 @@ import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseDecoration' | 'toggleDecoration'>
 
+// Concurrency guard — prevent double-fire from mobile tap events
+let _decorationPending = false
+
 export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   purchaseDecoration: async (id: string): Promise<boolean> => {
+    if (_decorationPending) return false
+    _decorationPending = true
+    try {
     const state = get()
     const def = DECORATION_CATALOG[id]
     if (!def) return false
@@ -73,6 +79,7 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       }
     }
     return true
+    } finally { _decorationPending = false }
   },
 
   toggleDecoration: (id: string): void => {

@@ -9,8 +9,15 @@ import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseClickUpgrade' | 'purchaseWorkSpeedUpgrade'>
 
+// Concurrency guards — prevent double-fire from mobile tap events
+let _clickUpgradePending = false
+let _workSpeedUpgradePending = false
+
 export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   purchaseClickUpgrade: async () => {
+    if (_clickUpgradePending) return false
+    _clickUpgradePending = true
+    try {
     const state = get()
     const { balance, upgrades } = state
     const { clickPower } = upgrades
@@ -55,9 +62,13 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       }
     }
     return true
+    } finally { _clickUpgradePending = false }
   },
 
   purchaseWorkSpeedUpgrade: async () => {
+    if (_workSpeedUpgradePending) return false
+    _workSpeedUpgradePending = true
+    try {
     const state = get()
     const { workSpeed } = state.upgrades
     if (!state.milestonesPurchased.includes(5)) {
@@ -100,5 +111,6 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         get().applyServerState(r.gameState)
       }
     }
+    } finally { _workSpeedUpgradePending = false }
   },
 })

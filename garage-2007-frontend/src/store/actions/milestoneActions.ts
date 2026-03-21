@@ -8,8 +8,14 @@ import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'purchaseMilestone' | 'checkForMilestone' | 'closeMilestoneModal'>
 
+// Concurrency guard — prevent double-fire from mobile tap events
+let _milestonePending = false
+
 export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   purchaseMilestone: async (level: number) => {
+    if (_milestonePending) return false
+    _milestonePending = true
+    try {
     const state = get()
     const { balance, milestonesPurchased } = state
     const upgrade = MILESTONE_UPGRADES[level as MilestoneLevel]
@@ -57,6 +63,7 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
       }
     }
     return true
+    } finally { _milestonePending = false }
   },
 
   checkForMilestone: () => {

@@ -9,8 +9,14 @@ import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore, 'hireWorker'>
 
+// Concurrency guard — prevent double-fire from mobile tap events
+const _hireWorkerPending = new Set<string>()
+
 export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   hireWorker: async (workerType: WorkerType) => {
+    if (_hireWorkerPending.has(workerType)) return
+    _hireWorkerPending.add(workerType)
+    try {
     const state = get()
     const worker = state.workers[workerType]
     const limit = WORKER_LIMITS[workerType]
@@ -71,5 +77,6 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
         get().applyServerState(r.gameState)
       }
     }
+    } finally { _hireWorkerPending.delete(workerType) }
   },
 })
