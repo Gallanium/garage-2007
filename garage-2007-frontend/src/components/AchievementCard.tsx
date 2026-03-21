@@ -61,9 +61,9 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
   // ═══ UNLOCKED (разблокировано, можно забрать) ═══
   if (unlocked) {
     return (
-      <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg border border-orange-700/60 p-3">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-orange-700/40 p-3">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-lg flex-shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
             {icon}
           </div>
           <div className="flex-1 min-w-0">

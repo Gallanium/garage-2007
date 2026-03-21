@@ -47,7 +47,7 @@ const AchievementsPanel: React.FC = () => {
     <div className="flex flex-col gap-3 p-3 overflow-y-auto h-full">
 
       {/* ======== Компактная шапка: прогресс + награды ======== */}
-      <section className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-orange-700/40 p-3">
+      <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
         <div className="flex items-center justify-between gap-3">
 
           {/* Левая часть: прогресс */}

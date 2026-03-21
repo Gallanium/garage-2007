@@ -70,9 +70,9 @@ const StatsPanel: React.FC = () => {
       </section>
 
       {/* ======== Уровень гаража ======== */}
-      <section className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg border border-orange-700/60 p-3">
+      <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-orange-600
+          <div className="w-10 h-10 rounded-lg bg-orange-700
                           flex items-center justify-center flex-shrink-0">
             <span className="text-xl">🏗️</span>
           </div>
@@ -91,7 +91,7 @@ const StatsPanel: React.FC = () => {
         <div className="grid grid-cols-1 gap-2">
 
           {/* Общее число кликов */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
@@ -106,7 +106,7 @@ const StatsPanel: React.FC = () => {
           </div>
 
           {/* Рекорд моментального дохода */}
-          <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg border border-orange-700/60 p-3">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
@@ -124,7 +124,7 @@ const StatsPanel: React.FC = () => {
           </div>
 
           {/* Время в игре */}
-          <div className="bg-gradient-to-br from-green-950/80 to-emerald-950/60 rounded-lg border border-green-700/60 p-3">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
@@ -139,7 +139,7 @@ const StatsPanel: React.FC = () => {
           </div>
 
           {/* Всего заработано */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
@@ -157,7 +157,7 @@ const StatsPanel: React.FC = () => {
           </div>
 
           {/* Количество сессий */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
@@ -172,7 +172,7 @@ const StatsPanel: React.FC = () => {
           </div>
 
           {/* Самая длинная серия */}
-          <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg border border-orange-700/60 p-3">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">

@@ -7,27 +7,22 @@ import { formatLargeNumber } from '../store/gameStore'
 
 const CARD_THEMES = {
   orange: {
-    card: 'from-orange-950/80 to-amber-950/60 border-orange-700/60',
     icon: 'bg-orange-700',
     btn: 'from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400',
   },
   purple: {
-    card: 'from-purple-950/80 to-violet-950/60 border-purple-700/60',
     icon: 'bg-purple-700',
     btn: 'from-purple-700 to-violet-600 hover:from-purple-600 hover:to-violet-500',
   },
   blue: {
-    card: 'from-blue-950/80 to-cyan-950/60 border-blue-700/60',
     icon: 'bg-blue-700',
     btn: 'from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500',
   },
   green: {
-    card: 'from-green-950/80 to-emerald-950/60 border-green-700/60',
     icon: 'bg-green-700',
     btn: 'from-green-700 to-emerald-600 hover:from-green-600 hover:to-emerald-500',
   },
   neutral: {
-    card: 'from-gray-900/80 to-gray-800/60 border-gray-700/40',
     icon: 'bg-gray-700',
     btn: 'from-gray-600 to-gray-500 hover:from-gray-500 hover:to-gray-400',
   },
@@ -85,7 +80,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
   return (
     <div
       className={`
-        bg-gradient-to-br ${theme.card} rounded-lg border p-3
+        bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3
         ${!isMaxed && !canAfford ? 'opacity-50' : ''}
       `}
     >

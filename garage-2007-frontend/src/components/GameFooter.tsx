@@ -63,12 +63,12 @@ export function GameFooter() {
   const resetGame = useGameStore((s) => s.resetGame)
 
   return (
-    <footer className="flex-shrink-0 bg-gray-950 border-t-2 border-orange-700/70 shadow-2xl shadow-orange-900/30">
+    <footer className="flex-shrink-0 bg-gray-900 border-t-2 border-orange-700/70 shadow-2xl shadow-orange-900/30">
 
       <div className="grid grid-cols-3 gap-1.5 p-3">
 
         {/* Доход за клик */}
-        <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg p-2 border border-orange-700/60">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-2 border border-gray-700/50">
           <p className="text-game-xs text-gray-400 mb-1 font-mono uppercase">За клик</p>
           <div className="flex items-baseline gap-0.5">
             {(() => {
@@ -84,7 +84,7 @@ export function GameFooter() {
         </div>
 
         {/* Моментальный доход */}
-        <div className="bg-gradient-to-br from-blue-950/80 to-cyan-950/60 rounded-lg p-2 border border-blue-700/60">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-2 border border-gray-700/50">
           <p className="text-game-xs text-gray-400 mb-1 font-mono uppercase">Момент.</p>
           <div className="flex items-baseline gap-0.5">
             <p className="text-base font-bold text-blue-300 font-mono">
@@ -95,7 +95,7 @@ export function GameFooter() {
         </div>
 
         {/* Пассивный доход */}
-        <div className="bg-gradient-to-br from-green-950/80 to-emerald-950/60 rounded-lg p-2 border border-green-700/60">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-2 border border-gray-700/50">
           <p className="text-game-xs text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
           <div className="flex items-baseline gap-0.5">
             {(() => {

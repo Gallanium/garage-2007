@@ -71,7 +71,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   // State: owned + active
   if (isOwned && isActive) {
     return (
-      <div className="bg-gradient-to-br from-green-950/80 to-emerald-950/60 rounded-lg border border-green-700/60 p-3">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-green-700/40 p-3">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
             {def.icon}
@@ -156,9 +156,9 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
 
   // State: available and can afford
   return (
-    <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg border border-orange-700/60 p-3">
+    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-lg flex-shrink-0">
+        <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
           {def.icon}
         </div>
         <div className="flex-1 min-w-0">

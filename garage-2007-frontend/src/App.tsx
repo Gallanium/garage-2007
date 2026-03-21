@@ -97,7 +97,7 @@ function App() {
 
   if (serverError) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 gap-4 px-4">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 gap-4 px-4">
         <h1 className="text-xl font-bold text-garage-yellow font-mono">
           ГАРАЖ 2007
         </h1>
@@ -120,7 +120,7 @@ function App() {
 
   if (!isLoaded) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 gap-4">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 gap-4">
         <h1 className="text-xl font-bold text-garage-yellow font-mono">
           ГАРАЖ 2007
         </h1>
@@ -139,14 +139,14 @@ function App() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-gray-950 text-white overflow-y-auto"
+      className="flex flex-col h-screen bg-gray-900 text-white overflow-y-auto"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
     >
 
       <GameHeader />
 
       {/* Навигация табов */}
-      <div className="px-2 pt-2 bg-gray-950">
+      <div className="px-2 pt-2 bg-gray-900">
         <TabNavigation
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -174,19 +174,19 @@ function App() {
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-950 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <UpgradesPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-950 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <AchievementsPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-950 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <StatsPanel />
         </div>

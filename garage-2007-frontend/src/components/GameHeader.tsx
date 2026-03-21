@@ -12,7 +12,7 @@ export function GameHeader() {
 
   return (
   <>
-    <header className="relative p-3 bg-gray-950 border-b-2 border-orange-700/70 shadow-2xl shadow-orange-900/30 z-10">
+    <header className="relative p-3 bg-gray-900 border-b-2 border-orange-700/70 shadow-2xl shadow-orange-900/30 z-10">
 
       <div className="flex justify-between items-center">
         {/* Левая часть: Баланс */}

@@ -76,10 +76,10 @@ interface DayCardProps {
 const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state }) => {
   const base = 'rounded-lg p-1.5 text-center font-mono'
   const styles: Record<DayCardState, string> = {
-    claimed: 'bg-gradient-to-br from-green-950/80 to-emerald-950/60 border border-green-700/60',
-    current: 'bg-gradient-to-br from-green-950/80 to-emerald-950/60 border-2 border-green-500/70',
-    next: 'bg-gradient-to-br from-orange-950/80 to-amber-950/60 border-2 border-orange-500/70',
-    future: 'bg-gradient-to-br from-gray-900/60 to-gray-800/40 border border-gray-700/40 opacity-50',
+    claimed: 'bg-gray-800 border border-green-700/40',
+    current: 'bg-gray-800 border-2 border-green-500/60',
+    next: 'bg-gray-800 border-2 border-orange-500/60',
+    future: 'bg-gray-800/60 border border-gray-700/40 opacity-50',
     weekDone: 'bg-gray-900/40 border border-gray-700/30 opacity-40',
   }
   const isClaimed = state === 'claimed' || state === 'current'
