@@ -28,14 +28,24 @@ export async function handleWebhook(req: Request, res: Response): Promise<void> 
     const query = update.pre_checkout_query as Record<string, unknown>
     const queryId = query.id
     const invoicePayload = query.invoice_payload
+    const from = query.from as Record<string, unknown> | undefined
+    const senderId = from?.id
+    const totalAmount = query.total_amount
+    const currency = query.currency
 
-    if (typeof queryId !== 'string' || typeof invoicePayload !== 'string') {
-      logger.warn({ update: 'pre_checkout_query' }, 'Malformed pre_checkout_query — missing id or invoice_payload')
+    if (typeof queryId !== 'string' || typeof invoicePayload !== 'string' || typeof senderId !== 'number') {
+      logger.warn({ update: 'pre_checkout_query' }, 'Malformed pre_checkout_query — missing id, invoice_payload, or from.id')
       res.status(200).send()
       return
     }
 
-    await handlePreCheckoutQuery(queryId, invoicePayload)
+    await handlePreCheckoutQuery(
+      queryId,
+      invoicePayload,
+      senderId,
+      typeof totalAmount === 'number' ? totalAmount : undefined,
+      typeof currency === 'string' ? currency : undefined,
+    )
     res.status(200).send()
     return
   }

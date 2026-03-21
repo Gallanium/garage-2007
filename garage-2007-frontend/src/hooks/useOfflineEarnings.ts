@@ -25,7 +25,6 @@ export function useOfflineEarnings(): UseOfflineEarningsReturn {
   const isLoaded = useIsLoaded()
   const offlineEarnings = useLastOfflineEarnings()
   const offlineTime = useLastOfflineTimeAway()
-  const addOfflineEarnings = useGameStore((s) => s.addOfflineEarnings)
   const clearOfflineEarnings = useGameStore((s) => s.clearOfflineEarnings)
 
   useEffect(() => {
@@ -41,9 +40,7 @@ export function useOfflineEarnings(): UseOfflineEarningsReturn {
   }, [isLoaded, offlineEarnings, offlineTime])
 
   const handleWelcomeBackClose = () => {
-    if (offlineEarnings > 0) {
-      addOfflineEarnings(offlineEarnings)
-    }
+    // Server already credited offline earnings in loadState(). Modal only shows the amount.
     setShowWelcomeBack(false)
     clearOfflineEarnings()
   }

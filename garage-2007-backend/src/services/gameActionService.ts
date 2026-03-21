@@ -22,8 +22,9 @@ import {
   purchaseDecorationPayload, toggleDecorationPayload,
   activateBoostPayload, replaceBoostPayload, claimAchievementPayload,
 } from '../validation/gameSchemas.js'
-import type { GameSave } from '@prisma/client'
+import { Prisma, type GameSave } from '@prisma/client'
 import type { BoostType, AchievementId, AchievementProgressField, WorkerType, EventCategory } from '@shared/types/game.js'
+import { logger } from '../utils/logger.js'
 
 // ── Internal Types ──────────────────────────────────────────────────────────
 
@@ -81,8 +82,8 @@ function getBoostMultiplier(boosts: ParsedBoosts, scope: 'income' | 'click'): nu
     if (b.expiresAt <= now) continue
     const def = BOOST_DEFINITIONS[b.type as BoostType]
     if (!def) continue
-    // income_2x, income_3x affect 'income' scope; turbo affects 'click' scope
-    if (scope === 'income' && (b.type === 'income_2x' || b.type === 'income_3x')) {
+    // income_2x, income_3x apply to both income and click scopes; turbo affects 'click' scope only
+    if (b.type === 'income_2x' || b.type === 'income_3x') {
       mult *= def.multiplier
     } else if (scope === 'click' && b.type === 'turbo') {
       mult *= def.multiplier
@@ -143,6 +144,55 @@ function weightedRandomPick<T extends { weight: number }>(items: T[]): T {
   return items[items.length - 1]
 }
 
+// ── Optimistic Locking Helper ────────────────────────────────────────────────
+
+const OCC_MAX_RETRIES = 3
+
+type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
+/**
+ * Optimistic-lock update on GameSave via `updateMany` with version check.
+ * Returns the updated GameSave by merging data into the original record.
+ * Throws AppError on version conflict (caller retries via withOccRetry).
+ */
+async function updateGameSaveWithLock(
+  tx: TxClient,
+  userId: number,
+  gs: GameSave,
+  data: Record<string, unknown>,
+): Promise<GameSave> {
+  const result = await tx.gameSave.updateMany({
+    where: { userId, version: gs.version },
+    data: { ...data, version: gs.version + 1 },
+  })
+
+  if (result.count === 0) {
+    throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — retry')
+  }
+
+  // Return merged result (avoids second read)
+  return { ...gs, ...data, version: gs.version + 1 } as GameSave
+}
+
+/**
+ * Execute a transactional operation with optimistic lock retry.
+ * On VERSION_CONFLICT, retries up to OCC_MAX_RETRIES times.
+ */
+async function withOccRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt < OCC_MAX_RETRIES; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (err instanceof AppError && err.code === 'VERSION_CONFLICT' && attempt < OCC_MAX_RETRIES - 1) {
+        logger.warn({ attempt: attempt + 1 }, 'OCC version conflict, retrying')
+        continue
+      }
+      throw err
+    }
+  }
+  throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — max retries exceeded')
+}
+
 // ── processSync ─────────────────────────────────────────────────────────────
 
 export async function processSync(
@@ -156,7 +206,7 @@ export async function processSync(
     detectTimingAnomaly(userId, clientTimestamp)
   }
 
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
@@ -262,26 +312,22 @@ export async function processSync(
       await tx.balanceLog.createMany({ data: logEntries })
     }
 
-    // Update GameSave
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        balance: newBalance,
-        totalEarned: newTotalEarned,
-        totalClicks: newTotalClicks,
-        totalPlayTimeSeconds: newPlayTime,
-        peakClickIncome: newPeakClickIncome,
-        garageLevel: newLevel,
-        boosts: tickedBoosts as object,
-        events: tickedEvents as object,
-        lastSyncAt: new Date(),
-        gameDataSnapshot: undefined,
-        version: { increment: 1 },
-      },
+    // Update GameSave with optimistic lock
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      balance: newBalance,
+      totalEarned: newTotalEarned,
+      totalClicks: newTotalClicks,
+      totalPlayTimeSeconds: newPlayTime,
+      peakClickIncome: newPeakClickIncome,
+      garageLevel: newLevel,
+      boosts: tickedBoosts as object,
+      events: tickedEvents as object,
+      lastSyncAt: new Date(),
+      gameDataSnapshot: Prisma.DbNull,
     })
 
     return { gameState: buildGameState(updated), serverTime: Date.now() }
-  })
+  }))
 }
 
 // ── processAction ───────────────────────────────────────────────────────────
@@ -325,7 +371,7 @@ async function handlePurchaseUpgrade(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { upgradeType } = purchaseUpgradePayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -353,14 +399,10 @@ async function handlePurchaseUpgrade(
     const baseCost = upgradeType === 'clickPower' ? BASE_COSTS.clickUpgrade : BASE_COSTS.workSpeed
     const newCost = calculateUpgradeCost(baseCost, newLevel)
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        balance: newBalance,
-        [levelField]: newLevel,
-        [costField]: newCost,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      balance: newBalance,
+      [levelField]: newLevel,
+      [costField]: newCost,
     })
 
     await tx.balanceLog.create({
@@ -376,7 +418,7 @@ async function handlePurchaseUpgrade(
       gameState: buildGameState(updated),
       actionResult: { upgradeType, level: newLevel, cost: finalCost },
     }
-  })
+  }))
 }
 
 // ── 2. hire_worker ──────────────────────────────────────────────────────────
@@ -386,7 +428,7 @@ async function handleHireWorker(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { workerType } = hireWorkerPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -418,14 +460,10 @@ async function handleHireWorker(
     const baseCost = BASE_COSTS[workerType as keyof typeof BASE_COSTS]
     const newCost = calculateWorkerCost(baseCost, newCount)
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        balance: newBalance,
-        [countKey as string]: newCount,
-        [costKey as string]: newCost,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      balance: newBalance,
+      [countKey as string]: newCount,
+      [costKey as string]: newCost,
     })
 
     await tx.balanceLog.create({
@@ -441,7 +479,7 @@ async function handleHireWorker(
       gameState: buildGameState(updated),
       actionResult: { workerType, count: newCount, cost: finalCost },
     }
-  })
+  }))
 }
 
 // ── 3. purchase_milestone ───────────────────────────────────────────────────
@@ -451,7 +489,7 @@ async function handlePurchaseMilestone(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { level } = purchaseMilestonePayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -473,14 +511,10 @@ async function handlePurchaseMilestone(
     const newMilestones = [...gs.milestonesPurchased, level]
     const newLevel = checkAutoLevel(newBalance, gs.garageLevel, newMilestones)
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        balance: newBalance,
-        milestonesPurchased: newMilestones,
-        garageLevel: newLevel,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      balance: newBalance,
+      milestonesPurchased: newMilestones,
+      garageLevel: newLevel,
     })
 
     await tx.balanceLog.create({
@@ -496,7 +530,7 @@ async function handlePurchaseMilestone(
       gameState: buildGameState(updated),
       actionResult: { level, cost: milestoneData.cost, garageLevel: newLevel },
     }
-  })
+  }))
 }
 
 // ── 4. purchase_decoration ──────────────────────────────────────────────────
@@ -506,7 +540,7 @@ async function handlePurchaseDecoration(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { decorationId } = purchaseDecorationPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -530,6 +564,8 @@ async function handlePurchaseDecoration(
     })
     newActive.push(decorationId)
 
+    const newDecorationsOwned = [...gs.decorationsOwned, decorationId]
+
     if (currency === 'rubles') {
       if (gs.balance < cost) {
         throw new AppError(400, 'INSUFFICIENT_BALANCE', 'Not enough rubles for this decoration')
@@ -538,14 +574,10 @@ async function handlePurchaseDecoration(
       const newBalance = roundCurrency(gs.balance - cost)
       if (newBalance < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
 
-      const updated = await tx.gameSave.update({
-        where: { userId },
-        data: {
-          balance: newBalance,
-          decorationsOwned: { push: decorationId },
-          decorationsActive: newActive,
-          version: { increment: 1 },
-        },
+      const updated = await updateGameSaveWithLock(tx, userId, gs, {
+        balance: newBalance,
+        decorationsOwned: newDecorationsOwned,
+        decorationsActive: newActive,
       })
 
       await tx.balanceLog.create({
@@ -569,14 +601,10 @@ async function handlePurchaseDecoration(
       const newNuts = gs.nuts - cost
       if (newNuts < 0) throw new AppError(500, 'INTERNAL_ERROR', 'Balance calculation error')
 
-      const updated = await tx.gameSave.update({
-        where: { userId },
-        data: {
-          nuts: newNuts,
-          decorationsOwned: { push: decorationId },
-          decorationsActive: newActive,
-          version: { increment: 1 },
-        },
+      const updated = await updateGameSaveWithLock(tx, userId, gs, {
+        nuts: newNuts,
+        decorationsOwned: newDecorationsOwned,
+        decorationsActive: newActive,
       })
 
       await tx.balanceLog.create({
@@ -593,7 +621,7 @@ async function handlePurchaseDecoration(
         actionResult: { decorationId, cost, currency: 'nuts' },
       }
     }
-  })
+  }))
 }
 
 // ── 5. toggle_decoration ────────────────────────────────────────────────────
@@ -602,7 +630,7 @@ async function handleToggleDecoration(
   userId: number,
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { decorationId } = toggleDecorationPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -627,12 +655,8 @@ async function handleToggleDecoration(
       newActive.push(decorationId)
     }
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        decorationsActive: newActive,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      decorationsActive: newActive,
     })
 
     return {
@@ -640,7 +664,7 @@ async function handleToggleDecoration(
       gameState: buildGameState(updated),
       actionResult: { decorationId, active: !isActive },
     }
-  })
+  }))
 }
 
 // ── 6. activate_boost ───────────────────────────────────────────────────────
@@ -650,7 +674,7 @@ async function handleActivateBoost(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { boostType } = activateBoostPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -680,13 +704,9 @@ async function handleActivateBoost(
       ],
     }
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        nuts: newNuts,
-        boosts: newBoosts as object,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      nuts: newNuts,
+      boosts: newBoosts as object,
     })
 
     await tx.balanceLog.create({
@@ -707,7 +727,7 @@ async function handleActivateBoost(
         costNuts: def.costNuts,
       },
     }
-  })
+  }))
 }
 
 // ── 7. replace_boost ────────────────────────────────────────────────────────
@@ -717,7 +737,7 @@ async function handleReplaceBoost(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { boostType } = replaceBoostPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -740,13 +760,9 @@ async function handleReplaceBoost(
       active: [{ type: boostType, activatedAt: now, expiresAt: now + def.durationMs }],
     }
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        nuts: newNuts,
-        boosts: newBoosts as object,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      nuts: newNuts,
+      boosts: newBoosts as object,
     })
 
     await tx.balanceLog.create({
@@ -768,7 +784,7 @@ async function handleReplaceBoost(
         replaced: true,
       },
     }
-  })
+  }))
 }
 
 // ── 8. claim_achievement ────────────────────────────────────────────────────
@@ -778,7 +794,7 @@ async function handleClaimAchievement(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { achievementId } = claimAchievementPayload.parse(payload)
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
@@ -812,13 +828,9 @@ async function handleClaimAchievement(
       },
     }
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        nuts: newNuts,
-        achievements: updatedAchievements,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      nuts: newNuts,
+      achievements: updatedAchievements,
     })
 
     await tx.balanceLog.create({
@@ -834,7 +846,7 @@ async function handleClaimAchievement(
       gameState: buildGameState(updated),
       actionResult: { achievementId, nutsRewarded: def.nutsReward },
     }
-  })
+  }))
 }
 
 // ── 9. claim_daily_reward ───────────────────────────────────────────────────
@@ -843,7 +855,7 @@ async function handleClaimDailyReward(
   userId: number,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
@@ -878,14 +890,10 @@ async function handleClaimDailyReward(
     // Update best streak
     const newBestStreak = Math.max(gs.bestStreak, updatedStreak)
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        nuts: newNuts,
-        dailyRewards: newDailyRewards,
-        bestStreak: newBestStreak,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      nuts: newNuts,
+      dailyRewards: newDailyRewards,
+      bestStreak: newBestStreak,
     })
 
     await tx.balanceLog.create({
@@ -901,7 +909,7 @@ async function handleClaimDailyReward(
       gameState: buildGameState(updated),
       actionResult: { nutsRewarded: reward, streak: updatedStreak, day: rewardIndex },
     }
-  })
+  }))
 }
 
 // ── 10. watch_rewarded_video ────────────────────────────────────────────────
@@ -910,7 +918,7 @@ async function handleWatchRewardedVideo(
   userId: number,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
@@ -929,13 +937,9 @@ async function handleWatchRewardedVideo(
     const newTotalWatches = totalWatches + 1
     const newVideo = { lastWatchedTimestamp: now, totalWatches: newTotalWatches }
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        nuts: newNuts,
-        rewardedVideo: newVideo,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      nuts: newNuts,
+      rewardedVideo: newVideo,
     })
 
     await tx.balanceLog.create({
@@ -951,13 +955,13 @@ async function handleWatchRewardedVideo(
       gameState: buildGameState(updated),
       actionResult: { nutsRewarded: REWARDED_VIDEO_NUTS, totalWatches: newTotalWatches },
     }
-  })
+  }))
 }
 
 // ── 11. trigger_event ───────────────────────────────────────────────────────
 
 async function handleTriggerEvent(userId: number): Promise<ActionResult> {
-  return prisma.$transaction(async (tx) => {
+  return withOccRetry(() => prisma.$transaction(async (tx) => {
     const gs = await tx.gameSave.findUnique({ where: { userId } })
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
@@ -997,12 +1001,8 @@ async function handleTriggerEvent(userId: number): Promise<ActionResult> {
 
     const newEvents: ParsedEvents = { activeEvent, cooldownEnd }
 
-    const updated = await tx.gameSave.update({
-      where: { userId },
-      data: {
-        events: newEvents as object,
-        version: { increment: 1 },
-      },
+    const updated = await updateGameSaveWithLock(tx, userId, gs, {
+      events: newEvents as object,
     })
 
     return {
@@ -1016,5 +1016,5 @@ async function handleTriggerEvent(userId: number): Promise<ActionResult> {
         expiresAt: activeEvent.expiresAt,
       },
     }
-  })
+  }))
 }

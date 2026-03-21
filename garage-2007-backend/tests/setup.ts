@@ -71,6 +71,7 @@ vi.mock('@prisma/client', () => {
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       upsert: vi.fn(),
       delete: vi.fn(),
     },
@@ -103,6 +104,7 @@ vi.mock('@prisma/client', () => {
 
   return {
     PrismaClient: MockPrismaClient,
+    Prisma: { DbNull: Symbol('DbNull') },
     __mockClient: mockPrismaClient,
   }
 })

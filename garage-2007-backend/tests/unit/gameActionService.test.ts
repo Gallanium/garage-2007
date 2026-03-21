@@ -13,20 +13,8 @@ describe('gameActionService — processAction', () => {
     vi.clearAllMocks()
     prisma.balanceLog.findFirst.mockResolvedValue(null) // no idempotency collision
     prisma.balanceLog.create.mockResolvedValue({})
-    // Default update mock: merge data with the gameSave from findUnique
-    prisma.gameSave.update.mockImplementation(async ({ data }: any) => {
-      const currentSave = prisma.gameSave.findUnique.mock.results?.[0]?.value
-      // Await in case it's a promise (mockResolvedValue)
-      const resolved = currentSave instanceof Promise ? await currentSave : currentSave
-      return {
-        ...resolved,
-        ...data,
-        // Handle Prisma increment operations
-        ...(data.version?.increment ? { version: (resolved?.version ?? 7) + data.version.increment } : {}),
-        // Handle Prisma push operations (decorationsOwned)
-        ...(data.decorationsOwned?.push ? { decorationsOwned: [...(resolved?.decorationsOwned ?? []), data.decorationsOwned.push] } : {}),
-      }
-    })
+    // OCC: updateMany returns { count: 1 } (optimistic lock succeeds)
+    prisma.gameSave.updateMany.mockResolvedValue({ count: 1 })
   })
 
   // ── purchase_upgrade ────────────────────────────────────────────────────────

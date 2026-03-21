@@ -192,9 +192,12 @@ export async function performAction(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResponse | null> {
+  // Auto-generate idempotencyKey if not provided.
+  // Key is generated BEFORE fetchWithRetry — same key for all retries.
+  const key = idempotencyKey ?? crypto.randomUUID()
   return apiFetch<ActionResponse>('/game/action', {
     method: 'POST',
-    body: JSON.stringify({ type, payload, idempotencyKey }),
+    body: JSON.stringify({ type, payload, idempotencyKey: key }),
   }, true)
 }
 

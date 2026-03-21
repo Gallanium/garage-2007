@@ -6,7 +6,48 @@ import { roundCurrency } from '@shared/utils/math.js'
 import { BASE_COSTS } from '@shared/constants/economy.js'
 import { logBalanceChange, detectBalanceJump } from './auditService.js'
 import { logger } from '../utils/logger.js'
+import { AppError } from '../middleware/errorHandler.js'
 import type { GameSave } from '@prisma/client'
+
+// ── Optimistic Locking ──────────────────────────────────────────────────────
+
+const OCC_MAX_RETRIES = 3
+
+type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
+async function updateGameSaveWithLock(
+  tx: TxClient,
+  userId: number,
+  gs: GameSave,
+  data: Record<string, unknown>,
+): Promise<GameSave> {
+  const result = await tx.gameSave.updateMany({
+    where: { userId, version: gs.version },
+    data: { ...data, version: gs.version + 1 },
+  })
+
+  if (result.count === 0) {
+    throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — retry')
+  }
+
+  // Return merged result (avoids second read)
+  return { ...gs, ...data, version: gs.version + 1 } as GameSave
+}
+
+async function withOccRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt < OCC_MAX_RETRIES; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (err instanceof AppError && err.code === 'VERSION_CONFLICT' && attempt < OCC_MAX_RETRIES - 1) {
+        logger.warn({ attempt: attempt + 1 }, 'OCC version conflict in loadState, retrying')
+        continue
+      }
+      throw err
+    }
+  }
+  throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — max retries exceeded')
+}
 
 interface WorkersMap {
   [key: string]: { count: number; cost: number }
@@ -110,34 +151,39 @@ export async function loadState(userId: number): Promise<{
   // Auto-level
   const newLevel = checkAutoLevel(updatedBalance, gameSave.garageLevel, gameSave.milestonesPurchased)
 
-  // Update DB
-  const updated = await prisma.gameSave.update({
-    where: { userId },
-    data: {
+  // Update DB with optimistic lock inside a transaction
+  const updated = await withOccRetry(() => prisma.$transaction(async (tx) => {
+    const result = await updateGameSaveWithLock(tx, userId, gameSave, {
       balance: updatedBalance,
       totalEarned: updatedTotalEarned,
       garageLevel: newLevel,
       boosts: boosts as object,
       events: events as object,
       lastSyncAt: new Date(),
-      sessionCount: { increment: 1 },
+      sessionCount: gameSave.sessionCount + 1,
       lastSessionDate: new Date().toISOString().split('T')[0],
-    },
-  })
-
-  // Write BalanceLog + audit log AFTER DB update
-  if (offlineAmount > 0) {
-    await prisma.balanceLog.create({
-      data: {
-        userId,
-        actionType: 'offline_income',
-        currency: 'rubles',
-        amount: offlineAmount,
-        balanceBefore: gameSave.balance,
-        balanceAfter: updatedBalance,
-        metadata: { elapsedSeconds: Math.floor(elapsedSeconds) },
-      },
     })
+
+    // Write BalanceLog inside transaction
+    if (offlineAmount > 0) {
+      await tx.balanceLog.create({
+        data: {
+          userId,
+          actionType: 'offline_income',
+          currency: 'rubles',
+          amount: offlineAmount,
+          balanceBefore: gameSave.balance,
+          balanceAfter: updatedBalance,
+          metadata: { elapsedSeconds: Math.floor(elapsedSeconds) },
+        },
+      })
+    }
+
+    return result
+  }))
+
+  // Audit log AFTER DB update (non-transactional, logging only)
+  if (offlineAmount > 0) {
     logBalanceChange({
       userId,
       actionType: 'offline_income',

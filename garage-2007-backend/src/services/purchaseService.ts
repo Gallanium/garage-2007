@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../utils/prisma.js'
 import { AppError } from '../middleware/errorHandler.js'
-import { createInvoiceLink, answerPreCheckoutQuery } from './telegramBotService.js'
-import { logBalanceChange } from './auditService.js'
+import { createInvoiceLink, answerPreCheckoutQuery, refundStarPayment } from './telegramBotService.js'
+import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { logger } from '../utils/logger.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS } from '@shared/constants/purchase.js'
@@ -46,12 +46,45 @@ function parsePayload(payloadStr: string): InvoicePayload | null {
 export async function handlePreCheckoutQuery(
   queryId: string,
   invoicePayload: string,
+  senderTgId: number,
+  totalAmount?: number,
+  currency?: string,
 ): Promise<void> {
   const payload = parsePayload(invoicePayload)
 
   if (!payload || !NUTS_PACKS[payload.packId]) {
     await answerPreCheckoutQuery(queryId, false, 'Invalid purchase data')
     return
+  }
+
+  const pack = NUTS_PACKS[payload.packId]
+
+  // Validate currency is Telegram Stars
+  if (currency !== undefined && currency !== 'XTR') {
+    logger.warn({ queryId, currency }, 'Pre-checkout: unexpected currency')
+    await answerPreCheckoutQuery(queryId, false, 'Invalid currency')
+    return
+  }
+
+  // Validate total_amount matches expected pack price
+  if (totalAmount !== undefined && totalAmount !== pack.stars) {
+    logger.warn({ queryId, totalAmount, expectedStars: pack.stars }, 'Pre-checkout: amount mismatch')
+    await answerPreCheckoutQuery(queryId, false, 'Amount mismatch')
+    return
+  }
+
+  // Verify sender matches invoice owner
+  if (payload.userId !== undefined) {
+    const user = await prisma.user.findUnique({
+      where: { telegramId: BigInt(senderTgId) },
+      select: { id: true },
+    })
+
+    if (!user || user.id !== payload.userId) {
+      logger.warn({ queryId, senderTgId, payloadUserId: payload.userId }, 'Pre-checkout: payment user mismatch')
+      await answerPreCheckoutQuery(queryId, false, 'Payment user mismatch')
+      return
+    }
   }
 
   // Respond within 10 seconds
@@ -97,7 +130,18 @@ export async function processSuccessfulPayment(
 
   // Cross-check: invoice was created for this user
   if (payload.userId !== undefined && payload.userId !== user.id) {
-    logger.error({ payloadUserId: payload.userId, actualUserId: user.id }, 'Invoice userId mismatch — possible payment fraud')
+    logger.error({ payloadUserId: payload.userId, actualUserId: user.id, senderTgId, chargeId: telegramPaymentChargeId }, 'Invoice userId mismatch — initiating refund')
+    logSuspiciousActivity({
+      userId: user.id,
+      reason: 'payment_user_mismatch',
+      details: { payloadUserId: payload.userId, actualUserId: user.id, senderTgId, telegramPaymentChargeId },
+    })
+    try {
+      await refundStarPayment(senderTgId, telegramPaymentChargeId)
+      logger.info({ senderTgId, telegramPaymentChargeId }, 'Refund issued for userId mismatch')
+    } catch (refundErr) {
+      logger.error({ senderTgId, telegramPaymentChargeId, error: refundErr }, 'Failed to issue refund for userId mismatch')
+    }
     return
   }
 
