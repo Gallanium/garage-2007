@@ -65,9 +65,11 @@ describe('telegramAuthService — validateInitData', () => {
   })
 
   it('tampered data (modified field after signing) returns null', () => {
-    const initData = createValidInitData(DEFAULT_TELEGRAM_USER)
+    const initData = createValidInitData(DEFAULT_TELEGRAM_USER, TEST_BOT_TOKEN, {
+      queryId: 'fixed_query_id_for_tamper_test',
+    })
     // Replace the query_id value to simulate tampering
-    const tampered = initData.replace('test_query_id_123', 'tampered_query_id')
+    const tampered = initData.replace('fixed_query_id_for_tamper_test', 'tampered_query_id')
 
     const result = validateInitData(tampered, TEST_BOT_TOKEN)
     expect(result).toBeNull()

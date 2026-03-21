@@ -1,4 +1,5 @@
 import { auditLogger } from '../utils/logger.js'
+import { getRequestId } from '../utils/requestContext.js'
 
 // ── Core audit functions ────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export function logBalanceChange(params: {
 }): void {
   auditLogger.info({
     event: 'balance_change',
+    requestId: getRequestId(),
     ...params,
   })
 }
@@ -24,6 +26,7 @@ export function logSuspiciousActivity(params: {
 }): void {
   auditLogger.warn({
     event: 'suspicious_activity',
+    requestId: getRequestId(),
     ...params,
   })
 }

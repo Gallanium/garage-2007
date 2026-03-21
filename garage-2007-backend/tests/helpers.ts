@@ -27,7 +27,7 @@ export function createValidInitData(
   overrides?: { authDate?: number; queryId?: string },
 ): string {
   const authDate = overrides?.authDate ?? Math.floor(Date.now() / 1000)
-  const queryId = overrides?.queryId ?? 'test_query_id_123'
+  const queryId = overrides?.queryId ?? `test_query_id_${crypto.randomUUID()}`
 
   const params = new URLSearchParams()
   params.set('query_id', queryId)

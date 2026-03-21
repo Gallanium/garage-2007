@@ -34,6 +34,18 @@ export async function telegramAuth(req: Request, res: Response): Promise<void> {
   })
 
   const isNew = user.createdAt.getTime() === user.updatedAt.getTime()
+
+  // Increment session count on each auth (moved from loadState for idempotency)
+  if (!isNew) {
+    await prisma.gameSave.updateMany({
+      where: { userId: user.id },
+      data: {
+        sessionCount: { increment: 1 },
+        lastSessionDate: new Date().toISOString().split('T')[0],
+      },
+    })
+  }
+
   const token = signToken({ sub: user.id, tgId: tgUser.id })
 
   logger.info({ tgId: tgUser.id, userId: user.id, isNew }, 'auth_success')

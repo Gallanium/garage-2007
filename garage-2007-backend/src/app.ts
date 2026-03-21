@@ -6,6 +6,7 @@ import helmet from 'helmet'
 import pinoHttp from 'pino-http'
 import { env } from './config/env.js'
 import { errorHandler } from './middleware/errorHandler.js'
+import { requestContextMiddleware } from './utils/requestContext.js'
 import healthRoutes from './routes/healthRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import gameRoutes from './routes/gameRoutes.js'
@@ -24,6 +25,9 @@ app.use(cors({
   origin: env.NODE_ENV === 'production' ? [env.FRONTEND_URL] : true,
   credentials: true,
 }))
+
+// Request context (AsyncLocalStorage — requestId for audit logs)
+app.use(requestContextMiddleware as express.RequestHandler)
 
 // Body parsing
 app.use(express.json({ limit: '16kb' }))

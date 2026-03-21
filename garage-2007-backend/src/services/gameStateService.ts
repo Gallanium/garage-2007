@@ -127,8 +127,6 @@ export async function loadState(userId: number): Promise<{
         boosts: boosts as object,
         events: events as object,
         lastSyncAt: new Date(),
-        sessionCount: gameSave.sessionCount + 1,
-        lastSessionDate: new Date().toISOString().split('T')[0],
       })
 
       // Write BalanceLog inside transaction

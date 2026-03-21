@@ -9,6 +9,26 @@ export interface TelegramUser {
   is_premium?: boolean
 }
 
+// ── initData replay protection ──────────────────────────────────────────────
+// In-memory set of recently-used initData hashes. TTL = 120 seconds.
+// Prevents the same initData from being accepted twice within the window.
+
+const REPLAY_TTL_MS = 120_000
+const usedInitDataHashes = new Map<string, number>()
+
+// Periodic cleanup: remove expired entries every 60 seconds
+setInterval(() => {
+  const now = Date.now()
+  for (const [hash, expiry] of usedInitDataHashes) {
+    if (expiry <= now) usedInitDataHashes.delete(hash)
+  }
+}, 60_000).unref()
+
+/** Clear the replay cache (for testing only) */
+export function _resetReplayCache(): void {
+  usedInitDataHashes.clear()
+}
+
 export function validateInitData(initData: string, botToken: string): TelegramUser | null {
   const params = new URLSearchParams(initData)
   const hash = params.get('hash')
@@ -37,6 +57,14 @@ export function validateInitData(initData: string, botToken: string): TelegramUs
   } catch {
     return null
   }
+
+  // Replay protection: reject if the same initData was already used within TTL
+  const initDataHash = crypto.createHash('sha256').update(initData).digest('hex')
+  const now = Date.now()
+  if (usedInitDataHashes.has(initDataHash)) {
+    return null
+  }
+  usedInitDataHashes.set(initDataHash, now + REPLAY_TTL_MS)
 
   const userJson = params.get('user')
   if (!userJson) return null

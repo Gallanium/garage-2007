@@ -111,10 +111,14 @@ vi.mock('@prisma/client', () => {
 })
 
 // ── Global hooks ─────────────────────────────────────────────────────────────
-beforeEach(() => {
+beforeEach(async () => {
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  // Clear initData replay cache between tests
+  const { _resetReplayCache } = await import('../src/services/telegramAuthService.js')
+  _resetReplayCache()
 })
 
 afterEach(() => {

@@ -151,7 +151,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
         const clicks = (useGameStore.getState()._pendingClickBuffer ?? []).length
         const token = api.getToken()
         if (token && clicks > 0) {
-          fetch('/api/game/sync', {
+          fetch(`${api.getApiBase()}/game/sync`, {
             method: 'POST',
             keepalive: true,
             headers: {

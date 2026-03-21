@@ -6,6 +6,11 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
 let isRefreshing = false
 
+/** Get the API base URL (used by keepalive fetch on beforeunload) */
+export function getApiBase(): string {
+  return API_BASE
+}
+
 /** Whether we have an active backend connection */
 export function isOnline(): boolean {
   return authToken !== null
