@@ -10,13 +10,13 @@ import * as api from '../../services/apiService'
 type Slice = Pick<GameStore, 'hireWorker'>
 
 export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
-  hireWorker: (workerType: WorkerType) => {
+  hireWorker: async (workerType: WorkerType) => {
     const state = get()
     const worker = state.workers[workerType]
     const limit = WORKER_LIMITS[workerType]
 
     if (worker.count >= limit) {
-      if (import.meta.env.DEV) console.warn(`[Hire] 🚫 Лимит для ${workerType}: ${worker.count}/${limit}`)
+      if (import.meta.env.DEV) console.warn(`[Hire] Лимит для ${workerType}: ${worker.count}/${limit}`)
       return
     }
 
@@ -25,14 +25,24 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     }
     const milestone = requiredMilestone[workerType]
     if (milestone > 0 && !state.milestonesPurchased.includes(milestone)) {
-      if (import.meta.env.DEV) console.warn(`[Hire] 🔒 ${workerType} не разблокирован (milestone ${milestone})`)
+      if (import.meta.env.DEV) console.warn(`[Hire] ${workerType} не разблокирован (milestone ${milestone})`)
       return
     }
 
     const effectiveWorkerCost = Math.floor(worker.cost * get().getEventCostMultiplier())
     if (state.balance < effectiveWorkerCost) {
-      if (import.meta.env.DEV) console.warn(`[Hire] 💰 Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(effectiveWorkerCost)}₽`)
+      if (import.meta.env.DEV) console.warn(`[Hire] Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(effectiveWorkerCost)}₽`)
       return
+    }
+
+    // Optimistic + rollback: ruble action
+    const snapshot = {
+      balance: state.balance,
+      passiveIncomePerSecond: state.passiveIncomePerSecond,
+      workers: {
+        ...state.workers,
+        [workerType]: { ...state.workers[workerType] },
+      },
     }
 
     const newCount = worker.count + 1
@@ -48,10 +58,18 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
 
     get().saveProgress()
     get().checkAchievements()
+
     if (api.isOnline()) {
-      api.performAction('hire_worker', { workerType }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+      const r = await api.performAction('hire_worker', { workerType })
+      if (!r) {
+        // Rollback on network failure (server unreachable)
+        _set(snapshot)
+        get().saveProgress()
+        console.warn(`[Hire] Server rejected hire_worker (${workerType}) — rolled back`)
+        // TODO: show user-facing error toast
+      } else if (r.gameState) {
+        get().applyServerState(r.gameState)
+      }
     }
   },
 })

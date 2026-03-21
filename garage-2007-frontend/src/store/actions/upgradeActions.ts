@@ -10,8 +10,9 @@ import * as api from '../../services/apiService'
 type Slice = Pick<GameStore, 'purchaseClickUpgrade' | 'purchaseWorkSpeedUpgrade'>
 
 export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
-  purchaseClickUpgrade: () => {
-    const { balance, upgrades } = get()
+  purchaseClickUpgrade: async () => {
+    const state = get()
+    const { balance, upgrades } = state
     const { clickPower } = upgrades
     if (clickPower.level >= CLICK_UPGRADE_MAX_LEVEL) {
       if (import.meta.env.DEV) console.warn(`[ClickUpgrade] Максимальный уровень: ${CLICK_UPGRADE_MAX_LEVEL}`)
@@ -22,6 +23,14 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       if (import.meta.env.DEV) console.warn(`[ClickUpgrade] Недостаточно средств: нужно ${formatLargeNumber(effectiveCost)} ₽`)
       return false
     }
+
+    // Optimistic + rollback: ruble action
+    const snapshot = {
+      balance: state.balance,
+      clickValue: state.clickValue,
+      upgrades: { ...state.upgrades, clickPower: { ...state.upgrades.clickPower } },
+    }
+
     const newLevel = clickPower.level + 1
     _set((s: GameState) => ({
       balance: s.balance - effectiveCost,
@@ -32,26 +41,42 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       },
     }))
     get().saveProgress()
+
     if (api.isOnline()) {
-      api.performAction('purchase_upgrade', { upgradeType: 'clickPower' }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+      const r = await api.performAction('purchase_upgrade', { upgradeType: 'clickPower' })
+      if (!r) {
+        // Rollback on network failure (server unreachable)
+        _set(snapshot)
+        get().saveProgress()
+        console.warn('[ClickUpgrade] Server rejected purchase_upgrade — rolled back')
+        // TODO: show user-facing error toast
+      } else if (r.gameState) {
+        get().applyServerState(r.gameState)
+      }
     }
     return true
   },
 
-  purchaseWorkSpeedUpgrade: () => {
+  purchaseWorkSpeedUpgrade: async () => {
     const state = get()
     const { workSpeed } = state.upgrades
     if (!state.milestonesPurchased.includes(5)) {
-      if (import.meta.env.DEV) console.warn('[Purchase] 🔒 Апгрейд скорости не разблокирован (milestone 5)')
+      if (import.meta.env.DEV) console.warn('[Purchase] Апгрейд скорости не разблокирован (milestone 5)')
       return
     }
     const effectiveWorkSpeedCost = Math.floor(workSpeed.cost * get().getEventCostMultiplier())
     if (state.balance < effectiveWorkSpeedCost) {
-      if (import.meta.env.DEV) console.warn(`[Purchase] 💰 Недостаточно средств: нужно ${formatLargeNumber(effectiveWorkSpeedCost)}₽`)
+      if (import.meta.env.DEV) console.warn(`[Purchase] Недостаточно средств: нужно ${formatLargeNumber(effectiveWorkSpeedCost)}₽`)
       return
     }
+
+    // Optimistic + rollback: ruble action
+    const snapshot = {
+      balance: state.balance,
+      passiveIncomePerSecond: state.passiveIncomePerSecond,
+      upgrades: { ...state.upgrades, workSpeed: { ...state.upgrades.workSpeed } },
+    }
+
     const newLevel = workSpeed.level + 1
     _set((s: GameState) => ({
       balance: s.balance - effectiveWorkSpeedCost,
@@ -62,10 +87,18 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       },
     }))
     get().saveProgress()
+
     if (api.isOnline()) {
-      api.performAction('purchase_upgrade', { upgradeType: 'workSpeed' }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+      const r = await api.performAction('purchase_upgrade', { upgradeType: 'workSpeed' })
+      if (!r) {
+        // Rollback on network failure (server unreachable)
+        _set(snapshot)
+        get().saveProgress()
+        console.warn('[WorkSpeedUpgrade] Server rejected purchase_upgrade — rolled back')
+        // TODO: show user-facing error toast
+      } else if (r.gameState) {
+        get().applyServerState(r.gameState)
+      }
     }
   },
 })

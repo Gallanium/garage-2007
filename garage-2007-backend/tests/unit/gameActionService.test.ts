@@ -13,6 +13,7 @@ describe('gameActionService — processAction', () => {
     vi.clearAllMocks()
     prisma.balanceLog.findFirst.mockResolvedValue(null) // no idempotency collision
     prisma.balanceLog.create.mockResolvedValue({})
+    prisma.balanceLog.count.mockResolvedValue(0) // no daily video cap hit by default
     // OCC: updateMany returns { count: 1 } (optimistic lock succeeds)
     prisma.gameSave.updateMany.mockResolvedValue({ count: 1 })
   })
@@ -612,30 +613,25 @@ describe('gameActionService — processAction', () => {
       expect(result.gameState.nuts).toBe(15) // 10 + 5
     })
 
-    it('cooldown active (< 1 hour) throws VIDEO_COOLDOWN error', async () => {
-      vi.useFakeTimers()
-      const now = new Date('2026-03-16T12:00:00Z')
-      vi.setSystemTime(now)
-
+    it('daily cap reached (3/day) throws VIDEO_DAILY_CAP error', async () => {
       const gameSave = createTestGameSave({
         userId,
         rewardedVideo: {
-          lastWatchedTimestamp: now.getTime() - 30 * 60_000, // 30 min ago
-          totalWatches: 1,
+          lastWatchedTimestamp: Date.now() - 30 * 60_000, // 30 min ago
+          totalWatches: 3,
           isWatching: false,
         },
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+      prisma.balanceLog.count.mockResolvedValue(3) // 3 videos today
 
       try {
         await processAction(userId, 'watch_rewarded_video', {})
         expect.fail('Should have thrown')
       } catch (e) {
         expect(e).toBeInstanceOf(AppError)
-        expect((e as AppError).code).toBe('VIDEO_COOLDOWN')
+        expect((e as AppError).code).toBe('VIDEO_DAILY_CAP')
       }
-
-      vi.useRealTimers()
     })
   })
 

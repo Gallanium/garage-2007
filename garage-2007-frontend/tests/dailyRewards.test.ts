@@ -1,95 +1,150 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGameStore, initialState, DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS } from '../src/store/gameStore'
+import * as api from '../src/services/apiService'
+import { buildMockServerState } from './setup'
+
+const mockPerformAction = vi.mocked(api.performAction)
 
 describe('daily reward system', () => {
   beforeEach(() => {
     useGameStore.setState({ ...initialState })
   })
 
-  it('claims day 0 reward on first ever claim', () => {
+  it('claims day 0 reward on first ever claim', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    // initialState has dailyRewards: { lastClaimTimestamp: 0, currentStreak: 0 }
-    useGameStore.getState().claimDailyReward()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: DAILY_REWARDS[0],
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 1 },
+        bestStreak: 1,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
     const state = useGameStore.getState()
 
-    expect(state.nuts).toBe(DAILY_REWARDS[0]) // 5
+    expect(state.nuts).toBe(DAILY_REWARDS[0])
     expect(state.dailyRewards.currentStreak).toBe(1)
     expect(state.bestStreak).toBe(1)
     expect(state.dailyRewards.lastClaimTimestamp).toBe(Date.now())
   })
 
-  it('blocks re-claim within grace period', () => {
+  it('blocks re-claim within grace period', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    useGameStore.getState().claimDailyReward()
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: DAILY_REWARDS[0],
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 1 },
+        bestStreak: 1,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
     const nutsAfterFirst = useGameStore.getState().nuts
 
-    useGameStore.getState().claimDailyReward() // immediate re-claim
-    expect(useGameStore.getState().nuts).toBe(nutsAfterFirst) // no change
-    expect(useGameStore.getState().dailyRewards.currentStreak).toBe(1) // no change
+    // immediate re-claim should be blocked (no server call)
+    await useGameStore.getState().claimDailyReward()
+    expect(useGameStore.getState().nuts).toBe(nutsAfterFirst)
+    expect(useGameStore.getState().dailyRewards.currentStreak).toBe(1)
   })
 
-  it('claims day 1 reward after 24h advances streak', () => {
+  it('claims day 1 reward after 24h advances streak', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    useGameStore.getState().claimDailyReward() // day 0: 5 nuts, streak: 1
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: DAILY_REWARDS[0],
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 1 },
+        bestStreak: 1,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
 
-    vi.advanceTimersByTime(DAILY_STREAK_GRACE_PERIOD_MS) // advance 24h
-    useGameStore.getState().claimDailyReward() // day 1: 5 nuts, streak: 2
+    vi.advanceTimersByTime(DAILY_STREAK_GRACE_PERIOD_MS)
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: DAILY_REWARDS[0] + DAILY_REWARDS[1],
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 2 },
+        bestStreak: 2,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
 
     const state = useGameStore.getState()
-    expect(state.nuts).toBe(DAILY_REWARDS[0] + DAILY_REWARDS[1]) // 5 + 5 = 10
+    expect(state.nuts).toBe(DAILY_REWARDS[0] + DAILY_REWARDS[1])
     expect(state.dailyRewards.currentStreak).toBe(2)
   })
 
-  it('awards 50 nuts on day 6 (7th day of streak)', () => {
+  it('awards 50 nuts on day 6 (7th day of streak)', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    // Simulate being on streak day 6 (index 6 in DAILY_REWARDS)
     useGameStore.setState({
       dailyRewards: { lastClaimTimestamp: Date.now() - DAILY_STREAK_GRACE_PERIOD_MS, currentStreak: 6 }
     })
 
-    useGameStore.getState().claimDailyReward()
-    expect(useGameStore.getState().nuts).toBe(50) // DAILY_REWARDS[6] = 50
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: 50,
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 7 },
+        bestStreak: 7,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
+    expect(useGameStore.getState().nuts).toBe(50)
     expect(useGameStore.getState().dailyRewards.currentStreak).toBe(7)
   })
 
-  it('wraps streak to day 0 reward after full 7-day cycle', () => {
+  it('wraps streak to day 0 reward after full 7-day cycle', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    // Simulate being on streak 7 (index 7 % 7 = 0 → day 0 reward again)
     useGameStore.setState({
       dailyRewards: { lastClaimTimestamp: Date.now() - DAILY_STREAK_GRACE_PERIOD_MS, currentStreak: 7 }
     })
 
-    useGameStore.getState().claimDailyReward()
-    expect(useGameStore.getState().nuts).toBe(DAILY_REWARDS[7 % 7]) // DAILY_REWARDS[0] = 5
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        nuts: DAILY_REWARDS[7 % 7],
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 8 },
+        bestStreak: 8,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
+    expect(useGameStore.getState().nuts).toBe(DAILY_REWARDS[7 % 7])
   })
 
-  it('updates bestStreak when currentStreak exceeds it', () => {
+  it('updates bestStreak when currentStreak exceeds it', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    useGameStore.setState({ bestStreak: 3 })
-
-    // Claim from streak 3 → becomes 4 → new bestStreak
     useGameStore.setState({
+      bestStreak: 3,
       dailyRewards: { lastClaimTimestamp: Date.now() - DAILY_STREAK_GRACE_PERIOD_MS, currentStreak: 3 }
     })
-    useGameStore.getState().claimDailyReward()
+
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        dailyRewards: { lastClaimTimestamp: Date.now(), currentStreak: 4 },
+        bestStreak: 4,
+      }),
+    })
+    await useGameStore.getState().claimDailyReward()
     expect(useGameStore.getState().dailyRewards.currentStreak).toBe(4)
     expect(useGameStore.getState().bestStreak).toBe(4)
   })
 
   it('checkDailyReward opens modal when never claimed', () => {
-    // initialState has lastClaimTimestamp: 0
     useGameStore.getState().checkDailyReward()
     expect(useGameStore.getState().showDailyRewardsModal).toBe(true)
   })
@@ -98,7 +153,6 @@ describe('daily reward system', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
 
-    // Last claim was 3 days ago (> 2 * DAILY_STREAK_GRACE_PERIOD_MS)
     useGameStore.setState({
       dailyRewards: {
         lastClaimTimestamp: Date.now() - DAILY_STREAK_GRACE_PERIOD_MS * 3,

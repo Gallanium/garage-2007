@@ -168,13 +168,13 @@ export function initDevConsole(): void {
     },
 
     /** Купить milestone-апгрейд (уровни 5, 10, 15, 20) */
-    buyUpgrade: (level: number) => {
-      const success = store.getState().purchaseMilestone(level)
+    buyUpgrade: async (level: number) => {
+      const success = await store.getState().purchaseMilestone(level)
       if (success) {
         const upgrade = MILESTONE_UPGRADES[level as MilestoneLevel]
-        console.log(`✅ Куплен milestone ур.${level}: ${upgrade?.workerNames.join(', ')}`)
+        console.log(`Куплен milestone ур.${level}: ${upgrade?.workerNames.join(', ')}`)
       } else {
-        console.error(`❌ Не удалось купить milestone ур.${level}`)
+        console.error(`Не удалось купить milestone ур.${level}`)
       }
     },
 

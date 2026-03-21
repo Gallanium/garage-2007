@@ -7,7 +7,7 @@ import * as api from '../../services/apiService'
 type Slice = Pick<GameStore, 'purchaseDecoration' | 'toggleDecoration'>
 
 export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
-  purchaseDecoration: (id: string): boolean => {
+  purchaseDecoration: async (id: string): Promise<boolean> => {
     const state = get()
     const def = DECORATION_CATALOG[id]
     if (!def) return false
@@ -20,6 +20,31 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       if (state.nuts < def.cost) return false
     }
 
+    if (def.currency === 'nuts') {
+      // Server-first: premium action (nuts). No optimistic mutation.
+      if (!api.isOnline()) {
+        console.warn('[Decoration] Cannot purchase (nuts): not connected to server')
+        // TODO: show user-facing error toast
+        return false
+      }
+
+      const r = await api.performAction('purchase_decoration', { decorationId: id })
+      if (r?.gameState) {
+        get().applyServerState(r.gameState)
+        return true
+      }
+      console.warn('[Decoration] Server rejected purchase_decoration (nuts)')
+      // TODO: show user-facing error toast
+      return false
+    }
+
+    // Optimistic + rollback: ruble action
+    // Snapshot for rollback
+    const snapshot = {
+      balance: state.balance,
+      decorations: { owned: [...state.decorations.owned], active: [...state.decorations.active] },
+    }
+
     // Determine which active items occupy the same slot (will be displaced)
     const displaced = state.decorations.active.filter(activeId => {
       const activeDef = DECORATION_CATALOG[activeId]
@@ -27,9 +52,7 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     })
 
     _set(s => ({
-      ...(def.currency === 'rubles'
-        ? { balance: s.balance - def.cost }
-        : { nuts: s.nuts - def.cost }),
+      balance: s.balance - def.cost,
       decorations: {
         owned: [...s.decorations.owned, id],
         active: [...s.decorations.active.filter(a => !displaced.includes(a)), id],
@@ -38,9 +61,16 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
 
     get().saveProgress()
     if (api.isOnline()) {
-      api.performAction('purchase_decoration', { decorationId: id }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+      const r = await api.performAction('purchase_decoration', { decorationId: id })
+      if (!r) {
+        // Rollback on network failure (server unreachable)
+        _set(snapshot)
+        get().saveProgress()
+        console.warn('[Decoration] Server rejected purchase_decoration (rubles) — rolled back')
+        // TODO: show user-facing error toast
+      } else if (r.gameState) {
+        get().applyServerState(r.gameState)
+      }
     }
     return true
   },

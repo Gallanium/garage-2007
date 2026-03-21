@@ -10,7 +10,7 @@ type Slice = Pick<GameStore,
 >
 
 export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
-  activateBoost: (type: BoostType): boolean => {
+  activateBoost: async (type: BoostType): Promise<boolean> => {
     const state = get()
     const def = BOOST_DEFINITIONS[type]
 
@@ -21,28 +21,28 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     if (def.unlockLevel > 0 && !state.milestonesPurchased.includes(def.unlockLevel)) return false
 
     // Проверить: нельзя активировать если уже есть активный буст
-    // (для замены использовать replaceBoost)
     const now = Date.now()
     const hasActive = state.boosts.active.some(b => b.expiresAt > now)
     if (hasActive) return false
 
-    _set(s => ({
-      nuts: s.nuts - def.costNuts,
-      boosts: {
-        active: [{ type, activatedAt: now, expiresAt: now + def.durationMs }],
-      },
-    }))
-
-    get().saveProgress()
-    if (api.isOnline()) {
-      api.performAction('activate_boost', { boostType: type }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+    // Server-first: premium action (nuts). No optimistic mutation.
+    if (!api.isOnline()) {
+      console.warn('[Boost] Cannot activate: not connected to server')
+      // TODO: show user-facing error toast
+      return false
     }
-    return true
+
+    const r = await api.performAction('activate_boost', { boostType: type })
+    if (r?.gameState) {
+      get().applyServerState(r.gameState)
+      return true
+    }
+    console.warn('[Boost] Server rejected activate_boost')
+    // TODO: show user-facing error toast
+    return false
   },
 
-  replaceBoost: (type: BoostType): boolean => {
+  replaceBoost: async (type: BoostType): Promise<boolean> => {
     const state = get()
     const def = BOOST_DEFINITIONS[type]
 
@@ -52,22 +52,21 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     // Проверить разблокировку
     if (def.unlockLevel > 0 && !state.milestonesPurchased.includes(def.unlockLevel)) return false
 
-    const now = Date.now()
-    // Заменяем текущий буст (потерянное время не компенсируется)
-    _set(s => ({
-      nuts: s.nuts - def.costNuts,
-      boosts: {
-        active: [{ type, activatedAt: now, expiresAt: now + def.durationMs }],
-      },
-    }))
-
-    get().saveProgress()
-    if (api.isOnline()) {
-      api.performAction('replace_boost', { boostType: type }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
-      })
+    // Server-first: premium action (nuts). No optimistic mutation.
+    if (!api.isOnline()) {
+      console.warn('[Boost] Cannot replace: not connected to server')
+      // TODO: show user-facing error toast
+      return false
     }
-    return true
+
+    const r = await api.performAction('replace_boost', { boostType: type })
+    if (r?.gameState) {
+      get().applyServerState(r.gameState)
+      return true
+    }
+    console.warn('[Boost] Server rejected replace_boost')
+    // TODO: show user-facing error toast
+    return false
   },
 
   tickBoosts: (): void => {

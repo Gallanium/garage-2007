@@ -213,9 +213,8 @@ describe('POST /api/game/action', () => {
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
       prisma.balanceLog.findFirst.mockResolvedValue(null)
-      prisma.gameSave.update.mockImplementation(async (args: any) => {
-        return { ...gameSave, ...args.data }
-      })
+      prisma.balanceLog.count.mockResolvedValue(0) // no daily cap hit
+      prisma.gameSave.updateMany.mockResolvedValue({ count: 1 }) // OCC lock
       prisma.balanceLog.create.mockResolvedValue({})
 
       const res = await performAction(token, 'watch_rewarded_video', {})

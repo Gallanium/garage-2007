@@ -84,6 +84,7 @@ vi.mock('@prisma/client', () => {
     balanceLog: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn().mockResolvedValue(0),
       create: vi.fn(),
       createMany: vi.fn(),
       deleteMany: vi.fn(),

@@ -10,7 +10,7 @@ import { BOOST_DEFINITIONS } from '@shared/constants/boosts.js'
 import { ACHIEVEMENTS, getTotalWorkerCount } from '@shared/constants/achievements.js'
 import {
   DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS,
-  REWARDED_VIDEO_NUTS, REWARDED_VIDEO_COOLDOWN_MS,
+  REWARDED_VIDEO_NUTS,
 } from '@shared/constants/dailyRewards.js'
 import { GAME_EVENTS, EVENT_CATEGORY_WEIGHTS, EVENT_COOLDOWN_MS, EVENT_RANDOM_DELAY_MS } from '@shared/constants/events.js'
 import { DECORATION_CATALOG } from '@shared/constants/decorations.js'
@@ -866,6 +866,9 @@ async function handleClaimDailyReward(
 
 // ── 10. watch_rewarded_video ────────────────────────────────────────────────
 
+/** Maximum rewarded video watches per calendar day (UTC) */
+const REWARDED_VIDEO_DAILY_CAP = 3
+
 async function handleWatchRewardedVideo(
   userId: number,
   idempotencyKey?: string,
@@ -877,13 +880,25 @@ async function handleWatchRewardedVideo(
     await checkIdempotencyInTx(tx, idempotencyKey)
 
     const video = gs.rewardedVideo as { lastWatchedTimestamp: number; totalWatches: number } | null
-    const lastWatched = video?.lastWatchedTimestamp ?? 0
     const totalWatches = video?.totalWatches ?? 0
     const now = Date.now()
 
-    if (lastWatched > 0 && now - lastWatched < REWARDED_VIDEO_COOLDOWN_MS) {
-      throw new AppError(400, 'VIDEO_COOLDOWN', 'Rewarded video is still on cooldown')
+    // Daily cap: count video_reward actions for the current UTC day
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const todayVideoCount = await tx.balanceLog.count({
+      where: {
+        userId,
+        actionType: 'video_reward',
+        createdAt: { gte: todayStart },
+      },
+    })
+
+    if (todayVideoCount >= REWARDED_VIDEO_DAILY_CAP) {
+      throw new AppError(400, 'VIDEO_DAILY_CAP', `Daily video reward limit reached (${REWARDED_VIDEO_DAILY_CAP}/day)`)
     }
+
+    // TODO: integrate ad network receipt verification for production
 
     const newNuts = gs.nuts + REWARDED_VIDEO_NUTS
     const newTotalWatches = totalWatches + 1
@@ -898,7 +913,7 @@ async function handleWatchRewardedVideo(
       data: {
         userId, actionType: 'video_reward', currency: 'nuts',
         amount: REWARDED_VIDEO_NUTS, balanceBefore: gs.nuts, balanceAfter: newNuts,
-        metadata: { totalWatches: newTotalWatches }, idempotencyKey,
+        metadata: { totalWatches: newTotalWatches, dailyCount: todayVideoCount + 1 }, idempotencyKey,
       },
     })
 

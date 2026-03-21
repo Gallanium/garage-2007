@@ -4,6 +4,7 @@ import {
   useGameStore,
   useGarageLevel,
   useIsLoaded,
+  useServerError,
   useShowMilestoneModal,
   usePendingMilestoneLevel,
   usePurchaseMilestone,
@@ -52,7 +53,7 @@ function App() {
   }
 
   // --- Lifecycle хуки ---
-  useGameLifecycle()
+  const { retryAuth } = useGameLifecycle()
   const { showWelcomeBack, offlineEarnings, offlineTime, handleWelcomeBackClose } = useOfflineEarnings()
 
   // --- Локальное состояние ---
@@ -70,6 +71,7 @@ function App() {
 
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
+  const serverError = useServerError()
   const garageLevel = useGarageLevel()
   const showMilestoneModal = useShowMilestoneModal()
   const pendingMilestoneLevel = usePendingMilestoneLevel()
@@ -88,6 +90,29 @@ function App() {
 
   const canClaimToday = dailyRewards.lastClaimTimestamp === 0
     || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
+
+  // ============================================
+  // ЭКРАН ОШИБКИ СЕРВЕРА
+  // ============================================
+
+  if (serverError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-gray-800 to-gray-900 gap-4 px-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-garage-yellow font-mono drop-shadow-lg">
+          ГАРАЖ 2007
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-300 font-mono text-center">
+          Сервер недоступен. Попробуйте позже.
+        </p>
+        <button
+          onClick={retryAuth}
+          className="mt-2 px-6 py-2 bg-garage-yellow text-gray-900 font-mono font-bold text-xs sm:text-sm rounded hover:bg-yellow-400 active:scale-95 transition-all"
+        >
+          Повторить
+        </button>
+      </div>
+    )
+  }
 
   // ============================================
   // ЭКРАН ЗАГРУЗКИ

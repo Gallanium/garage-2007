@@ -1,17 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGameStore, initialState, BOOST_DEFINITIONS } from '../src/store/gameStore'
+import * as api from '../src/services/apiService'
+import { buildMockServerState } from './setup'
+
+const mockPerformAction = vi.mocked(api.performAction)
+
+/** Helper: mock server response with boost activated */
+function mockBoostResponse(boostType: string, nutsCost: number, durationMs: number) {
+  const now = Date.now()
+  mockPerformAction.mockResolvedValueOnce({
+    success: true,
+    gameState: buildMockServerState({
+      nuts: useGameStore.getState().nuts - nutsCost,
+      boosts: {
+        active: [{ type: boostType, activatedAt: now, expiresAt: now + durationMs }],
+      },
+    }),
+  })
+}
 
 describe('boost system', () => {
   beforeEach(() => {
     useGameStore.setState({ ...initialState })
   })
 
-  it('activates turbo boost when nuts are sufficient', () => {
+  it('activates turbo boost when nuts are sufficient', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 20 })
 
-    const result = useGameStore.getState().activateBoost('turbo')
+    mockBoostResponse('turbo', BOOST_DEFINITIONS.turbo.costNuts, BOOST_DEFINITIONS.turbo.durationMs)
+    const result = await useGameStore.getState().activateBoost('turbo')
 
     expect(result).toBe(true)
     expect(useGameStore.getState().nuts).toBe(5) // 20 - 15
@@ -19,43 +38,45 @@ describe('boost system', () => {
     expect(useGameStore.getState().boosts.active[0].type).toBe('turbo')
   })
 
-  it('returns false when nuts are insufficient', () => {
+  it('returns false when nuts are insufficient', async () => {
     useGameStore.setState({ nuts: 10 }) // turbo costs 15
-    const result = useGameStore.getState().activateBoost('turbo')
+    const result = await useGameStore.getState().activateBoost('turbo')
     expect(result).toBe(false)
     expect(useGameStore.getState().boosts.active).toHaveLength(0)
   })
 
-  it('returns false for income_2x when milestone 5 not purchased', () => {
+  it('returns false for income_2x when milestone 5 not purchased', async () => {
     useGameStore.setState({ nuts: 50, garageLevel: 1 })
-    const result = useGameStore.getState().activateBoost('income_2x')
+    const result = await useGameStore.getState().activateBoost('income_2x')
     expect(result).toBe(false)
     expect(useGameStore.getState().nuts).toBe(50) // unchanged
   })
 
-  it('activates income_2x when garageLevel >= 5 and nuts sufficient', () => {
+  it('activates income_2x when garageLevel >= 5 and nuts sufficient', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 50, garageLevel: 5, milestonesPurchased: [5] })
 
-    const result = useGameStore.getState().activateBoost('income_2x')
+    mockBoostResponse('income_2x', BOOST_DEFINITIONS.income_2x.costNuts, BOOST_DEFINITIONS.income_2x.durationMs)
+    const result = await useGameStore.getState().activateBoost('income_2x')
+
     expect(result).toBe(true)
     expect(useGameStore.getState().nuts).toBe(20) // 50 - 30
     expect(useGameStore.getState().boosts.active[0].type).toBe('income_2x')
   })
 
-  it('returns false when another boost is already active', () => {
+  it('returns false when another boost is already active', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({
       nuts: 50,
       boosts: { active: [{ type: 'turbo', activatedAt: Date.now(), expiresAt: Date.now() + 999_999 }] },
     })
-    const result = useGameStore.getState().activateBoost('turbo')
+    const result = await useGameStore.getState().activateBoost('turbo')
     expect(result).toBe(false)
   })
 
-  it('replaceBoost replaces an active boost', () => {
+  it('replaceBoost replaces an active boost', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({
@@ -64,7 +85,10 @@ describe('boost system', () => {
       milestonesPurchased: [5],
       boosts: { active: [{ type: 'turbo', activatedAt: Date.now(), expiresAt: Date.now() + 999_999 }] },
     })
-    const result = useGameStore.getState().replaceBoost('income_2x')
+
+    mockBoostResponse('income_2x', BOOST_DEFINITIONS.income_2x.costNuts, BOOST_DEFINITIONS.income_2x.durationMs)
+    const result = await useGameStore.getState().replaceBoost('income_2x')
+
     expect(result).toBe(true)
     expect(useGameStore.getState().boosts.active[0].type).toBe('income_2x')
     expect(useGameStore.getState().boosts.active).toHaveLength(1)
@@ -80,33 +104,38 @@ describe('boost system', () => {
     expect(useGameStore.getState().boosts.active).toHaveLength(0)
   })
 
-  it('turbo multiplier applies to click only, not income', () => {
+  it('turbo multiplier applies to click only, not income', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 20 })
-    useGameStore.getState().activateBoost('turbo')
+
+    mockBoostResponse('turbo', BOOST_DEFINITIONS.turbo.costNuts, BOOST_DEFINITIONS.turbo.durationMs)
+    await useGameStore.getState().activateBoost('turbo')
 
     expect(useGameStore.getState().getActiveMultiplier('click')).toBe(5)
     expect(useGameStore.getState().getActiveMultiplier('income')).toBe(1)
   })
 
-  it('income_2x multiplier applies to both click and income', () => {
+  it('income_2x multiplier applies to both click and income', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 50, garageLevel: 5, milestonesPurchased: [5] })
-    useGameStore.getState().activateBoost('income_2x')
+
+    mockBoostResponse('income_2x', BOOST_DEFINITIONS.income_2x.costNuts, BOOST_DEFINITIONS.income_2x.durationMs)
+    await useGameStore.getState().activateBoost('income_2x')
 
     expect(useGameStore.getState().getActiveMultiplier('income')).toBe(2)
     expect(useGameStore.getState().getActiveMultiplier('click')).toBe(2)
   })
 
-  it('getActiveMultiplier returns 1 after boost expires', () => {
+  it('getActiveMultiplier returns 1 after boost expires', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-14T12:00:00.000Z'))
     useGameStore.setState({ nuts: 20 })
-    useGameStore.getState().activateBoost('turbo')
 
-    // Advance past turbo duration (900_000 ms = 15 min)
+    mockBoostResponse('turbo', BOOST_DEFINITIONS.turbo.costNuts, BOOST_DEFINITIONS.turbo.durationMs)
+    await useGameStore.getState().activateBoost('turbo')
+
     vi.advanceTimersByTime(BOOST_DEFINITIONS.turbo.durationMs + 1_000)
     useGameStore.getState().tickBoosts()
 
