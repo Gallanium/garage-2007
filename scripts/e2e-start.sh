@@ -32,7 +32,7 @@ section() { echo -e "\n${BOLD}$*${NC}"; }
 cleanup() {
   echo ""
   warn "Stopping all processes..."
-  for pid in "${PIDS[@]}"; do
+  for pid in "${PIDS[@]+"${PIDS[@]}"}"; do
     kill "$pid" 2>/dev/null || true
   done
   if [[ -n "$TUNNEL_TOOL" ]]; then
@@ -136,15 +136,20 @@ wait_for "postgres" \
 # Step 4: DB push
 # ---------------------------------------------------------------------------
 
-section "4. Running db:push..."
+section "4. Installing dependencies..."
+(cd "$BACKEND_DIR" && npm install --silent)
+(cd "$FRONTEND_DIR" && npm install --silent)
+ok "Dependencies installed."
+
+section "5. Running db:push..."
 (cd "$BACKEND_DIR" && npm run db:push)
 ok "Schema up to date."
 
 # ---------------------------------------------------------------------------
-# Step 5: Backend
+# Step 6: Backend
 # ---------------------------------------------------------------------------
 
-section "5. Starting backend (port 3001)..."
+section "6. Starting backend (port 3001)..."
 (cd "$BACKEND_DIR" && npm run dev) &>/tmp/garage-backend.log &
 PIDS+=($!)
 
@@ -157,10 +162,10 @@ wait_for "backend" \
 }
 
 # ---------------------------------------------------------------------------
-# Step 6: Frontend
+# Step 7: Frontend
 # ---------------------------------------------------------------------------
 
-section "6. Starting frontend (port 5173)..."
+section "7. Starting frontend (port 5173)..."
 (cd "$FRONTEND_DIR" && npm run dev) &>/tmp/garage-frontend.log &
 PIDS+=($!)
 
@@ -173,10 +178,10 @@ wait_for "frontend" \
 }
 
 # ---------------------------------------------------------------------------
-# Step 7: Tunnel
+# Step 8: Tunnel
 # ---------------------------------------------------------------------------
 
-section "7. Starting $TUNNEL_TOOL tunnel → port 5173..."
+section "8. Starting $TUNNEL_TOOL tunnel → port 5173..."
 
 if [[ "$TUNNEL_TOOL" == "ngrok" ]]; then
   ngrok http 5173 --log=stdout &>/tmp/garage-ngrok.log &
@@ -234,10 +239,10 @@ fi
 ok "Tunnel: $TUNNEL_URL"
 
 # ---------------------------------------------------------------------------
-# Step 8: Set Telegram webhook
+# Step 9: Set Telegram webhook
 # ---------------------------------------------------------------------------
 
-section "8. Setting Telegram webhook..."
+section "9. Setting Telegram webhook..."
 WEBHOOK_URL="${TUNNEL_URL}/api/purchase/webhook"
 
 RESULT=$(curl -sf "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
