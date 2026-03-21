@@ -73,55 +73,52 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center
-                 animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-label="С возвращением"
     >
       <div
-        className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-6
-                   max-w-sm w-[90%] mx-auto
-                   border border-garage-rust/50 shadow-2xl
-                   text-center
-                   animate-[slideUp_400ms_ease-out]"
+        className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4
+                   mx-3 w-full max-w-sm font-mono
+                   shadow-2xl shadow-orange-900/30 text-center"
         onClick={handleCardClick}
       >
         <div className="text-4xl mb-2">🔧</div>
 
-        <h2 className="text-base sm:text-lg font-bold text-yellow-400 mb-3 font-mono">
-          С возвращением!
-        </h2>
+        <div className="text-center mb-4">
+          <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
+            С возвращением!
+          </h2>
+        </div>
 
-        <p className="text-game-sm sm:text-xs text-gray-300 mb-4 font-mono">
+        <p className="text-gray-400 text-[9px] mb-4 font-mono">
           Вас не было <span className="text-white font-semibold">{formattedTime}</span>
         </p>
 
-        <div className="border-t border-gray-700 mb-4" />
+        <div className="border-t border-orange-700/30 mb-4" />
 
-        <p className="text-[9px] sm:text-[11px] text-gray-400 mb-2 font-mono uppercase tracking-wider">
+        <p className="text-[9px] text-gray-500 mb-2 font-mono uppercase tracking-wider">
           Работники заработали
         </p>
 
-        <p className="text-2xl sm:text-3xl font-bold text-green-400 mb-1 font-mono">
+        <p className="text-xl font-bold text-cyan-400 mb-1 font-mono">
           {formattedEarnings}
-          <span className="text-lg sm:text-xl text-green-400/70 ml-1">₽</span>
+          <span className="text-base text-cyan-400/70 ml-1">₽</span>
         </p>
 
-        <p className="text-[9px] sm:text-[11px] text-gray-500 mb-6 font-mono">
+        <p className="text-[9px] text-gray-500 mb-4 font-mono">
           Пассивный доход за оффлайн
         </p>
 
         <button
           type="button"
           onClick={onClose}
-          className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold
-                     py-2.5 px-6 rounded-lg font-mono text-sm sm:text-base
-                     transition-colors duration-200
-                     active:scale-95 transform
-                     shadow-lg shadow-yellow-500/20
-                     w-full"
+          className="w-full py-2 rounded text-[10px] font-bold text-white
+                     bg-gradient-to-r from-orange-600 to-amber-500
+                     hover:from-orange-500 hover:to-amber-400
+                     transition-colors"
         >
           Забрать! 💰
         </button>

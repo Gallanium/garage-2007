@@ -37,27 +37,26 @@ const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
       onClick={onClick}
       className={`
         absolute top-[80px] right-3 z-20
-        w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full
+        w-16 h-16 rounded-full
         flex flex-col items-center justify-center
         backdrop-blur-sm border-2
         transition-colors duration-300
-        active:scale-90 transform
         font-mono
         ${isActive
           ? 'bg-orange-900/80 border-orange-400 shadow-lg shadow-orange-500/40 animate-pulse-ring'
-          : 'bg-gray-800/80 border-orange-600/60 hover:border-orange-500'
+          : 'bg-gray-900/80 border-orange-700/50 hover:border-orange-500'
         }
       `}
       aria-label="Бусты"
     >
-      <span className="text-xl sm:text-2xl leading-none">🚀</span>
+      <span className="text-xl leading-none">🚀</span>
 
       {isActive ? (
-        <span className="text-[8px] sm:text-[9px] font-bold leading-none mt-0.5 text-orange-300">
+        <span className="text-[8px] font-bold leading-none mt-0.5 text-orange-300">
           {formatTime(remaining)}
         </span>
       ) : (
-        <span className="text-[8px] sm:text-[9px] font-bold leading-none mt-0.5 text-orange-400">
+        <span className="text-[8px] font-bold leading-none mt-0.5 text-orange-400">
           БУСТ
         </span>
       )}

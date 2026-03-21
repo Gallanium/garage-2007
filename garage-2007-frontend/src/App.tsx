@@ -97,16 +97,16 @@ function App() {
 
   if (serverError) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-gray-800 to-gray-900 gap-4 px-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-garage-yellow font-mono drop-shadow-lg">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 gap-4 px-4">
+        <h1 className="text-xl font-bold text-garage-yellow font-mono">
           ГАРАЖ 2007
         </h1>
-        <p className="text-xs sm:text-sm text-gray-300 font-mono text-center">
+        <p className="text-xs text-gray-400 font-mono text-center">
           Сервер недоступен. Попробуйте позже.
         </p>
         <button
           onClick={retryAuth}
-          className="mt-2 px-6 py-2 bg-garage-yellow text-gray-900 font-mono font-bold text-xs sm:text-sm rounded hover:bg-yellow-400 active:scale-95 transition-all"
+          className="mt-2 px-6 py-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-mono font-bold text-xs rounded transition-colors"
         >
           Повторить
         </button>
@@ -120,11 +120,11 @@ function App() {
 
   if (!isLoaded) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-gray-800 to-gray-900 gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-garage-yellow font-mono drop-shadow-lg">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 gap-4">
+        <h1 className="text-xl font-bold text-garage-yellow font-mono">
           ГАРАЖ 2007
         </h1>
-        <p className="text-xs sm:text-sm text-gray-300 font-mono animate-pulse">
+        <p className="text-xs text-gray-400 font-mono">
           Загрузка...
         </p>
       </div>
@@ -139,14 +139,14 @@ function App() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-y-auto"
+      className="flex flex-col h-screen bg-gray-950 text-white overflow-y-auto"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
     >
 
       <GameHeader />
 
       {/* Навигация табов */}
-      <div className="px-2 sm:px-4 pt-2 bg-gray-900/60">
+      <div className="px-2 pt-2 bg-gray-950">
         <TabNavigation
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -174,19 +174,19 @@ function App() {
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-950 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <UpgradesPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-950 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <AchievementsPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-950 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
         >
           <StatsPanel />
         </div>

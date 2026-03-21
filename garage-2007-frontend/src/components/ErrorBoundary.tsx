@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-full gap-4 p-6 bg-gray-900">
+        <div className="flex flex-col items-center justify-center h-full gap-4 p-6 bg-gray-950">
           <p className="text-red-400 text-xs font-mono text-center">
             {this.props.fallback ?? 'Что-то пошло не так'}
           </p>

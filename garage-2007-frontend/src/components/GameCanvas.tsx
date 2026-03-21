@@ -42,7 +42,7 @@ export function GameCanvas({
   }
 
   return (
-    <main className="flex-1 min-h-0 relative bg-gradient-to-b from-gray-800 to-gray-900">
+    <main className="flex-1 min-h-0 relative bg-gray-950">
 
       <div className="w-full h-full flex items-center justify-center">
         <ErrorBoundary fallback="Игровой движок недоступен. Попробуй перезагрузить страницу.">
@@ -71,9 +71,9 @@ export function GameCanvas({
       <EventBanner />
 
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2
-                      bg-garage-yellow/20 backdrop-blur-sm rounded-full px-3 py-2
-                      border border-garage-yellow/50 animate-pulse">
-        <p className="text-game-sm sm:text-xs text-garage-yellow font-mono text-center">
+                      bg-orange-950/60 backdrop-blur-sm rounded-lg px-3 py-2
+                      border border-orange-700/50">
+        <p className="text-[9px] text-garage-yellow font-mono text-center">
           👆 Кликни по гаражу
         </p>
       </div>

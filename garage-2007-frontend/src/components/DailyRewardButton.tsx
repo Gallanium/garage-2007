@@ -28,39 +28,37 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
       onClick={onClick}
       className={`
         absolute top-2 right-3 z-20
-        w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full
+        w-16 h-16 rounded-full
         flex flex-col items-center justify-center
         backdrop-blur-sm
         border-2
         transition-colors duration-300
-        active:scale-90 transform
         font-mono
         ${canClaim
-          ? 'bg-amber-900/80 border-amber-400/50 shadow-lg shadow-amber-400/30 animate-pulse-ring'
-          : 'bg-gray-800/80 border-gray-600/50'
+          ? 'bg-orange-900/80 border-orange-500/60 shadow-lg shadow-orange-500/30 animate-pulse-ring'
+          : 'bg-gray-900/80 border-gray-700/50'
         }
       `}
       aria-label={canClaim ? 'Забрать ежедневную награду' : 'Ежедневные награды'}
     >
       {/* Иконка огня */}
-      <span className={`text-xl sm:text-2xl leading-none ${canClaim ? '' : 'grayscale opacity-50'}`}>
+      <span className={`text-xl leading-none ${canClaim ? '' : 'grayscale opacity-50'}`}>
         🔥
       </span>
 
       {/* Число стрика */}
-      <span className={`text-[9px] sm:text-[11px] font-bold leading-none mt-0.5 ${
-        canClaim ? 'text-amber-300' : 'text-gray-500'
+      <span className={`text-[9px] font-bold leading-none mt-0.5 ${
+        canClaim ? 'text-orange-300' : 'text-gray-500'
       }`}>
         {streak}
       </span>
 
       {/* Красный бейдж ! — только когда награда доступна */}
       {canClaim && (
-        <span className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 rounded-full
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full
                          flex items-center justify-center
-                         text-[9px] sm:text-game-sm font-bold text-white
-                         border border-red-400
-                         animate-bounce">
+                         text-[9px] font-bold text-white
+                         border border-red-400">
           !
         </span>
       )}

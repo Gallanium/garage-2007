@@ -51,17 +51,19 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   // State: locked
   if (!isUnlocked) {
     return (
-      <div className="bg-gray-800/50 rounded-lg p-3 border-2 border-dashed border-gray-700">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xl opacity-30">{def.icon}</span>
+      <div className="bg-gradient-to-br from-gray-900/60 to-gray-800/40 rounded-lg border border-gray-700/40 p-3 opacity-50">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg opacity-40 flex-shrink-0">
+            {def.icon}
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-gray-500 font-mono font-bold text-sm sm:text-sm truncate">{def.name}</p>
-            <p className="text-gray-600 font-mono text-game-sm sm:text-xs">{subline}</p>
+            <p className="text-xs font-bold text-gray-500 font-mono truncate">{def.name}</p>
+            <p className="text-[9px] text-gray-600 font-mono">{subline}</p>
           </div>
         </div>
-        <p className="text-gray-500 text-center font-mono text-game-sm sm:text-xs mt-1">
+        <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
           🔒 Уровень {def.unlockLevel}
-        </p>
+        </div>
       </div>
     )
   }
@@ -69,19 +71,22 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   // State: owned + active
   if (isOwned && isActive) {
     return (
-      <div className="bg-green-900/30 rounded-lg p-3 border border-green-500/60">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xl">{def.icon}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-green-300 font-mono font-bold text-sm sm:text-sm">{def.name}</p>
-            <p className="text-gray-400 font-mono text-game-sm sm:text-xs">{subline}</p>
+      <div className="bg-gradient-to-br from-green-950/80 to-emerald-950/60 rounded-lg border border-green-700/60 p-3">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
+            {def.icon}
           </div>
-          <span className="text-green-400 text-[10px] font-mono shrink-0">✓ Активно</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-white font-mono">{def.name}</p>
+              <span className="text-green-300 text-[9px] font-mono">✓ Активно</span>
+            </div>
+            <p className="text-[9px] text-gray-400 font-mono mt-0.5">{subline}</p>
+          </div>
         </div>
         <button
           onClick={() => toggleDecoration(id)}
-          className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
-                     bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+          className="w-full py-2 rounded text-[10px] font-bold text-gray-300 bg-black/30 transition-colors"
         >
           Скрыть
         </button>
@@ -97,23 +102,26 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
     const toggleConflictDef = toggleConflict ? DECORATION_CATALOG[toggleConflict] : null
 
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xl opacity-60">{def.icon}</span>
+      <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg opacity-60 flex-shrink-0">
+            {def.icon}
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-gray-300 font-mono font-bold text-sm sm:text-sm">{def.name}</p>
-            <p className="text-gray-500 font-mono text-game-sm sm:text-xs">{subline}</p>
+            <p className="text-xs font-bold text-gray-300 font-mono">{def.name}</p>
+            <p className="text-[9px] text-gray-500 font-mono mt-0.5">{subline}</p>
           </div>
         </div>
         <button
           onClick={() => toggleDecoration(id)}
-          className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
-                     bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+          className="w-full py-2 rounded text-[10px] font-bold text-white
+                     bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500
+                     transition-colors"
         >
           Показать
         </button>
         {toggleConflictDef && (
-          <p className="text-yellow-500/80 font-mono text-[9px] text-center mt-1">
+          <p className="text-orange-400/80 font-mono text-[9px] text-center mt-1">
             ⚠️ Заменит: {toggleConflictDef.icon} {toggleConflictDef.name}
           </p>
         )}
@@ -124,23 +132,21 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   // State: available but cannot afford
   if (!canAfford) {
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xl">{def.icon}</span>
+      <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3 opacity-50">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
+            {def.icon}
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-gray-300 font-mono font-bold text-sm sm:text-sm">{def.name}</p>
-            <p className="text-gray-500 font-mono text-game-sm sm:text-xs">{subline}</p>
+            <p className="text-xs font-bold text-gray-300 font-mono">{def.name}</p>
+            <p className="text-[9px] text-gray-500 font-mono mt-0.5">{subline}</p>
           </div>
         </div>
-        <button
-          disabled
-          className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
-                     bg-gray-700 text-gray-500 cursor-not-allowed"
-        >
-          <span className="text-red-400">{costLabel}</span>
-        </button>
+        <div className="w-full py-2 rounded text-center text-[10px] font-bold bg-black/30">
+          <span className="text-cyan-400 opacity-60">{costLabel}</span>
+        </div>
         {conflictDef && (
-          <p className="text-yellow-500/80 font-mono text-[9px] text-center mt-1">
+          <p className="text-orange-400/80 font-mono text-[9px] text-center mt-1">
             ⚠️ Заменит: {conflictDef.icon} {conflictDef.name}
           </p>
         )}
@@ -150,23 +156,26 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
 
   // State: available and can afford
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-yellow-500/50 transition-colors">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xl">{def.icon}</span>
+    <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg border border-orange-700/60 p-3">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-lg flex-shrink-0">
+          {def.icon}
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-mono font-bold text-sm sm:text-sm">{def.name}</p>
-          <p className="text-gray-400 font-mono text-game-sm sm:text-xs">{subline}</p>
+          <p className="text-xs font-bold text-white font-mono">{def.name}</p>
+          <p className="text-[9px] text-gray-400 font-mono mt-0.5">{subline}</p>
         </div>
       </div>
       <button
         onClick={() => purchaseDecoration(id)}
-        className="w-full py-1.5 rounded font-mono font-bold text-game-sm sm:text-xs
-                   bg-yellow-600 hover:bg-yellow-500 text-black transition-colors"
+        className="w-full py-2 rounded text-[10px] font-bold text-white
+                   bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400
+                   transition-colors"
       >
-        Купить {costLabel}
+        Купить <span className="text-cyan-400">{costLabel}</span>
       </button>
       {conflictDef && (
-        <p className="text-yellow-500/80 font-mono text-[9px] text-center mt-1">
+        <p className="text-orange-400/80 font-mono text-[9px] text-center mt-1">
           ⚠️ Заменит: {conflictDef.icon} {conflictDef.name}
         </p>
       )}

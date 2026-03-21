@@ -63,48 +63,48 @@ export function GameFooter() {
   const resetGame = useGameStore((s) => s.resetGame)
 
   return (
-    <footer className="flex-shrink-0 bg-gray-900/90 backdrop-blur-sm border-t-2 border-garage-rust shadow-2xl">
+    <footer className="flex-shrink-0 bg-gray-950 border-t-2 border-orange-700/70 shadow-2xl shadow-orange-900/30">
 
       <div className="grid grid-cols-3 gap-1.5 p-3">
 
         {/* Доход за клик */}
-        <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-garage-yellow/30 shadow-md">
-          <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">За клик</p>
+        <div className="bg-gradient-to-br from-orange-950/80 to-amber-950/60 rounded-lg p-2 border border-orange-700/60">
+          <p className="text-game-xs text-gray-400 mb-1 font-mono uppercase">За клик</p>
           <div className="flex items-baseline gap-0.5">
             {(() => {
               const colors = clickBoostColors ?? clickEventColors
               return <>
-                <p className={`text-base sm:text-lg font-bold font-mono ${colors ? `${colors.text} ${colors.glow}` : 'text-garage-yellow'}`}>
+                <p className={`text-base font-bold font-mono ${colors ? `${colors.text} ${colors.glow}` : 'text-garage-yellow'}`}>
                   {formatLargeNumber(clickValue * clickMultiplier)}
                 </p>
-                <span className={`text-[9px] sm:text-[11px] font-mono ${colors ? colors.text : 'text-garage-yellow/70'}`}>₽</span>
+                <span className={`text-[9px] font-mono ${colors ? colors.text : 'text-garage-yellow/70'}`}>₽</span>
               </>
             })()}
           </div>
         </div>
 
         {/* Моментальный доход */}
-        <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-blue-400/30 shadow-md">
-          <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Момент.</p>
+        <div className="bg-gradient-to-br from-blue-950/80 to-cyan-950/60 rounded-lg p-2 border border-blue-700/60">
+          <p className="text-game-xs text-gray-400 mb-1 font-mono uppercase">Момент.</p>
           <div className="flex items-baseline gap-0.5">
-            <p className="text-base sm:text-lg font-bold text-blue-300 font-mono">
+            <p className="text-base font-bold text-blue-300 font-mono">
               {formatLargeNumber(momentaryClickIncome)}
             </p>
-            <span className="text-[9px] sm:text-[11px] text-blue-300/70 font-mono">₽/с</span>
+            <span className="text-[9px] text-blue-300/70 font-mono">₽/с</span>
           </div>
         </div>
 
         {/* Пассивный доход */}
-        <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-2 border border-green-400/30 shadow-md">
-          <p className="text-game-xs sm:text-game-sm text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
+        <div className="bg-gradient-to-br from-green-950/80 to-emerald-950/60 rounded-lg p-2 border border-green-700/60">
+          <p className="text-game-xs text-gray-400 mb-1 font-mono uppercase">Пассив.</p>
           <div className="flex items-baseline gap-0.5">
             {(() => {
               const colors = passiveBoostColors ?? passiveEventColors
               return <>
-                <p className={`text-base sm:text-lg font-bold font-mono ${colors ? `${colors.text} ${colors.glow}` : 'text-green-300'}`}>
+                <p className={`text-base font-bold font-mono ${colors ? `${colors.text} ${colors.glow}` : 'text-green-300'}`}>
                   {(passiveIncomePerSecond * incomeMultiplier).toFixed(1)}
                 </p>
-                <span className={`text-[9px] sm:text-[11px] font-mono ${colors ? colors.text : 'text-green-300/70'}`}>₽/с</span>
+                <span className={`text-[9px] font-mono ${colors ? colors.text : 'text-green-300/70'}`}>₽/с</span>
               </>
             })()}
           </div>
@@ -116,13 +116,13 @@ export function GameFooter() {
       <div className="px-3 pb-3 space-y-2">
 
         <div>
-          <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div className="bg-gray-800 rounded-full h-2 overflow-hidden">
             <div
               className="bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-500"
               style={{ width: `${Math.round(garageProgress * 100)}%` }}
             />
           </div>
-          <p className="text-game-xs sm:text-game-sm text-gray-500 mt-1 font-mono">
+          <p className="text-game-xs text-gray-500 mt-1 font-mono">
             {milestoneInfo
               ? `🔓 Апгрейд: «${GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» — ур.${milestoneInfo.level}`
               : nextLevelCost
@@ -134,11 +134,10 @@ export function GameFooter() {
         <div className="flex justify-end items-center gap-2">
           <button
             onClick={resetGame}
-            className="bg-red-900/50 hover:bg-red-800/70
-                       text-red-300 text-game-xs sm:text-game-sm font-medium py-1.5 px-2 rounded
+            className="bg-gradient-to-r from-red-900/60 to-red-800/40 hover:from-red-800/60 hover:to-red-700/40
+                       text-red-300 text-game-xs font-medium py-1.5 px-2 rounded
                        transition-colors duration-200
-                       border border-red-700/50 font-mono
-                       active:scale-95 transform shrink-0"
+                       border border-red-700/50 font-mono shrink-0"
             title="Сбросить игру к начальным значениям"
           >
             🔄 Сброс

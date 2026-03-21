@@ -41,7 +41,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   )
 
   return (
-    <nav className="flex gap-1 bg-gray-900 p-1.5 rounded-lg">
+    <nav className="flex gap-1 bg-gray-950 p-1.5 rounded-lg border border-orange-700/30">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTab
 
@@ -51,17 +51,17 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
             type="button"
             onClick={handleClick(tab.id)}
             className={`
-              flex-1 flex flex-col items-center gap-0.5 sm:gap-1
-              px-1 py-1.5 rounded text-game-xs sm:text-game-sm font-mono font-medium
+              flex-1 flex flex-col items-center gap-0.5
+              px-1 py-1.5 rounded text-game-xs font-mono font-medium
               transition-colors duration-200
               ${
                 isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 [@media(hover:hover)]:hover:bg-gray-700'
+                  ? 'bg-gradient-to-r from-orange-700 to-amber-600 text-white'
+                  : 'bg-gray-900 text-gray-500 [@media(hover:hover)]:hover:bg-gray-800'
               }
             `}
           >
-            {tab.icon && <span className="text-base sm:text-lg">{tab.icon}</span>}
+            {tab.icon && <span className="text-base">{tab.icon}</span>}
             <span>{tab.label}</span>
           </button>
         )
