@@ -231,9 +231,7 @@ export async function processSync(
     // Auto-level
     const newLevel = checkAutoLevel(newBalance, gs.garageLevel, gs.milestonesPurchased)
 
-    // Tick boosts/events (remove expired)
-    const tickedBoosts = parseBoosts(gs.boosts)
-    const tickedEvents = parseEvents(gs.events)
+    // Tick boosts/events (reuse parsed boosts/events from above)
 
     // BalanceLog entries (batch insert)
     const logEntries: Array<{
@@ -274,8 +272,8 @@ export async function processSync(
       totalPlayTimeSeconds: newPlayTime,
       peakClickIncome: newPeakClickIncome,
       garageLevel: newLevel,
-      boosts: tickedBoosts as object,
-      events: tickedEvents as object,
+      boosts: boosts as object,
+      events: events as object,
       lastSyncAt: new Date(),
       gameDataSnapshot: Prisma.DbNull,
     })

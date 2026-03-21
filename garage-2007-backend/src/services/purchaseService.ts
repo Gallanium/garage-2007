@@ -31,13 +31,14 @@ export async function createStarsInvoice(packId: NutsPackId, userId: number): Pr
 interface InvoicePayload {
   packId: NutsPackId
   idempotencyKey: string
-  userId?: number
+  userId: number
 }
 
 function parsePayload(payloadStr: string): InvoicePayload | null {
   try {
     const parsed = JSON.parse(payloadStr) as InvoicePayload
     if (!parsed.packId || !parsed.idempotencyKey) return null
+    if (typeof parsed.userId !== 'number') return null
     return parsed
   } catch {
     return null
@@ -75,17 +76,15 @@ export async function handlePreCheckoutQuery(
   }
 
   // Verify sender matches invoice owner
-  if (payload.userId !== undefined) {
-    const user = await prisma.user.findUnique({
-      where: { telegramId: BigInt(senderTgId) },
-      select: { id: true },
-    })
+  const user = await prisma.user.findUnique({
+    where: { telegramId: BigInt(senderTgId) },
+    select: { id: true },
+  })
 
-    if (!user || user.id !== payload.userId) {
-      logger.warn({ queryId, senderTgId, payloadUserId: payload.userId }, 'Pre-checkout: payment user mismatch')
-      await answerPreCheckoutQuery(queryId, false, 'Payment user mismatch')
-      return
-    }
+  if (!user || user.id !== payload.userId) {
+    logger.warn({ queryId, senderTgId, payloadUserId: payload.userId }, 'Pre-checkout: payment user mismatch')
+    await answerPreCheckoutQuery(queryId, false, 'Payment user mismatch')
+    return
   }
 
   // Respond within 10 seconds
@@ -130,7 +129,7 @@ export async function processSuccessfulPayment(
   }
 
   // Cross-check: invoice was created for this user
-  if (payload.userId !== undefined && payload.userId !== user.id) {
+  if (payload.userId !== user.id) {
     logger.error({ payloadUserId: payload.userId, actualUserId: user.id, senderTgId, chargeId: telegramPaymentChargeId }, 'Invoice userId mismatch — initiating refund')
     logSuspiciousActivity({
       userId: user.id,
