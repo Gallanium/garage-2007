@@ -38,42 +38,55 @@ export function useGameLifecycle(): { retryAuth: () => void } {
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const syncInFlightRef = useRef(false)
+  const authInProgressRef = useRef(false)
 
-  // Auth + Load function — extracted so it can be retried
+  // Auth + Load function — extracted so it can be retried.
+  // Guard prevents concurrent execution (React StrictMode fires effects twice).
   const attemptAuth = useCallback(async () => {
-    // Reset error state on retry
-    useGameStore.setState({ serverError: false })
+    if (authInProgressRef.current) return
+    authInProgressRef.current = true
+    try {
+      useGameStore.setState({ serverError: false })
 
-    const initData = getInitData()
-
-    if (initData) {
-      const authResult = await api.authenticate(initData)
-      if (authResult) {
-        // Load state from server
-        const stateResult = await api.loadState()
-        if (stateResult?.gameState) {
-          // Apply server state to store
-          useGameStore.getState().applyServerState(stateResult.gameState)
-
-          // Show offline earnings if any
-          if (stateResult.offlineEarnings && stateResult.offlineEarnings.amount > 0) {
-            useGameStore.setState({
-              lastOfflineEarnings: stateResult.offlineEarnings.amount,
-              lastOfflineTimeAway: stateResult.offlineEarnings.timeAway,
-            })
-          }
+      // If already authenticated (token from a prior call), skip straight to loadState
+      if (!api.isOnline()) {
+        const initData = getInitData()
+        if (!initData) {
+          useGameStore.setState({ serverError: true })
           return
         }
-        // New player — server returned null gameState, initial state was created
-        if (stateResult && !stateResult.gameState) {
-          useGameStore.setState({ isLoaded: true })
+        const authResult = await api.authenticate(initData)
+        if (!authResult) {
+          useGameStore.setState({ serverError: true })
           return
         }
       }
-    }
 
-    // Server unavailable — set error flag (no localStorage fallback)
-    useGameStore.setState({ serverError: true })
+      // Load state from server
+      const stateResult = await api.loadState()
+      if (stateResult?.gameState) {
+        useGameStore.getState().applyServerState(stateResult.gameState)
+        useGameStore.setState({ serverError: false })
+
+        // Show offline earnings if any
+        if (stateResult.offlineEarnings && stateResult.offlineEarnings.amount > 0) {
+          useGameStore.setState({
+            lastOfflineEarnings: stateResult.offlineEarnings.amount,
+            lastOfflineTimeAway: stateResult.offlineEarnings.timeAway,
+          })
+        }
+        return
+      }
+      // New player — server returned null gameState, initial state was created
+      if (stateResult && !stateResult.gameState) {
+        useGameStore.setState({ isLoaded: true, serverError: false })
+        return
+      }
+
+      useGameStore.setState({ serverError: true })
+    } finally {
+      authInProgressRef.current = false
+    }
   }, [])
 
   // 1. Auth + Load — server-first, no offline fallback
