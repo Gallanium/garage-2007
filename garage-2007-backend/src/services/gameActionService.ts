@@ -15,6 +15,7 @@ import {
 import { GAME_EVENTS, EVENT_CATEGORY_WEIGHTS, EVENT_COOLDOWN_MS, EVENT_RANDOM_DELAY_MS } from '@shared/constants/events.js'
 import { DECORATION_CATALOG } from '@shared/constants/decorations.js'
 import { AppError } from '../middleware/errorHandler.js'
+import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logBalanceChange, logSuspiciousActivity, detectBalanceJump, detectRapidSync, detectTimingAnomaly } from './auditService.js'
 import { buildGameState } from './gameStateService.js'
 import {
@@ -144,54 +145,7 @@ function weightedRandomPick<T extends { weight: number }>(items: T[]): T {
   return items[items.length - 1]
 }
 
-// ── Optimistic Locking Helper ────────────────────────────────────────────────
-
-const OCC_MAX_RETRIES = 3
-
-type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
-
-/**
- * Optimistic-lock update on GameSave via `updateMany` with version check.
- * Returns the updated GameSave by merging data into the original record.
- * Throws AppError on version conflict (caller retries via withOccRetry).
- */
-async function updateGameSaveWithLock(
-  tx: TxClient,
-  userId: number,
-  gs: GameSave,
-  data: Record<string, unknown>,
-): Promise<GameSave> {
-  const result = await tx.gameSave.updateMany({
-    where: { userId, version: gs.version },
-    data: { ...data, version: gs.version + 1 },
-  })
-
-  if (result.count === 0) {
-    throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — retry')
-  }
-
-  // Return merged result (avoids second read)
-  return { ...gs, ...data, version: gs.version + 1 } as GameSave
-}
-
-/**
- * Execute a transactional operation with optimistic lock retry.
- * On VERSION_CONFLICT, retries up to OCC_MAX_RETRIES times.
- */
-async function withOccRetry<T>(fn: () => Promise<T>): Promise<T> {
-  for (let attempt = 0; attempt < OCC_MAX_RETRIES; attempt++) {
-    try {
-      return await fn()
-    } catch (err) {
-      if (err instanceof AppError && err.code === 'VERSION_CONFLICT' && attempt < OCC_MAX_RETRIES - 1) {
-        logger.warn({ attempt: attempt + 1 }, 'OCC version conflict, retrying')
-        continue
-      }
-      throw err
-    }
-  }
-  throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — max retries exceeded')
-}
+// OCC helpers (updateGameSaveWithLock, withOccRetry, TxClient) imported from ../utils/occ.js
 
 // ── processSync ─────────────────────────────────────────────────────────────
 

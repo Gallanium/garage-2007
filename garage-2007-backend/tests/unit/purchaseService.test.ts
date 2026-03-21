@@ -64,10 +64,12 @@ describe('purchaseService', () => {
 
       prisma.transaction.findUnique.mockResolvedValue(null) // no duplicate
       prisma.user.findUnique.mockResolvedValue(user)
+      // Interactive transaction reads gameSave inside the tx callback
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
 
       await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
-      // $transaction should have been called with an array of operations
+      // $transaction should have been called with a function (interactive transaction)
       expect(prisma.$transaction).toHaveBeenCalled()
     })
 

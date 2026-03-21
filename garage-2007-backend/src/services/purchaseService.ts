@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../utils/prisma.js'
 import { AppError } from '../middleware/errorHandler.js'
+import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { createInvoiceLink, answerPreCheckoutQuery, refundStarPayment } from './telegramBotService.js'
 import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { logger } from '../utils/logger.js'
@@ -146,12 +147,16 @@ export async function processSuccessfulPayment(
   }
 
   const userId = user.id
-  const nutsBefore = user.gameSave.nuts
-  const nutsAfter = nutsBefore + pack.nuts
 
-  // Prisma transaction: create Transaction + credit nuts + BalanceLog
-  await prisma.$transaction([
-    prisma.transaction.create({
+  // Interactive transaction with OCC: read fresh gameSave, version-check the update
+  const { nutsBefore, nutsAfter } = await withOccRetry(() => prisma.$transaction(async (tx) => {
+    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    const before = gs.nuts
+    const after = before + pack.nuts
+
+    await tx.transaction.create({
       data: {
         userId,
         telegramPaymentId: telegramPaymentChargeId,
@@ -161,24 +166,25 @@ export async function processSuccessfulPayment(
         status: 'completed',
         idempotencyKey: payload.idempotencyKey,
       },
-    }),
-    prisma.gameSave.update({
-      where: { userId },
-      data: { nuts: { increment: pack.nuts } },
-    }),
-    prisma.balanceLog.create({
+    })
+
+    await updateGameSaveWithLock(tx, userId, gs, { nuts: after })
+
+    await tx.balanceLog.create({
       data: {
         userId,
         actionType: 'stars_purchase',
         currency: 'nuts',
         amount: pack.nuts,
-        balanceBefore: nutsBefore,
-        balanceAfter: nutsAfter,
+        balanceBefore: before,
+        balanceAfter: after,
         metadata: { packId: payload.packId, starsAmount: pack.stars, telegramPaymentChargeId },
         idempotencyKey: payload.idempotencyKey,
       },
-    }),
-  ])
+    })
+
+    return { nutsBefore: before, nutsAfter: after }
+  }))
 
   logBalanceChange({
     userId,

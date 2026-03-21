@@ -78,6 +78,8 @@ describe('POST /api/purchase/webhook', () => {
     prisma.user.findUnique.mockResolvedValue({ ...dbUser, gameSave })
     // Mock transaction dedup check
     prisma.transaction.findUnique.mockResolvedValue(null)
+    // Interactive transaction reads gameSave inside the tx callback
+    prisma.gameSave.findUnique.mockResolvedValue(gameSave)
     // $transaction is already mocked in setup to execute the callback or resolve array
 
     const chargeId = `charge_${Date.now()}`
@@ -122,6 +124,8 @@ describe('POST /api/purchase/webhook', () => {
     // First call: no existing transaction
     prisma.transaction.findUnique.mockResolvedValueOnce(null)
     prisma.user.findUnique.mockResolvedValueOnce({ ...dbUser, gameSave })
+    // Interactive transaction reads gameSave inside the tx callback
+    prisma.gameSave.findUnique.mockResolvedValueOnce(gameSave)
 
     const payload = createSuccessfulPaymentPayload(200_000_002, 'nuts_100', chargeId)
 
@@ -144,7 +148,7 @@ describe('POST /api/purchase/webhook', () => {
       .send(payload)
     expect(second.status).toBe(200)
 
-    // The $transaction (batch) should only be called once (first time)
+    // The $transaction (interactive) should only be called once (first time)
     // On the second call, it finds the existing transaction and returns early
   })
 })
