@@ -14,7 +14,7 @@ import purchaseRoutes from './routes/purchaseRoutes.js'
 const app = express()
 
 // Trust proxy (required for express-rate-limit behind reverse proxy / ngrok)
-app.set('trust proxy', 1)
+app.set('trust proxy', env.TRUST_PROXY)
 
 // Security headers
 app.use(helmet())
