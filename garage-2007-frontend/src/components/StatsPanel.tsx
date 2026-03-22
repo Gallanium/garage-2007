@@ -44,7 +44,7 @@ const StatsPanel: React.FC = () => {
     GARAGE_LEVEL_NAMES[garageLevel as keyof typeof GARAGE_LEVEL_NAMES] ?? '—'
 
   return (
-    <div className="flex flex-col gap-3 p-3 overflow-y-auto h-full">
+    <div className="flex flex-col gap-3 p-3" style={{ paddingBottom: 'calc(12px + var(--tg-safe-area-bottom, 0px))' }}>
 
       {/* ======== Профиль игрока ======== */}
       <section className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-orange-700/40 p-3">

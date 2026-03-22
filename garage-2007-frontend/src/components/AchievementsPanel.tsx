@@ -44,7 +44,7 @@ const AchievementsPanel: React.FC = () => {
   })
 
   return (
-    <div className="flex flex-col gap-3 p-3 overflow-y-auto h-full">
+    <div className="flex flex-col gap-3 p-3" style={{ paddingBottom: 'calc(12px + var(--tg-safe-area-bottom, 0px))' }}>
 
       {/* ======== Компактная шапка: прогресс + награды ======== */}
       <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">

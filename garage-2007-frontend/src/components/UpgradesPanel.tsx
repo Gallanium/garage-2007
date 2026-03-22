@@ -81,7 +81,7 @@ const UpgradesPanel: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-3 overflow-y-auto h-full">
+    <div className="flex flex-col gap-4 p-3" style={{ paddingBottom: 'calc(12px + var(--tg-safe-area-bottom, 0px))' }}>
 
       {/* ======== Секция: Бесплатные гайки ======== */}
       <section>
