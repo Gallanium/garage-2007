@@ -50,6 +50,7 @@ export function buildGameState(gs: GameSave): Record<string, unknown> {
   const events = tickEvents(gs.events)
 
   return {
+    serverTime: Date.now(),
     balance: gs.balance,
     nuts: gs.nuts,
     garageLevel: gs.garageLevel,

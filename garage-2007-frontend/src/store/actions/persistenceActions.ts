@@ -239,6 +239,15 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       return
     }
     const s = serverState
+
+    // Staleness guard: reject state older than the last applied state.
+    // Prevents sync responses from overwriting more recent action responses.
+    const serverTime = s.serverTime as number | undefined
+    if (serverTime && serverTime <= get()._lastServerTime) {
+      if (import.meta.env.DEV) console.warn('[applyServerState] Skipping stale state', { serverTime, lastServerTime: get()._lastServerTime })
+      return
+    }
+
     const workers = s.workers as Record<string, { count: number; cost: number }> | undefined
     const upgrades = s.upgrades as Record<string, { level: number; cost: number; baseCost: number }> | undefined
     const boostsData = s.boosts as { active: Array<{ type: string; activatedAt: number; expiresAt: number }> } | undefined
@@ -278,6 +287,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     const adjustedBalance = roundCurrency(serverBalance + pendingClickIncome)
 
     _set({
+      _lastServerTime: serverTime ?? get()._lastServerTime,
       balance: adjustedBalance,
       nuts: (s.nuts as number) ?? 0,
       totalClicks: (s.totalClicks as number) ?? 0,

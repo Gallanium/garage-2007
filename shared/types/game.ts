@@ -217,6 +217,8 @@ export interface GameState {
   _pendingClickBuffer: PendingClick[]
   /** Server connection error — auth or loadState failed */
   serverError: boolean
+  /** Timestamp of the last applied server state (staleness guard) */
+  _lastServerTime: number
 }
 
 // ── Persistence types ────────────────────────────────────────────────────────

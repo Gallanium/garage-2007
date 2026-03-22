@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const gameStateResponseSchema = z.object({
+  serverTime: z.number().optional(),
   balance: z.number(),
   nuts: z.number(),
   totalClicks: z.number(),

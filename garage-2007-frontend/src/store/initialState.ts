@@ -59,4 +59,5 @@ export const initialState: GameState = {
   decorations: { owned: [], active: [] },
   _pendingClickBuffer: [],
   serverError: false,
+  _lastServerTime: 0,
 }
