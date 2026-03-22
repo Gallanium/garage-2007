@@ -58,51 +58,49 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center
-                 animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-label="Повышение класса гаража"
     >
       <div
-        className="relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-5
-                   max-w-sm w-[90%] mx-auto
-                   border border-garage-rust/50 shadow-2xl
-                   text-center
-                   animate-[slideUp_400ms_ease-out]"
+        className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4
+                   mx-3 w-full max-w-sm font-mono
+                   shadow-2xl shadow-orange-900/30 text-center animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
         {/* X-кнопка */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center
-                     rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50
-                     transition-colors duration-200 text-base sm:text-lg"
+          className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl leading-none p-1"
           aria-label="Закрыть"
         >
-          ✕
+          ×
         </button>
 
-        <h2 className="text-sm sm:text-base font-bold text-yellow-400 mb-2 font-mono">
-          🏆 ПОВЫШЕНИЕ КЛАССА
-        </h2>
+        <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
+          <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
+            Повышение класса
+          </h2>
+          <p className="text-gray-500 text-[9px] mt-1 tracking-wide">
+            Ур.{currentLevel} → Ур.{nextLevel}
+          </p>
+        </div>
 
-        <p className="text-game-sm sm:text-xs text-gray-300 mb-1 font-mono">
-          Ур.{currentLevel} → Ур.{nextLevel}
-        </p>
-        <p className="text-game-sm sm:text-xs text-garage-yellow font-mono mb-3">
+        <p className="text-garage-yellow text-xs font-bold font-mono mb-3">
           «{levelName}»
         </p>
 
-        <div className="border-t border-gray-700 mb-3" />
+        <div className="border-t border-orange-700/30 mb-3" />
 
         {/* Визуал-превью */}
         <div className="flex justify-center mb-3">
           <div
-            className="w-24 h-24 rounded-lg bg-gradient-to-br from-garage-rust to-garage-yellow
-                       border-2 border-garage-yellow/50 flex items-center justify-center"
+            className="w-20 h-20 rounded-lg bg-gradient-to-br from-orange-950/80 to-amber-950/60
+                       border border-orange-700/60 flex items-center justify-center"
           >
             <span className="text-3xl">🏗️</span>
           </div>
@@ -110,10 +108,10 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
         {/* Что откроется */}
         <div className="text-left mb-3">
-          <p className="text-game-sm sm:text-xs font-bold text-yellow-400 mb-1.5 font-mono">
-            ✨ ОТКРОЕТСЯ:
+          <p className="text-garage-yellow text-[9px] font-bold mb-1.5 font-mono">
+            Откроется:
           </p>
-          <ul className="space-y-0.5 text-[9px] sm:text-[11px] text-gray-300 font-mono">
+          <ul className="space-y-0.5 text-[9px] text-gray-400 font-mono">
             {unlocks.workers.length > 0 &&
               unlocks.workers.map((worker, i) => (
                 <li key={`worker-${i}`}>👷 {worker}</li>
@@ -136,15 +134,14 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           type="button"
           onClick={handlePurchase}
           disabled={!canAfford}
-          className={`w-full py-2 px-4 rounded-lg font-mono text-game-sm sm:text-xs font-bold
-                      transition-colors duration-200
-                      active:scale-95 transform
+          className={`w-full py-2 rounded text-[10px] font-bold
+                      transition-colors
                       ${canAfford
-                        ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20'
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white'
                         : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                       }`}
         >
-          ПОВЫСИТЬ ЗА {formatLargeNumber(upgradeCost)} ₽
+          Повысить за {formatLargeNumber(upgradeCost)} ₽
         </button>
 
       </div>

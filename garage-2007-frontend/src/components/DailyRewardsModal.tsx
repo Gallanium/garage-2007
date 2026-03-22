@@ -71,36 +71,34 @@ interface DayCardProps {
   dayLabel: number
   reward: number
   state: DayCardState
-  isBonusDay: boolean
 }
 
-const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state, isBonusDay }) => {
-  const base = 'rounded-lg p-1.5 text-center font-mono transition-all duration-200'
+const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state }) => {
+  const base = 'rounded-lg p-1.5 text-center font-mono'
   const styles: Record<DayCardState, string> = {
-    claimed: 'bg-green-900/40 border border-green-500/50',
-    current: 'bg-green-900/40 border-2 border-green-400 shadow-lg shadow-green-400/20',
-    next: 'bg-yellow-900/30 border-2 border-yellow-400 shadow-lg shadow-yellow-400/20 animate-pulse',
-    future: 'bg-gray-800/60 border border-gray-700/50 opacity-60',
-    weekDone: 'bg-gray-800/40 border border-gray-700/30 opacity-40',
+    claimed: 'bg-gray-800 border border-green-700/40',
+    current: 'bg-gray-800 border-2 border-green-500/60',
+    next: 'bg-gray-800 border-2 border-orange-500/60',
+    future: 'bg-gray-800/60 border border-gray-700/40 opacity-50',
+    weekDone: 'bg-gray-900/40 border border-gray-700/30 opacity-40',
   }
-  const bonusStyle = isBonusDay ? 'ring-1 ring-yellow-500/40' : ''
   const isClaimed = state === 'claimed' || state === 'current'
   const isDone = state === 'weekDone'
 
   return (
-    <div className={`${base} ${styles[state]} ${bonusStyle}`}>
-      <p className={`text-game-xs sm:text-game-sm uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
+    <div className={`${base} ${styles[state]}`}>
+      <p className={`text-game-xs uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
         Д{dayLabel}
       </p>
-      <div className={`text-base sm:text-lg font-bold ${
+      <div className={`text-base font-bold ${
         isDone ? 'text-gray-600 grayscale'
           : isClaimed ? 'text-green-400'
-            : state === 'next' ? 'text-yellow-400'
+            : state === 'next' ? 'text-orange-300'
               : 'text-gray-500'
       }`}>
         {isClaimed || isDone ? '✅' : `${reward}`}
       </div>
-      <p className="text-game-sm sm:text-xs mt-0.5">
+      <p className="text-[9px] mt-0.5">
         {isClaimed || isDone ? '' : '🔩'}
       </p>
     </div>
@@ -166,39 +164,35 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center
-                 animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-label="Ежедневные награды"
     >
       <div
-        className="relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-5
-                   max-w-sm w-[90%] mx-auto
-                   border border-yellow-500/50 shadow-2xl
-                   animate-[slideUp_400ms_ease-out]"
+        className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4
+                   mx-3 w-full max-w-sm font-mono
+                   shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
         {/* Крестик */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-300
-                     text-base sm:text-lg leading-none w-7 h-7 flex items-center justify-center
-                     rounded-full hover:bg-gray-700/50 transition-colors duration-200"
+          className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl leading-none p-1"
           aria-label="Закрыть"
         >
-          ✕
+          ×
         </button>
 
         {/* Заголовок */}
-        <div className="text-center mb-3">
-          <div className="text-3xl mb-1">📅</div>
-          <h2 className="text-sm sm:text-base font-bold text-yellow-400 font-mono">
-            ЕЖЕДНЕВНАЯ НАГРАДА
+        <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
+          <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
+            Ежедневная награда
           </h2>
-          <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono mt-1">
+          <p className="text-gray-500 text-[9px] mt-1 tracking-wide">
             Заходи каждый день!
           </p>
         </div>
@@ -215,7 +209,6 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
                     dayLabel={weekStartDay + i}
                     reward={reward}
                     state={isWeekComplete ? 'weekDone' : getDayState(pos)}
-                    isBonusDay={pos === 7}
                   />
                 )
               })}
@@ -229,18 +222,17 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
                     dayLabel={weekStartDay + pos - 1}
                     reward={reward}
                     state={isWeekComplete ? 'weekDone' : getDayState(pos)}
-                    isBonusDay={pos === 7}
                   />
                 )
               })}
             </div>
           </div>
 
-          {/* Штамп «НЕДЕЛЯ ЗАКРЫТА» под углом */}
+          {/* Штамп «НЕДЕЛЯ ЗАКРЫТА» */}
           {isWeekComplete && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <p className="text-sm sm:text-base font-bold font-mono uppercase tracking-wider
-                            text-red-400/60 border-2 border-dashed border-red-400/40
+              <p className="text-sm font-bold font-mono uppercase tracking-wider
+                            text-orange-400/60 border border-orange-700/50
                             px-5 py-1.5 rounded-sm">
                 Неделя закрыта
               </p>
@@ -251,10 +243,10 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
         {/* Таймер (когда награда недоступна) */}
         {!effectiveCanClaim && countdown && (
           <div className="text-center mb-3">
-            <p className="text-game-xs sm:text-game-sm text-gray-500 font-mono mb-0.5">
+            <p className="text-game-xs text-gray-500 font-mono mb-0.5">
               Следующая награда через
             </p>
-            <p className="text-sm sm:text-base font-bold text-amber-400 font-mono tracking-wider">
+            <p className="text-sm font-bold text-orange-300 font-mono tracking-wider">
               ⏳ {countdown}
             </p>
           </div>
@@ -265,23 +257,17 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
           <button
             type="button"
             onClick={onClaim}
-            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold
-                       py-2.5 px-6 rounded-lg font-mono text-sm sm:text-base
-                       transition-colors duration-200 active:scale-95 transform
-                       shadow-lg shadow-yellow-500/20 w-full"
+            className="w-full py-2 rounded text-[10px] font-bold text-white
+                       bg-gradient-to-r from-orange-600 to-amber-500
+                       hover:from-orange-500 hover:to-amber-400
+                       transition-colors"
           >
             Забрать {nextReward} 🔩
           </button>
         ) : (
-          <button
-            type="button"
-            disabled
-            className="bg-gray-700 text-gray-500 font-bold
-                       py-2.5 px-6 rounded-lg font-mono text-sm sm:text-base
-                       cursor-not-allowed w-full border border-gray-600/50"
-          >
+          <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
             ✅ Получено
-          </button>
+          </div>
         )}
       </div>
     </div>

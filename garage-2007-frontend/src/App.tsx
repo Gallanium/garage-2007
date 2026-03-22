@@ -29,6 +29,7 @@ import { GameCanvas } from './components/GameCanvas'
 import { useGameLifecycle } from './hooks/useGameLifecycle'
 import { useOfflineEarnings } from './hooks/useOfflineEarnings'
 import { useTelegramBackButton } from './hooks/useTelegram'
+import { useSwipeTabs } from './hooks/useSwipeTabs'
 
 // ============================================
 // КОНСТАНТЫ
@@ -69,6 +70,9 @@ function App() {
   }, [])
   useTelegramBackButton(activeTab !== 'game', goToGameTab)
 
+  // --- Swipe navigation ---
+  const swipeRef = useSwipeTabs(tabs.map(t => t.id), activeTab, setActiveTab)
+
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
   const serverError = useServerError()
@@ -97,11 +101,11 @@ function App() {
 
   if (serverError) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-gray-800 to-gray-900 gap-4 px-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-garage-yellow font-mono drop-shadow-lg">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 gap-4 px-4">
+        <h1 className="text-xl font-bold text-garage-yellow font-mono">
           ГАРАЖ 2007
         </h1>
-        <p className="text-xs sm:text-sm text-gray-300 font-mono text-center">
+        <p className="text-xs text-gray-400 font-mono text-center">
           Не удалось подключиться к серверу.
         </p>
         <p className="text-[10px] text-gray-500 font-mono text-center">
@@ -109,7 +113,7 @@ function App() {
         </p>
         <button
           onClick={retryAuth}
-          className="mt-2 px-6 py-2 bg-garage-yellow text-gray-900 font-mono font-bold text-xs sm:text-sm rounded hover:bg-yellow-400 active:scale-95 transition-all"
+          className="mt-2 px-6 py-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-mono font-bold text-xs rounded transition-colors"
         >
           Повторить
         </button>
@@ -123,11 +127,11 @@ function App() {
 
   if (!isLoaded) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-gray-800 to-gray-900 gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-garage-yellow font-mono drop-shadow-lg">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 gap-4">
+        <h1 className="text-xl font-bold text-garage-yellow font-mono">
           ГАРАЖ 2007
         </h1>
-        <p className="text-xs sm:text-sm text-gray-300 font-mono animate-pulse">
+        <p className="text-xs text-gray-400 font-mono">
           Загрузка...
         </p>
       </div>
@@ -142,14 +146,14 @@ function App() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-gradient-to-b from-gray-800 via-garage-metal to-gray-900 text-white overflow-y-auto"
-      style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
+      className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden"
+      style={{ paddingTop: 'var(--tg-safe-area-top)' }}
     >
 
       <GameHeader />
 
       {/* Навигация табов */}
-      <div className="px-2 sm:px-4 pt-2 bg-gray-900/60">
+      <div className="px-2 pt-2 bg-gray-900">
         <TabNavigation
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -159,7 +163,7 @@ function App() {
 
       {/* Контент: табы стекаются через absolute + visibility */}
       {/* visibility:hidden вместо display:none — Phaser канвас остаётся в layout tree */}
-      <div className="relative flex-1 min-h-0">
+      <div ref={swipeRef} className="relative flex-1 min-h-0">
 
         <div
           className={`absolute inset-0 flex flex-col ${activeTab === 'game' ? 'visible' : 'invisible opacity-0 pointer-events-none'}`}
@@ -177,19 +181,19 @@ function App() {
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'upgrades' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <UpgradesPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'achievements' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <AchievementsPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-800 to-gray-900 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'stats' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <StatsPanel />
         </div>

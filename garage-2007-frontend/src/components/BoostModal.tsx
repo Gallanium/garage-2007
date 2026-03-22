@@ -132,7 +132,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
           {/* Заголовок */}
           <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
             <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
-              БУСТЫ
+              Бусты
             </h2>
             <p className="text-gray-500 text-[9px] mt-1 tracking-wide">
               Временные усиления за гайки
@@ -151,13 +151,13 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                   onClick={() => setConfirmType(null)}
                   className="flex-1 py-1.5 bg-gray-800 text-gray-300 text-[9px] font-bold rounded"
                 >
-                  ОТМЕНА
+                  Отмена
                 </button>
                 <button
                   onClick={handleConfirmReplace}
                   className="flex-1 py-1.5 bg-orange-700 hover:bg-orange-600 text-white text-[9px] font-bold rounded"
                 >
-                  ЗАМЕНИТЬ
+                  Заменить
                 </button>
               </div>
             </div>
@@ -206,11 +206,11 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                   {/* Кнопка / таймер */}
                   {status === 'active' ? (
                     <div className={`w-full py-2 rounded text-center text-[10px] font-bold ${theme.timerColor} bg-black/30`}>
-                      ⏱ АКТИВЕН — {formatTime(remaining)}
+                      ⏱ Активен — {formatTime(remaining)}
                     </div>
                   ) : status === 'locked' ? (
                     <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
-                      🔒 УРОВЕНЬ {def.unlockLevel}
+                      🔒 Уровень {def.unlockLevel}
                     </div>
                   ) : (
                     <button
@@ -220,10 +220,10 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                       }`}
                     >
                       {status === 'blocked_nuts'
-                        ? `КУПИТЬ — не хватает ${def.costNuts - nuts} 🔩`
+                        ? `Купить — не хватает ${def.costNuts - nuts} 🔩`
                         : status === 'blocked'
-                        ? 'ЗАМЕНИТЬ'
-                        : 'КУПИТЬ'}
+                        ? 'Заменить'
+                        : 'Купить'}
                     </button>
                   )}
                 </div>

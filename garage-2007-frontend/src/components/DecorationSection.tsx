@@ -39,8 +39,8 @@ export const DecorationSection: React.FC = () => {
 
   return (
     <section>
-      <h2 className="text-sm sm:text-base font-bold mb-2 text-yellow-400 font-mono">
-        ДЕКОРАЦИИ
+      <h2 className="text-garage-yellow text-sm font-bold tracking-widest font-mono mb-2">
+        Декорации
       </h2>
 
       {/* Category filter */}
@@ -49,10 +49,10 @@ export const DecorationSection: React.FC = () => {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-2 py-1 rounded font-mono text-[10px] sm:text-xs transition-colors
+            className={`px-2 py-1 rounded font-mono text-[10px] transition-colors
               ${activeCategory === cat
-                ? 'bg-yellow-600 text-black font-bold'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-gradient-to-r from-orange-700 to-amber-600 text-white font-bold'
+                : 'bg-gray-900 text-gray-500 hover:bg-gray-800'
               }`}
           >
             {CATEGORY_LABELS[cat]} {ownedCount(cat)}/{totalCount(cat)}

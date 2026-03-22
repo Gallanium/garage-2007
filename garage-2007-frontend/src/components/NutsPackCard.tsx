@@ -51,7 +51,7 @@ export default function NutsPackCard({ packId, pack, isPurchasing, onPurchase, i
               </span>
               {packId === 'nuts_1500' && (
                 <span className="bg-green-500 text-black text-[7px] font-bold px-1.5 py-0.5 rounded">
-                  ЛУЧШАЯ ЦЕНА
+                  Лучшая цена
                 </span>
               )}
             </div>
@@ -69,7 +69,7 @@ export default function NutsPackCard({ packId, pack, isPurchasing, onPurchase, i
             isPurchasing ? 'opacity-60 cursor-wait' : ''
           }`}
         >
-          {isPurchasing ? 'Покупка...' : 'КУПИТЬ'}
+          {isPurchasing ? 'Покупка...' : 'Купить'}
         </button>
       </div>
     </div>

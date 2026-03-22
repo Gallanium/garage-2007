@@ -78,7 +78,7 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
         {/* Header */}
         <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
           <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
-            МАГАЗИН ГАЕК
+            Магазин гаек
           </h2>
           <p className="text-gray-500 text-[9px] mt-1 tracking-wide">
             Купи гайки за Telegram Stars

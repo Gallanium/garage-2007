@@ -1,6 +1,35 @@
 import { useCallback } from 'react'
 import { formatLargeNumber } from '../store/gameStore'
 
+// ============================================
+// ЦВЕТОВЫЕ ТЕМЫ КАРТОЧЕК
+// ============================================
+
+const CARD_THEMES = {
+  orange: {
+    icon: 'bg-orange-700',
+    btn: 'from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400',
+  },
+  purple: {
+    icon: 'bg-purple-700',
+    btn: 'from-purple-700 to-violet-600 hover:from-purple-600 hover:to-violet-500',
+  },
+  blue: {
+    icon: 'bg-blue-700',
+    btn: 'from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500',
+  },
+  green: {
+    icon: 'bg-green-700',
+    btn: 'from-green-700 to-emerald-600 hover:from-green-600 hover:to-emerald-500',
+  },
+  neutral: {
+    icon: 'bg-gray-700',
+    btn: 'from-gray-600 to-gray-500 hover:from-gray-500 hover:to-gray-400',
+  },
+} as const
+
+type CardTheme = keyof typeof CARD_THEMES
+
 /**
  * Пропсы компонента UpgradeCard
  */
@@ -21,6 +50,8 @@ interface UpgradeCardProps {
   icon?: string
   /** Максимальный уровень (если задан, показывает "MAX" при достижении) */
   maxLevel?: number
+  /** Цветовая тема карточки */
+  colorTheme?: CardTheme
 }
 
 /**
@@ -35,8 +66,10 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
   onPurchase,
   icon,
   maxLevel,
+  colorTheme = 'orange',
 }) => {
   const isMaxed = maxLevel != null && currentLevel >= maxLevel
+  const theme = CARD_THEMES[colorTheme]
 
   const formattedCost = formatLargeNumber(cost)
 
@@ -47,51 +80,51 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
   return (
     <div
       className={`
-        bg-gray-800 rounded-lg p-3
-        border border-gray-700
-        hover:border-gray-600 transition-colors duration-200
+        bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3
         ${!isMaxed && !canAfford ? 'opacity-50' : ''}
       `}
     >
-      {/* ---- Заголовок ---- */}
-      <div className="flex items-center gap-2 mb-1.5">
-        {icon && <span className="text-xl">{icon}</span>}
-        <h3 className="font-bold text-sm sm:text-base text-white font-mono">{title}</h3>
-      </div>
-
-      {/* ---- Описание ---- */}
-      <p className="text-game-sm sm:text-xs text-gray-400 mb-2 font-mono">{description}</p>
-
-      {/* ---- Нижняя строка: уровень + кнопка ---- */}
-      <div className="flex justify-between items-center">
-        <span className="text-[9px] sm:text-[11px] text-yellow-400 font-mono">
-          Ур: {currentLevel}{maxLevel != null ? `/${maxLevel}` : ''}
-        </span>
-
-        {isMaxed ? (
-          <span className="px-3 py-1.5 rounded text-game-sm sm:text-xs font-mono font-medium bg-green-700 text-green-200">
-            MAX
-          </span>
-        ) : (
-          <button
-            type="button"
-            disabled={!canAfford}
-            onClick={handleClick}
-            className={`
-              px-2 py-1.5 rounded text-game-sm sm:text-xs font-mono font-medium
-              transition-colors duration-200
-              active:scale-95 transform
-              ${
-                canAfford
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              }
-            `}
-          >
-            {formattedCost}&nbsp;₽
-          </button>
+      {/* ---- Верхняя строка: иконка + текст ---- */}
+      <div className="flex items-center gap-3 mb-2">
+        {icon && (
+          <div className={`w-10 h-10 rounded-lg ${theme.icon} flex items-center justify-center text-white text-lg flex-shrink-0`}>
+            <span>{icon}</span>
+          </div>
         )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-white font-mono">{title}</h3>
+            <span className="text-gray-500 text-[9px] font-mono">
+              Ур: {currentLevel}{maxLevel != null ? `/${maxLevel}` : ''}
+            </span>
+          </div>
+          <p className="text-gray-400 text-[9px] font-mono mt-0.5">{description}</p>
+        </div>
       </div>
+
+      {/* ---- Кнопка ---- */}
+      {isMaxed ? (
+        <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
+          Максимальное количество
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={!canAfford}
+          onClick={handleClick}
+          className={`
+            w-full py-2 rounded text-[10px] font-bold
+            transition-colors
+            ${
+              canAfford
+                ? `bg-gradient-to-r ${theme.btn} text-white`
+                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }
+          `}
+        >
+          {formattedCost}&nbsp;₽
+        </button>
+      )}
     </div>
   )
 }

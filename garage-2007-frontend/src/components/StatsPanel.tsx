@@ -44,14 +44,13 @@ const StatsPanel: React.FC = () => {
     GARAGE_LEVEL_NAMES[garageLevel as keyof typeof GARAGE_LEVEL_NAMES] ?? '—'
 
   return (
-    <div className="flex flex-col gap-3 p-3 overflow-y-auto h-full">
+    <div className="flex flex-col gap-3 p-3" style={{ paddingBottom: 'calc(12px + var(--tg-safe-area-bottom, 0px))' }}>
 
       {/* ======== Профиль игрока ======== */}
-      <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-gray-700 shadow-md">
+      <section className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-orange-700/40 p-3">
         <div className="flex items-center gap-3">
           {/* Аватар */}
-          <div className="w-12 h-12 rounded-full bg-gray-700 border-2 border-gray-600
+          <div className="w-12 h-12 rounded-full bg-gray-800 border-2 border-orange-700/40
                           flex items-center justify-center flex-shrink-0 overflow-hidden">
             {tgUser?.photoUrl
               ? <img src={tgUser.photoUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -60,10 +59,10 @@ const StatsPanel: React.FC = () => {
           </div>
           {/* Имя + username */}
           <div>
-            <p className="text-sm sm:text-base font-bold text-white font-mono">
+            <p className="text-xs font-bold text-white font-mono">
               {tgUser ? `${tgUser.firstName}${tgUser.lastName ? ' ' + tgUser.lastName : ''}` : 'Игрок'}
             </p>
-            <p className="text-[9px] sm:text-[11px] text-gray-500 font-mono">
+            <p className="text-[9px] text-gray-500 font-mono">
               {tgUser?.username ? `@${tgUser.username}` : tgUser ? `ID: ${tgUser.id}` : 'Подключите Telegram'}
             </p>
           </div>
@@ -71,18 +70,17 @@ const StatsPanel: React.FC = () => {
       </section>
 
       {/* ======== Уровень гаража ======== */}
-      <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-yellow-400/30 shadow-md">
+      <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-garage-rust to-garage-yellow
-                          border border-garage-yellow/50 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-orange-700
+                          flex items-center justify-center flex-shrink-0">
             <span className="text-xl">🏗️</span>
           </div>
           <div>
-            <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono uppercase">Уровень гаража</p>
-            <p className="text-base sm:text-lg font-bold text-yellow-400 font-mono">
+            <p className="text-[9px] text-gray-400 font-mono uppercase">Уровень гаража</p>
+            <p className="text-base font-bold text-garage-yellow font-mono">
               {garageLevel}{' '}
-              <span className="text-game-sm sm:text-xs text-yellow-400/70">— «{levelName}»</span>
+              <span className="text-[9px] text-garage-yellow/70">— «{levelName}»</span>
             </p>
           </div>
         </div>
@@ -93,94 +91,100 @@ const StatsPanel: React.FC = () => {
         <div className="grid grid-cols-1 gap-2">
 
           {/* Общее число кликов */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-gray-700 shadow-md">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">👆</span>
-                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Всего кликов</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
+                  👆
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono">Всего кликов</p>
               </div>
-              <p className="text-base sm:text-lg font-bold text-white font-mono">
+              <p className="text-base font-bold text-white font-mono">
                 {formatLargeNumber(totalClicks)}
               </p>
             </div>
           </div>
 
           {/* Рекорд моментального дохода */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-orange-400/30 shadow-md">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🏆</span>
-                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Рекорд (сек)</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
+                  🏆
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono">Рекорд (сек)</p>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <p className="text-base sm:text-lg font-bold text-orange-300 font-mono">
+                <p className="text-base font-bold text-orange-300 font-mono">
                   {formatLargeNumber(peakClickIncome)}
                 </p>
-                <span className="text-[9px] sm:text-[11px] text-orange-300/70 font-mono">₽/с</span>
+                <span className="text-[9px] text-orange-300/70 font-mono">₽/с</span>
               </div>
             </div>
           </div>
 
           {/* Время в игре */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-green-400/30 shadow-md">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">⏱️</span>
-                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Время в игре</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
+                  ⏱️
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono">Время в игре</p>
               </div>
-              <p className="text-base sm:text-lg font-bold text-green-300 font-mono">
+              <p className="text-base font-bold text-green-300 font-mono">
                 {formatPlayTime(totalPlayTime)}
               </p>
             </div>
           </div>
 
           {/* Всего заработано */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-gray-700 shadow-md">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">💰</span>
-                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Заработано</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
+                  💰
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono">Заработано</p>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <p className="text-base sm:text-lg font-bold text-white font-mono">
+                <p className="text-base font-bold text-white font-mono">
                   {formatLargeNumber(totalEarned)}
                 </p>
-                <span className="text-[9px] sm:text-[11px] text-gray-400 font-mono">₽</span>
+                <span className="text-[9px] text-gray-400 font-mono">₽</span>
               </div>
             </div>
           </div>
 
           {/* Количество сессий */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-gray-700 shadow-md">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🔄</span>
-                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Сессий</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
+                  🔄
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono">Сессий</p>
               </div>
-              <p className="text-base sm:text-lg font-bold text-white font-mono">
+              <p className="text-base font-bold text-white font-mono">
                 {sessionCount}
               </p>
             </div>
           </div>
 
           {/* Самая длинная серия */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3
-                          border border-amber-400/30 shadow-md">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🔥</span>
-                <p className="text-game-sm sm:text-xs text-gray-400 font-mono">Лучшая серия</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
+                  🔥
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono">Лучшая серия</p>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <p className="text-base sm:text-lg font-bold text-amber-300 font-mono">
+                <p className="text-base font-bold text-amber-300 font-mono">
                   {bestStreak}
                 </p>
-                <span className="text-[9px] sm:text-[11px] text-amber-300/70 font-mono">дн.</span>
+                <span className="text-[9px] text-amber-300/70 font-mono">дн.</span>
               </div>
             </div>
           </div>

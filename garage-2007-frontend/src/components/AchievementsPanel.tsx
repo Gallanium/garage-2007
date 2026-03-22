@@ -44,28 +44,28 @@ const AchievementsPanel: React.FC = () => {
   })
 
   return (
-    <div className="flex flex-col gap-3 p-3 overflow-y-auto h-full">
+    <div className="flex flex-col gap-3 p-3" style={{ paddingBottom: 'calc(12px + var(--tg-safe-area-bottom, 0px))' }}>
 
       {/* ======== Компактная шапка: прогресс + награды ======== */}
-      <section className="bg-gray-900/80 rounded-lg px-3 py-2 border border-gray-700/50">
+      <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
         <div className="flex items-center justify-between gap-3">
 
           {/* Левая часть: прогресс */}
           <div className="flex-1 min-w-0">
-            <p className="text-game-xs sm:text-game-sm text-gray-500 uppercase tracking-widest font-mono mb-1">
+            <p className="text-game-xs text-gray-500 uppercase tracking-widest font-mono mb-1">
               Прогресс
             </p>
             <div className="flex items-center gap-1.5">
-              <span className="text-base sm:text-lg font-bold text-yellow-400 font-mono tabular-nums">
+              <span className="text-base font-bold text-garage-yellow font-mono tabular-nums">
                 {stats.claimed}
               </span>
-              <span className="text-game-sm sm:text-xs text-gray-500 font-mono">/</span>
-              <span className="text-game-sm sm:text-xs text-gray-400 font-mono tabular-nums">
+              <span className="text-[9px] text-gray-500 font-mono">/</span>
+              <span className="text-[9px] text-gray-400 font-mono tabular-nums">
                 {stats.total}
               </span>
-              <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden ml-1">
+              <div className="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden ml-1">
                 <div
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-full rounded-full transition-all duration-500"
+                  className="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-500"
                   style={{ width: `${stats.total > 0 ? Math.round((stats.claimed / stats.total) * 100) : 0}%` }}
                 />
               </div>
@@ -74,14 +74,14 @@ const AchievementsPanel: React.FC = () => {
 
           {/* Правая часть: к получению */}
           <div className="flex-shrink-0 text-right">
-            <p className="text-game-xs sm:text-game-sm text-gray-500 uppercase tracking-widest font-mono mb-1">
+            <p className="text-game-xs text-gray-500 uppercase tracking-widest font-mono mb-1">
               К получению
             </p>
             <div className="flex items-center justify-end gap-1">
-              <span className={`text-base sm:text-lg font-bold font-mono tabular-nums ${stats.totalNutsAvailable > 0 ? 'text-cyan-400' : 'text-gray-600'}`}>
+              <span className={`text-base font-bold font-mono tabular-nums ${stats.totalNutsAvailable > 0 ? 'text-cyan-400' : 'text-gray-600'}`}>
                 {stats.totalNutsAvailable}
               </span>
-              <span className="text-base sm:text-lg">🔩</span>
+              <span className="text-base">🔩</span>
             </div>
           </div>
 
