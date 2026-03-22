@@ -29,6 +29,7 @@ import { GameCanvas } from './components/GameCanvas'
 import { useGameLifecycle } from './hooks/useGameLifecycle'
 import { useOfflineEarnings } from './hooks/useOfflineEarnings'
 import { useTelegramBackButton } from './hooks/useTelegram'
+import { useSwipeTabs } from './hooks/useSwipeTabs'
 
 // ============================================
 // КОНСТАНТЫ
@@ -68,6 +69,9 @@ function App() {
     }
   }, [])
   useTelegramBackButton(activeTab !== 'game', goToGameTab)
+
+  // --- Swipe navigation ---
+  const swipeRef = useSwipeTabs(tabs.map(t => t.id), activeTab, setActiveTab)
 
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
@@ -156,7 +160,7 @@ function App() {
 
       {/* Контент: табы стекаются через absolute + visibility */}
       {/* visibility:hidden вместо display:none — Phaser канвас остаётся в layout tree */}
-      <div className="relative flex-1 min-h-0">
+      <div ref={swipeRef} className="relative flex-1 min-h-0">
 
         <div
           className={`absolute inset-0 flex flex-col ${activeTab === 'game' ? 'visible' : 'invisible opacity-0 pointer-events-none'}`}
