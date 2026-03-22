@@ -74,6 +74,7 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"

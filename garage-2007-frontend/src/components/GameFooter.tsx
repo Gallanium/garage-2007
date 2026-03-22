@@ -63,7 +63,10 @@ export function GameFooter() {
   const resetGame = useGameStore((s) => s.resetGame)
 
   return (
-    <footer className="flex-shrink-0 bg-gray-900 border-t-2 border-orange-700/70 shadow-2xl shadow-orange-900/30">
+    <footer
+      className="flex-shrink-0 bg-gray-900 border-t-2 border-orange-700/70 shadow-2xl shadow-orange-900/30"
+      style={{ paddingBottom: 'var(--tg-safe-area-bottom)' }}
+    >
 
       <div className="grid grid-cols-3 gap-1.5 p-3">
 

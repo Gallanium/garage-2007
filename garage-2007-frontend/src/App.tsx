@@ -140,7 +140,7 @@ function App() {
   return (
     <div
       className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden"
-      style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
+      style={{ paddingTop: 'var(--tg-safe-area-top)' }}
     >
 
       <GameHeader />
@@ -175,18 +175,21 @@ function App() {
 
         <div
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'upgrades' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          style={{ paddingBottom: 'var(--tg-safe-area-bottom)' }}
         >
           <UpgradesPanel />
         </div>
 
         <div
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'achievements' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          style={{ paddingBottom: 'var(--tg-safe-area-bottom)' }}
         >
           <AchievementsPanel />
         </div>
 
         <div
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'stats' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          style={{ paddingBottom: 'var(--tg-safe-area-bottom)' }}
         >
           <StatsPanel />
         </div>
