@@ -139,7 +139,7 @@ function App() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-gray-900 text-white overflow-y-auto"
+      className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
     >
 
@@ -174,19 +174,19 @@ function App() {
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 ${activeTab === 'upgrades' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'upgrades' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <UpgradesPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 ${activeTab === 'achievements' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'achievements' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <AchievementsPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 ${activeTab === 'stats' ? 'visible' : 'invisible pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'stats' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <StatsPanel />
         </div>

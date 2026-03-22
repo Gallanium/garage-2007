@@ -172,7 +172,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
                    bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400
                    transition-colors"
       >
-        Купить <span className="text-cyan-400">{costLabel}</span>
+        Купить {costLabel}
       </button>
       {conflictDef && (
         <p className="text-orange-400/80 font-mono text-[9px] text-center mt-1">

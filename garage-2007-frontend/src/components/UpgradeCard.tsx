@@ -122,7 +122,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
             }
           `}
         >
-          <span className="text-cyan-400">{formattedCost}&nbsp;₽</span>
+          {formattedCost}&nbsp;₽
         </button>
       )}
     </div>
