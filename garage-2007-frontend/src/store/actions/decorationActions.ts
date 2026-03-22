@@ -49,15 +49,27 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       return false
     }
 
+    // Flush pending clicks so backend has accurate balance
+    if ((get()._pendingClickBuffer ?? []).length > 0) {
+      await get().flushPendingClicks()
+    }
+    // Re-validate balance after flush
+    if (get().balance < def.cost) {
+      if (import.meta.env.DEV) console.warn('[Decoration] Insufficient balance after sync')
+      return false
+    }
+
+    const stateAfterFlush = get()
+
     // Optimistic + rollback: ruble action
     // Snapshot for rollback
     const snapshot = {
-      balance: state.balance,
-      decorations: { owned: [...state.decorations.owned], active: [...state.decorations.active] },
+      balance: stateAfterFlush.balance,
+      decorations: { owned: [...stateAfterFlush.decorations.owned], active: [...stateAfterFlush.decorations.active] },
     }
 
     // Determine which active items occupy the same slot (will be displaced)
-    const displaced = state.decorations.active.filter(activeId => {
+    const displaced = stateAfterFlush.decorations.active.filter(activeId => {
       const activeDef = DECORATION_CATALOG[activeId]
       return activeDef && activeDef.slot === def.slot
     })

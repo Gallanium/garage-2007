@@ -42,16 +42,30 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         return false
       }
 
-      // Optimistic + rollback: ruble action
-      const snapshot = {
-        balance: state.balance,
-        clickValue: state.clickValue,
-        upgrades: { ...state.upgrades, clickPower: { ...state.upgrades.clickPower } },
+      // Flush pending clicks so backend has accurate balance
+      if ((get()._pendingClickBuffer ?? []).length > 0) {
+        await get().flushPendingClicks()
+      }
+      // Re-validate balance after flush (server state may differ from optimistic)
+      if (get().balance < Math.floor(get().upgrades.clickPower.cost * get().getEventCostMultiplier())) {
+        if (import.meta.env.DEV) console.warn('[ClickUpgrade] Insufficient balance after sync')
+        return false
       }
 
-      const newLevel = clickPower.level + 1
+      // Re-read state after flush
+      const stateAfterFlush = get()
+      const effectiveCostAfterFlush = Math.floor(stateAfterFlush.upgrades.clickPower.cost * stateAfterFlush.getEventCostMultiplier())
+
+      // Optimistic + rollback: ruble action
+      const snapshot = {
+        balance: stateAfterFlush.balance,
+        clickValue: stateAfterFlush.clickValue,
+        upgrades: { ...stateAfterFlush.upgrades, clickPower: { ...stateAfterFlush.upgrades.clickPower } },
+      }
+
+      const newLevel = stateAfterFlush.upgrades.clickPower.level + 1
       _set((s: GameState) => ({
-        balance: s.balance - effectiveCost,
+        balance: s.balance - effectiveCostAfterFlush,
         clickValue: calculateClickIncome(newLevel),
         upgrades: {
           ...s.upgrades,
@@ -108,16 +122,28 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         return false
       }
 
-      // Optimistic + rollback: ruble action
-      const snapshot = {
-        balance: state.balance,
-        passiveIncomePerSecond: state.passiveIncomePerSecond,
-        upgrades: { ...state.upgrades, workSpeed: { ...state.upgrades.workSpeed } },
+      // Flush pending clicks so backend has accurate balance
+      if ((get()._pendingClickBuffer ?? []).length > 0) {
+        await get().flushPendingClicks()
+      }
+      // Re-read state after flush
+      const stateAfterFlush = get()
+      const effectiveCostAfterFlush = Math.floor(stateAfterFlush.upgrades.workSpeed.cost * stateAfterFlush.getEventCostMultiplier())
+      if (stateAfterFlush.balance < effectiveCostAfterFlush) {
+        if (import.meta.env.DEV) console.warn('[WorkSpeedUpgrade] Insufficient balance after sync')
+        return false
       }
 
-      const newLevel = workSpeed.level + 1
+      // Optimistic + rollback: ruble action
+      const snapshot = {
+        balance: stateAfterFlush.balance,
+        passiveIncomePerSecond: stateAfterFlush.passiveIncomePerSecond,
+        upgrades: { ...stateAfterFlush.upgrades, workSpeed: { ...stateAfterFlush.upgrades.workSpeed } },
+      }
+
+      const newLevel = stateAfterFlush.upgrades.workSpeed.level + 1
       _set((s: GameState) => ({
-        balance: s.balance - effectiveWorkSpeedCost,
+        balance: s.balance - effectiveCostAfterFlush,
         passiveIncomePerSecond: calculateTotalPassiveIncome(
           s.workers as unknown as Record<string, { count: number }>,
           newLevel,

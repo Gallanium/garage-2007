@@ -175,6 +175,16 @@ export async function sync(clicksSinceLastSync: number): Promise<GameStateRespon
   }, true)
 }
 
+// ── Sync lock — prevents concurrent syncs (periodic + pre-action flush) ────
+let _syncInFlight: Promise<GameStateResponse | null> | null = null
+
+/** Sync with concurrency guard — if a sync is already in flight, return its result */
+export async function syncWithLock(clicksSinceLastSync: number): Promise<GameStateResponse | null> {
+  if (_syncInFlight) return _syncInFlight
+  _syncInFlight = sync(clicksSinceLastSync).finally(() => { _syncInFlight = null })
+  return _syncInFlight
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 export interface ActionResponse {

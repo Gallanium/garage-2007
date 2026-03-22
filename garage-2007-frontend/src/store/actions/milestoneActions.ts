@@ -33,14 +33,26 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
       return false
     }
 
+    // Flush pending clicks so backend has accurate balance
+    if ((get()._pendingClickBuffer ?? []).length > 0) {
+      await get().flushPendingClicks()
+    }
+    // Re-validate balance after flush
+    if (get().balance < upgrade.cost) {
+      if (import.meta.env.DEV) console.warn('[Milestone] Insufficient balance after sync')
+      return false
+    }
+
+    const stateAfterFlush = get()
+
     // Optimistic + rollback: ruble action
     const snapshot = {
-      balance: state.balance,
-      milestonesPurchased: [...state.milestonesPurchased],
-      garageLevel: state.garageLevel,
-      showMilestoneModal: state.showMilestoneModal,
-      pendingMilestoneLevel: state.pendingMilestoneLevel,
-      _milestoneDismissedAt: state._milestoneDismissedAt,
+      balance: stateAfterFlush.balance,
+      milestonesPurchased: [...stateAfterFlush.milestonesPurchased],
+      garageLevel: stateAfterFlush.garageLevel,
+      showMilestoneModal: stateAfterFlush.showMilestoneModal,
+      pendingMilestoneLevel: stateAfterFlush.pendingMilestoneLevel,
+      _milestoneDismissedAt: stateAfterFlush._milestoneDismissedAt,
     }
 
     _set((s: GameState) => {

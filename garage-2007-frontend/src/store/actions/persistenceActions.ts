@@ -9,11 +9,12 @@ import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
 import { gameStateResponseSchema } from '../validation/gameStateSchema'
+import * as api from '../../services/apiService'
 
 type Slice = Pick<GameStore,
   | 'saveProgress' | 'loadProgress' | 'addOfflineEarnings'
   | 'clearOfflineEarnings' | 'startPassiveIncome' | 'resetGame'
-  | 'applyServerState'>
+  | 'applyServerState' | 'flushPendingClicks'>
 
 export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   saveProgress: () => {
@@ -339,5 +340,19 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     get().checkForMilestone()
     get().checkAchievements()
     get().checkDailyReward()
+  },
+
+  flushPendingClicks: async () => {
+    const buffer = get()._pendingClickBuffer ?? []
+    if (buffer.length === 0) return true
+
+    const clicksToSend = buffer.length
+    const result = await api.syncWithLock(clicksToSend)
+    if (result?.gameState) {
+      _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
+      get().applyServerState(result.gameState)
+      return true
+    }
+    return false
   },
 })

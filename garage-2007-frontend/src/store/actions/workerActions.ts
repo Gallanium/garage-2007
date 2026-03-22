@@ -51,23 +51,36 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
       return
     }
 
+    // Flush pending clicks so backend has accurate balance
+    if ((get()._pendingClickBuffer ?? []).length > 0) {
+      await get().flushPendingClicks()
+    }
+    // Re-read state after flush
+    const stateAfterFlush = get()
+    const workerAfterFlush = stateAfterFlush.workers[workerType]
+    const effectiveCostAfterFlush = Math.floor(workerAfterFlush.cost * stateAfterFlush.getEventCostMultiplier())
+    if (stateAfterFlush.balance < effectiveCostAfterFlush) {
+      if (import.meta.env.DEV) console.warn(`[Hire] Insufficient balance for ${workerType} after sync`)
+      return
+    }
+
     // Optimistic + rollback: ruble action
     const snapshot = {
-      balance: state.balance,
-      passiveIncomePerSecond: state.passiveIncomePerSecond,
+      balance: stateAfterFlush.balance,
+      passiveIncomePerSecond: stateAfterFlush.passiveIncomePerSecond,
       workers: {
-        ...state.workers,
-        [workerType]: { ...state.workers[workerType] },
+        ...stateAfterFlush.workers,
+        [workerType]: { ...stateAfterFlush.workers[workerType] },
       },
     }
 
-    const newCount = worker.count + 1
+    const newCount = workerAfterFlush.count + 1
     const newCost = calculateWorkerCost(BASE_COSTS[workerType as keyof typeof BASE_COSTS] as number, newCount)
-    const workersAfter = { ...state.workers, [workerType]: { count: newCount, cost: newCost } }
-    const newPassive = calculateTotalPassiveIncome(workersAfter as unknown as Record<string, { count: number }>, state.upgrades.workSpeed.level)
+    const workersAfter = { ...stateAfterFlush.workers, [workerType]: { count: newCount, cost: newCost } }
+    const newPassive = calculateTotalPassiveIncome(workersAfter as unknown as Record<string, { count: number }>, stateAfterFlush.upgrades.workSpeed.level)
 
     _set((s: GameState) => ({
-      balance: s.balance - effectiveWorkerCost,
+      balance: s.balance - effectiveCostAfterFlush,
       passiveIncomePerSecond: newPassive,
       workers: { ...s.workers, [workerType]: { count: newCount, cost: newCost } },
     }))

@@ -82,6 +82,7 @@ export interface GameActions {
   purchaseDecoration: (id: string) => Promise<boolean>
   toggleDecoration: (id: string) => void
   applyServerState: (serverState: Record<string, unknown>) => void
+  flushPendingClicks: () => Promise<boolean>
 }
 
 export type GameStore = GameState & GameActions

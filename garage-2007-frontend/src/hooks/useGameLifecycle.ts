@@ -37,7 +37,6 @@ export function useGameLifecycle(): { retryAuth: () => void } {
   const startPassiveIncome = useGameStore((s) => s.startPassiveIncome)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const syncInFlightRef = useRef(false)
   const authInProgressRef = useRef(false)
   const retryCountRef = useRef(0)
   const retryCooldownRef = useRef(false)
@@ -119,11 +118,9 @@ export function useGameLifecycle(): { retryAuth: () => void } {
     if (!api.isOnline()) return
 
     const syncInterval = setInterval(() => {
-      if (syncInFlightRef.current) return
       const buffer = useGameStore.getState()._pendingClickBuffer ?? []
       const clicksToSend = buffer.length
-      syncInFlightRef.current = true
-      api.sync(clicksToSend).then((result) => {
+      api.syncWithLock(clicksToSend).then((result) => {
         if (result?.gameState) {
           // Remove only the clicks we sent after the server acknowledged them.
           // Clicks that arrived during the roundtrip stay in the buffer.
@@ -144,8 +141,6 @@ export function useGameLifecycle(): { retryAuth: () => void } {
         if (!api.isOnline()) {
           if (import.meta.env.DEV) console.warn('[Sync] Token lost — skipping sync, auth will recover')
         }
-      }).finally(() => {
-        syncInFlightRef.current = false
       })
     }, SYNC_INTERVAL_MS)
 
