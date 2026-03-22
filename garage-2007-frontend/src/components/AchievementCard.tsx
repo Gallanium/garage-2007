@@ -82,7 +82,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
                      hover:from-orange-500 hover:to-amber-400
                      transition-colors"
         >
-          ЗАБРАТЬ 🎁
+          Забрать 🎁
         </button>
       </div>
     )

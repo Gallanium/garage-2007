@@ -40,7 +40,7 @@ export const DecorationSection: React.FC = () => {
   return (
     <section>
       <h2 className="text-garage-yellow text-sm font-bold tracking-widest font-mono mb-2">
-        ДЕКОРАЦИИ
+        Декорации
       </h2>
 
       {/* Category filter */}

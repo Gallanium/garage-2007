@@ -105,7 +105,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
       {/* ---- Кнопка ---- */}
       {isMaxed ? (
         <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
-          MAX
+          Максимальное количество
         </div>
       ) : (
         <button

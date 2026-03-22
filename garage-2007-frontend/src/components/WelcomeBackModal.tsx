@@ -73,7 +73,7 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
       role="dialog"
@@ -83,12 +83,12 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
       <div
         className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4
                    mx-3 w-full max-w-sm font-mono
-                   shadow-2xl shadow-orange-900/30 text-center"
+                   shadow-2xl shadow-orange-900/30 text-center animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
         <div className="text-4xl mb-2">🔧</div>
 
-        <div className="text-center mb-4">
+        <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
           <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
             С возвращением!
           </h2>

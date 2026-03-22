@@ -39,7 +39,7 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
         </button>
 
         <h2 className="text-garage-yellow text-xs font-bold mb-3 text-center">
-          НЕДОСТАТОЧНО ГАЕК
+          Недостаточно гаек
         </h2>
 
         <p className="text-gray-300 text-[10px] text-center mb-4">

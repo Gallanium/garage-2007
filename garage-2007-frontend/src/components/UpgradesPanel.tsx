@@ -110,7 +110,7 @@ const UpgradesPanel: React.FC = () => {
             >
               {isWatching || rewardedVideo.isWatching
                 ? '📺 Просмотр...'
-                : `СМОТРЕТЬ → +${REWARDED_VIDEO_NUTS} 🔩`}
+                : `Смотреть → +${REWARDED_VIDEO_NUTS} 🔩`}
             </button>
           ) : (
             <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono">
@@ -128,7 +128,7 @@ const UpgradesPanel: React.FC = () => {
       {milestoneInfo && (
         <section>
           <h2 className="text-garage-yellow text-sm font-bold tracking-widest font-mono mb-2">
-            АПГРЕЙД
+            Апгрейд
           </h2>
           <div
             className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3"
@@ -165,7 +165,7 @@ const UpgradesPanel: React.FC = () => {
               disabled={balance < milestoneInfo.upgrade.cost}
               onClick={() => purchaseMilestone(milestoneInfo.level)}
             >
-              ПОВЫСИТЬ {formatLargeNumber(milestoneInfo.upgrade.cost)} ₽
+              Повысить {formatLargeNumber(milestoneInfo.upgrade.cost)} ₽
             </button>
           </div>
         </section>
@@ -174,7 +174,7 @@ const UpgradesPanel: React.FC = () => {
       {/* ======== Секция: Улучшения ======== */}
       <section>
         <h2 className="text-garage-yellow text-sm font-bold tracking-widest font-mono mb-2">
-          МАГАЗИН
+          Магазин
         </h2>
 
         <div className="grid grid-cols-1 gap-2">
@@ -223,7 +223,7 @@ const UpgradesPanel: React.FC = () => {
       {/* ======== Секция: Работники ======== */}
       <section>
         <h2 className="text-garage-yellow text-sm font-bold tracking-widest font-mono mb-2">
-          БИРЖА ТРУДА
+          Биржа труда
         </h2>
 
         <div className="grid grid-cols-1 gap-2">
@@ -272,6 +272,7 @@ const UpgradesPanel: React.FC = () => {
                 cost={worker.cost}
                 canAfford={!isMaxed && balance >= worker.cost}
                 onPurchase={() => hireWorker(def.type)}
+                maxLevel={limit}
                 colorTheme="blue"
               />
             )

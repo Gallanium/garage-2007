@@ -57,7 +57,7 @@ const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
         </span>
       ) : (
         <span className="text-[8px] font-bold leading-none mt-0.5 text-orange-400">
-          БУСТ
+          Буст
         </span>
       )}
     </button>

@@ -58,7 +58,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
       role="dialog"
@@ -68,7 +68,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
       <div
         className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4
                    mx-3 w-full max-w-sm font-mono
-                   shadow-2xl shadow-orange-900/30 text-center"
+                   shadow-2xl shadow-orange-900/30 text-center animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
         {/* X-кнопка */}
@@ -81,9 +81,9 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           ×
         </button>
 
-        <div className="text-center mb-4">
+        <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
           <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
-            ПОВЫШЕНИЕ КЛАССА
+            Повышение класса
           </h2>
           <p className="text-gray-500 text-[9px] mt-1 tracking-wide">
             Ур.{currentLevel} → Ур.{nextLevel}
@@ -109,7 +109,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
         {/* Что откроется */}
         <div className="text-left mb-3">
           <p className="text-garage-yellow text-[9px] font-bold mb-1.5 font-mono">
-            ОТКРОЕТСЯ:
+            Откроется:
           </p>
           <ul className="space-y-0.5 text-[9px] text-gray-400 font-mono">
             {unlocks.workers.length > 0 &&
@@ -141,7 +141,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
                         : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                       }`}
         >
-          ПОВЫСИТЬ ЗА {formatLargeNumber(upgradeCost)} ₽
+          Повысить за {formatLargeNumber(upgradeCost)} ₽
         </button>
 
       </div>
