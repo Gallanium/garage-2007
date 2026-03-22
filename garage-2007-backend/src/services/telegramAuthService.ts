@@ -35,9 +35,15 @@ export function validateInitData(initData: string, botToken: string): TelegramUs
   if (!hash) return null
   params.delete('hash')
 
-  // Freshness check: 2 minutes
+  // Freshness check: 1 hour.
+  // Telegram initData auth_date is set once when the Mini App opens and never refreshes.
+  // A 2-minute window was too aggressive — after 2 min of gameplay, any re-auth
+  // (e.g., after page reload or webview restart) would fail with INVALID_INIT_DATA,
+  // creating an unrecoverable death spiral (stale initData → 401 → retry → rate limit).
+  // HMAC validation already ensures authenticity; this check is defense-in-depth.
+  const INIT_DATA_MAX_AGE_SECONDS = 3600
   const authDate = Number(params.get('auth_date'))
-  if (Number.isNaN(authDate) || Date.now() / 1000 - authDate > 120) return null
+  if (Number.isNaN(authDate) || Date.now() / 1000 - authDate > INIT_DATA_MAX_AGE_SECONDS) return null
 
   // Sort and build data-check-string
   const dataCheckString = [...params.entries()]

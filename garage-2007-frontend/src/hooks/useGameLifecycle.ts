@@ -39,11 +39,15 @@ export function useGameLifecycle(): { retryAuth: () => void } {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const syncInFlightRef = useRef(false)
   const authInProgressRef = useRef(false)
+  const retryCountRef = useRef(0)
+  const retryCooldownRef = useRef(false)
 
   // Auth + Load function — extracted so it can be retried.
   // Guard prevents concurrent execution (React StrictMode fires effects twice).
+  // Exponential backoff on retries to prevent rate-limit death spiral.
   const attemptAuth = useCallback(async () => {
     if (authInProgressRef.current) return
+    if (retryCooldownRef.current) return
     authInProgressRef.current = true
     try {
       useGameStore.setState({ serverError: false })
@@ -57,10 +61,19 @@ export function useGameLifecycle(): { retryAuth: () => void } {
         }
         const authResult = await api.authenticate(initData)
         if (!authResult) {
+          // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+          // Prevents spamming /api/auth/telegram → rate-limit death spiral
+          retryCountRef.current++
+          const delay = Math.min(2000 * Math.pow(2, retryCountRef.current - 1), 30_000)
+          retryCooldownRef.current = true
+          setTimeout(() => { retryCooldownRef.current = false }, delay)
           useGameStore.setState({ serverError: true })
           return
         }
       }
+
+      // Auth succeeded — reset retry counter
+      retryCountRef.current = 0
 
       // Load state from server
       const stateResult = await api.loadState()
@@ -124,8 +137,12 @@ export function useGameLifecycle(): { retryAuth: () => void } {
           return
         }
 
+        // Don't set serverError from sync loop — let attemptAuth handle recovery.
+        // Setting serverError here caused a cascade: any transient token loss
+        // (e.g., failed re-auth after page reload) immediately showed the error
+        // screen, even when the JWT was still valid for other calls.
         if (!api.isOnline()) {
-          useGameStore.setState({ serverError: true })
+          if (import.meta.env.DEV) console.warn('[Sync] Token lost — skipping sync, auth will recover')
         }
       }).finally(() => {
         syncInFlightRef.current = false

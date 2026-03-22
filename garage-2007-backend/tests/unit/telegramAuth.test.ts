@@ -25,7 +25,7 @@ describe('telegramAuthService — validateInitData', () => {
     expect(result).toBeNull()
   })
 
-  it('expired auth_date (>300 sec) returns null', () => {
+  it('expired auth_date (>1 hour) returns null', () => {
     const initData = createExpiredInitData(DEFAULT_TELEGRAM_USER)
     const result = validateInitData(initData, TEST_BOT_TOKEN)
 

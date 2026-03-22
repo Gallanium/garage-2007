@@ -49,14 +49,14 @@ export function createValidInitData(
 }
 
 /**
- * Creates an expired initData (auth_date > 300 seconds ago).
+ * Creates an expired initData (auth_date > 1 hour ago, past the freshness limit).
  */
 export function createExpiredInitData(
   user: TestTelegramUser,
   botToken: string = TEST_BOT_TOKEN,
 ): string {
   return createValidInitData(user, botToken, {
-    authDate: Math.floor(Date.now() / 1000) - 600, // 10 minutes ago
+    authDate: Math.floor(Date.now() / 1000) - 7200, // 2 hours ago (past 1h limit)
   })
 }
 

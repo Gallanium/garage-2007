@@ -102,7 +102,10 @@ function App() {
           ГАРАЖ 2007
         </h1>
         <p className="text-xs sm:text-sm text-gray-300 font-mono text-center">
-          Сервер недоступен. Попробуйте позже.
+          Не удалось подключиться к серверу.
+        </p>
+        <p className="text-[10px] text-gray-500 font-mono text-center">
+          Если не помогает — закройте и откройте игру заново
         </p>
         <button
           onClick={retryAuth}
