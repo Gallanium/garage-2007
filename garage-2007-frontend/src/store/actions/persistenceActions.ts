@@ -243,7 +243,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     // Staleness guard: reject state older than the last applied state.
     // Prevents sync responses from overwriting more recent action responses.
     const serverTime = s.serverTime as number | undefined
-    if (serverTime && serverTime <= get()._lastServerTime) {
+    if (serverTime && serverTime < get()._lastServerTime) {
       if (import.meta.env.DEV) console.warn('[applyServerState] Skipping stale state', { serverTime, lastServerTime: get()._lastServerTime })
       return
     }

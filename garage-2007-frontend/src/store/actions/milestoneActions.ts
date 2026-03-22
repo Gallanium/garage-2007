@@ -28,6 +28,11 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
       return false
     }
 
+    if (api.isActionThrottled()) {
+      if (import.meta.env.DEV) console.warn('[Milestone] Client-side rate limit reached, try again later')
+      return false
+    }
+
     // Optimistic + rollback: ruble action
     const snapshot = {
       balance: state.balance,

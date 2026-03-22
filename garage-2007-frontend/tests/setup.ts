@@ -5,6 +5,7 @@ import { initialState } from '../src/store/initialState'
 // Mock apiService so server-first actions work in tests
 vi.mock('../src/services/apiService', () => ({
   isOnline: () => true,
+  isActionThrottled: () => false,
   performAction: vi.fn(async () => {
     // Return a mock ActionResponse with no gameState by default.
     // Tests that need server-first behavior should mock specific responses.

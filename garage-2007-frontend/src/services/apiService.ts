@@ -185,6 +185,22 @@ export interface ActionResponse {
   message?: string
 }
 
+// ── Client-side action rate tracking ─────────────────────────────────────────
+// Prevents hitting the server's 30 req/60s rate limiter which causes
+// optimistic-update rollback flicker when 429 is returned.
+const _actionTimestamps: number[] = []
+const CLIENT_ACTION_LIMIT = 25    // below server's 30/60s to leave headroom
+const CLIENT_ACTION_WINDOW = 60_000
+
+/** Returns true if client-side action rate limit is reached */
+export function isActionThrottled(): boolean {
+  const now = Date.now()
+  while (_actionTimestamps.length > 0 && _actionTimestamps[0]! < now - CLIENT_ACTION_WINDOW) {
+    _actionTimestamps.shift()
+  }
+  return _actionTimestamps.length >= CLIENT_ACTION_LIMIT
+}
+
 export async function performAction(
   type: string,
   payload: Record<string, unknown>,
@@ -193,6 +209,7 @@ export async function performAction(
   // Auto-generate idempotencyKey if not provided.
   // Key is generated BEFORE fetchWithRetry — same key for all retries.
   const key = idempotencyKey ?? crypto.randomUUID()
+  _actionTimestamps.push(Date.now())
   return apiFetch<ActionResponse>('/game/action', {
     method: 'POST',
     body: JSON.stringify({ type, payload, idempotencyKey: key }),

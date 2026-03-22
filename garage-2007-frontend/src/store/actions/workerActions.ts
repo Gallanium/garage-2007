@@ -46,6 +46,11 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
       return
     }
 
+    if (api.isActionThrottled()) {
+      if (import.meta.env.DEV) console.warn(`[Hire] Client-side rate limit reached (${workerType}), try again later`)
+      return
+    }
+
     // Optimistic + rollback: ruble action
     const snapshot = {
       balance: state.balance,

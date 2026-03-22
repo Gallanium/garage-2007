@@ -32,6 +32,11 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       return false
     }
 
+    if (api.isActionThrottled()) {
+      if (import.meta.env.DEV) console.warn('[Decoration] Client-side rate limit reached, try again later')
+      return false
+    }
+
     if (def.currency === 'nuts') {
       // Server-first: premium action (nuts). No optimistic mutation.
       const r = await api.performAction('purchase_decoration', { decorationId: id })

@@ -37,6 +37,11 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         return false
       }
 
+      if (api.isActionThrottled()) {
+        if (import.meta.env.DEV) console.warn('[ClickUpgrade] Client-side rate limit reached, try again later')
+        return false
+      }
+
       // Optimistic + rollback: ruble action
       const snapshot = {
         balance: state.balance,
@@ -95,6 +100,11 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
 
       if (!api.isOnline()) {
         console.warn('[WorkSpeedUpgrade] Cannot purchase: not connected to server')
+        return false
+      }
+
+      if (api.isActionThrottled()) {
+        if (import.meta.env.DEV) console.warn('[WorkSpeedUpgrade] Client-side rate limit reached, try again later')
         return false
       }
 
