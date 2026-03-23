@@ -15,6 +15,7 @@ import {
   GAME_EVENTS,
 } from '../store/gameStore'
 import type { BoostType, EventCategory } from '../store/gameStore'
+import { Unlock, RotateCcw } from 'lucide-react'
 
 const BOOST_COLORS: Record<BoostType, { text: string; glow: string }> = {
   turbo:     { text: 'text-purple-300', glow: 'drop-shadow-[0_0_6px_rgba(192,132,252,0.6)]' },
@@ -125,9 +126,9 @@ export function GameFooter() {
               style={{ width: `${Math.round(garageProgress * 100)}%` }}
             />
           </div>
-          <p className="text-game-xs text-gray-500 mt-1 font-mono">
+          <p className="text-game-xs text-gray-500 mt-1 font-mono flex items-center gap-1">
             {milestoneInfo
-              ? `🔓 Апгрейд: «${GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» — ур.${milestoneInfo.level}`
+              ? <><Unlock className="w-3 h-3 text-cyan-400" /> Апгрейд: «{GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» — ур.{milestoneInfo.level}</>
               : nextLevelCost
                 ? `До ур.${garageLevel + 1}: ${formatLargeNumber(Math.max(0, nextLevelCost - balance))}₽ (${Math.round(garageProgress * 100)}%)`
                 : 'Максимальный уровень!'}
@@ -143,7 +144,7 @@ export function GameFooter() {
                        border border-red-700/50 font-mono shrink-0"
             title="Сбросить игру к начальным значениям"
           >
-            🔄 Сброс
+            <RotateCcw className="inline-block w-3 h-3 align-text-bottom mr-1" /> Сброс
           </button>
         </div>
 

@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { useBoosts } from '../store/gameStore'
+import { Rocket } from 'lucide-react'
 
 interface BoostButtonProps {
   onClick: () => void
@@ -49,7 +50,7 @@ const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
       `}
       aria-label="Бусты"
     >
-      <span className="text-xl leading-none">🚀</span>
+      <Rocket className="w-5 h-5 text-orange-500 mb-0.5" />
 
       {isActive ? (
         <span className="text-[8px] font-bold leading-none mt-0.5 text-orange-300">

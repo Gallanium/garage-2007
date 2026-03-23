@@ -12,6 +12,38 @@ import {
   formatLargeNumber,
 } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
+import type { DecorationId } from '../store/gameStore'
+import {
+  Hexagon, Lock, Hammer, Wrench, Package, Settings as SettingsIcon,
+  Flame, Calendar, Image as ImageIcon, Flag, Clock, Sparkles,
+  Lightbulb, Flashlight, Sun, Lamp, Car, CarFront, Trophy,
+  Scroll, Medal, Key
+} from 'lucide-react'
+
+const DECORATION_ICONS: Record<DecorationId, React.ReactNode> = {
+  tools_workbench: <Hammer className="w-5 h-5 text-white" />,
+  tools_wrench_set: <Wrench className="w-5 h-5 text-white" />,
+  tools_shelf: <Package className="w-5 h-5 text-white" />,
+  tools_compressor: <SettingsIcon className="w-5 h-5 text-white" />,
+  tools_welding: <Flame className="w-5 h-5 text-white" />,
+  decor_calendar: <Calendar className="w-5 h-5 text-white" />,
+  decor_poster_car: <ImageIcon className="w-5 h-5 text-white" />,
+  decor_flag: <Flag className="w-5 h-5 text-white" />,
+  decor_clock: <Clock className="w-5 h-5 text-white" />,
+  decor_neon_sign: <Sparkles className="w-5 h-5 text-white" />,
+  light_bulb: <Lightbulb className="w-5 h-5 text-white" />,
+  light_fluorescent: <Flashlight className="w-5 h-5 text-white" />,
+  light_spotlight: <Sun className="w-5 h-5 text-white" />,
+  light_garage_lamp: <Lamp className="w-5 h-5 text-white" />,
+  car_zaporozhets: <Car className="w-5 h-5 text-white" />,
+  car_moskvich: <Car className="w-5 h-5 text-white" />,
+  car_vaz_2106: <CarFront className="w-5 h-5 text-white" />,
+  car_gaz_24: <CarFront className="w-5 h-5 text-white" />,
+  trophy_first_place: <Trophy className="w-5 h-5 text-white" />,
+  trophy_certificate: <Scroll className="w-5 h-5 text-white" />,
+  trophy_medal: <Medal className="w-5 h-5 text-white" />,
+  trophy_golden_wrench: <Key className="w-5 h-5 text-white" />,
+}
 
 interface DecorationCardProps {
   id: string
@@ -36,8 +68,8 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   const canAfford = def.currency === 'rubles' ? balance >= def.cost : nuts >= def.cost
 
   const costLabel = def.currency === 'rubles'
-    ? `${formatLargeNumber(def.cost)} ₽`
-    : `${def.cost} 🔩`
+    ? <>{formatLargeNumber(def.cost)} ₽</>
+    : <>{def.cost} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom" /></>
 
   const slotLabel = SLOT_LABELS[def.slot]
   const subline = `${def.description} · 📍 ${slotLabel}`
@@ -56,15 +88,15 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
       <div className="bg-gradient-to-br from-gray-900/60 to-gray-800/40 rounded-lg border border-gray-700/40 p-3 opacity-50">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg opacity-40 flex-shrink-0">
-            {def.icon}
+            {DECORATION_ICONS[id as DecorationId] || def.icon}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-gray-500 font-mono truncate">{def.name}</p>
             <p className="text-[9px] text-gray-600 font-mono">{subline}</p>
           </div>
         </div>
-        <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
-          🔒 Уровень {def.unlockLevel}
+        <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 flex items-center justify-center gap-1">
+          <Lock className="w-3 h-3" /> Уровень {def.unlockLevel}
         </div>
       </div>
     )
@@ -76,7 +108,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-green-700/40 p-3">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
-            {def.icon}
+            {DECORATION_ICONS[id as DecorationId] || def.icon}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
@@ -107,7 +139,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
       <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg opacity-60 flex-shrink-0">
-            {def.icon}
+            {DECORATION_ICONS[id as DecorationId] || def.icon}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-gray-300 font-mono">{def.name}</p>
@@ -137,7 +169,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
       <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/60 rounded-lg border border-gray-700/40 p-3 opacity-50">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
-            {def.icon}
+            {DECORATION_ICONS[id as DecorationId] || def.icon}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-gray-300 font-mono">{def.name}</p>
@@ -161,7 +193,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
     <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
-          {def.icon}
+          {DECORATION_ICONS[id as DecorationId] || def.icon}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-white font-mono">{def.name}</p>
@@ -172,7 +204,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
         onClick={() => { purchaseDecoration(id); playSound('purchase') }}
         className="w-full py-2 rounded text-[10px] font-bold text-white
                    bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400
-                   transition-colors"
+                   transition-colors flex items-center justify-center gap-1"
       >
         Купить {costLabel}
       </button>

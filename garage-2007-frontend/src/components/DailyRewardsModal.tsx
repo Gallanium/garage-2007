@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS, type DailyRewardsState } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
+import { Hexagon, Check, Hourglass } from 'lucide-react'
 
 // ============================================
 // ТИПЫ
@@ -91,16 +92,16 @@ const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state }) => {
       <p className={`text-game-xs uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
         Д{dayLabel}
       </p>
-      <div className={`text-base font-bold ${
+      <div className={`flex items-center justify-center text-base font-bold ${
         isDone ? 'text-gray-600 grayscale'
           : isClaimed ? 'text-green-400'
             : state === 'next' ? 'text-orange-300'
               : 'text-gray-500'
       }`}>
-        {isClaimed || isDone ? '✅' : `${reward}`}
+        {isClaimed || isDone ? <Check className="w-5 h-5 inline-block" /> : `${reward}`}
       </div>
-      <p className="text-[9px] mt-0.5">
-        {isClaimed || isDone ? '' : '🔩'}
+      <p className="flex justify-center text-[9px] mt-0.5">
+        {isClaimed || isDone ? null : <Hexagon className="w-3 h-3 inline-block" />}
       </p>
     </div>
   )
@@ -252,8 +253,8 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
             <p className="text-game-xs text-gray-500 font-mono mb-0.5">
               Следующая награда через
             </p>
-            <p className="text-sm font-bold text-orange-300 font-mono tracking-wider">
-              ⏳ {countdown}
+            <p className="flex items-center justify-center gap-1 text-sm font-bold text-orange-300 font-mono tracking-wider">
+              <Hourglass className="w-4 h-4" /> {countdown}
             </p>
           </div>
         )}
@@ -266,13 +267,13 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
             className="w-full py-2 rounded text-[10px] font-bold text-white
                        bg-gradient-to-r from-orange-600 to-amber-500
                        hover:from-orange-500 hover:to-amber-400
-                       transition-colors"
+            transition-colors flex items-center justify-center gap-1"
           >
-            Забрать {nextReward} 🔩
+            Забрать {nextReward} <Hexagon className="w-3 h-3" />
           </button>
         ) : (
-          <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
-            ✅ Получено
+          <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 flex items-center justify-center gap-1">
+            <Check className="w-3 h-3 text-green-500" /> Получено
           </div>
         )}
       </div>

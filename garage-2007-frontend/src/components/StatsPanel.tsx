@@ -10,6 +10,7 @@ import {
   GARAGE_LEVEL_NAMES,
 } from '../store/gameStore'
 import { useTelegramUser } from '../hooks/useTelegram'
+import { User, Building, MousePointer2, Trophy, Timer, Coins, RotateCcw, Flame } from 'lucide-react'
 
 // ============================================
 // УТИЛИТЫ
@@ -54,7 +55,7 @@ const StatsPanel: React.FC = () => {
                           flex items-center justify-center flex-shrink-0 overflow-hidden">
             {tgUser?.photoUrl
               ? <img src={tgUser.photoUrl} alt="avatar" className="w-full h-full object-cover" />
-              : <span className="text-xl">👤</span>
+              : <User className="w-6 h-6 text-gray-400" />
             }
           </div>
           {/* Имя + username */}
@@ -73,8 +74,8 @@ const StatsPanel: React.FC = () => {
       <section className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-orange-700
-                          flex items-center justify-center flex-shrink-0">
-            <span className="text-xl">🏗️</span>
+                          flex items-center justify-center flex-shrink-0 text-white">
+            <Building className="w-6 h-6" />
           </div>
           <div>
             <p className="text-[9px] text-gray-400 font-mono uppercase">Уровень гаража</p>
@@ -94,8 +95,8 @@ const StatsPanel: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
-                  👆
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-white flex-shrink-0">
+                  <MousePointer2 className="w-5 h-5" />
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono">Всего кликов</p>
               </div>
@@ -109,8 +110,8 @@ const StatsPanel: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
-                  🏆
+                <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-white flex-shrink-0">
+                  <Trophy className="w-5 h-5" />
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono">Рекорд (сек)</p>
               </div>
@@ -127,8 +128,8 @@ const StatsPanel: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
-                  ⏱️
+                <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-white flex-shrink-0">
+                  <Timer className="w-5 h-5" />
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono">Время в игре</p>
               </div>
@@ -142,8 +143,8 @@ const StatsPanel: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
-                  💰
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-white flex-shrink-0">
+                  <Coins className="w-5 h-5" />
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono">Заработано</p>
               </div>
@@ -160,8 +161,8 @@ const StatsPanel: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">
-                  🔄
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-white flex-shrink-0">
+                  <RotateCcw className="w-5 h-5" />
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono">Сессий</p>
               </div>
@@ -175,8 +176,8 @@ const StatsPanel: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
-                  🔥
+                <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-white flex-shrink-0">
+                  <Flame className="w-5 h-5" />
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono">Лучшая серия</p>
               </div>

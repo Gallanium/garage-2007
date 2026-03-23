@@ -2,6 +2,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { useActiveEvent, useGameStore, GAME_EVENTS, BANNER_EXPAND_DURATION_MS } from '../store/gameStore'
 import type { EventCategory, EventDefinition } from '../store/gameStore'
+import { 
+  Timer, CarFront, Wrench, Coins, Star, ZapOff, 
+  ClipboardList, PlugZap, Beer, Radio, Cat 
+} from 'lucide-react'
+
+const EVENT_ICONS: Record<string, React.ReactNode> = {
+  client_rush: <CarFront className="w-5 h-5 text-current" />,
+  parts_discount: <Wrench className="w-5 h-5 text-current" />,
+  lucky_find: <Coins className="w-5 h-5 text-current" />,
+  vip_client: <Star className="w-5 h-5 text-current" />,
+  equipment_break: <ZapOff className="w-5 h-5 text-current" />,
+  tax_inspection: <ClipboardList className="w-5 h-5 text-current" />,
+  power_outage: <PlugZap className="w-5 h-5 text-current" />,
+  neighbor_visit: <Beer className="w-5 h-5 text-current" />,
+  radio_plays: <Radio className="w-5 h-5 text-current" />,
+  stray_cat: <Cat className="w-5 h-5 text-current" />,
+}
 
 const DISMISS_DURATION_MS = 400
 
@@ -138,7 +155,7 @@ export function EventBanner() {
           ${isExpanded ? 'w-8 h-8 text-base' : 'w-6 h-6 text-sm'}
           ${styles.icon_bg}
         `}>
-          {displayedDef.icon}
+          {EVENT_ICONS[displayedDef.id] || displayedDef.icon}
         </div>
 
         {/* Текстовый блок — всегда в DOM, управляется через CSS */}
@@ -159,11 +176,11 @@ export function EventBanner() {
 
         {/* Таймер — всегда виден */}
         <div className={`
-          font-bold ${styles.text} flex-shrink-0 tabular-nums
+          font-bold ${styles.text} flex-shrink-0 tabular-nums flex items-center justify-center gap-1
           transition-all duration-500 ease-in-out
           ${isExpanded ? 'text-[10px]' : 'text-[9px]'}
         `}>
-          {isExpanded ? '⏱ ' : ''}{formatCountdown(remaining)}
+          {isExpanded ? <Timer className="w-3 h-3" /> : ''}{formatCountdown(remaining)}
         </div>
       </div>
     </div>

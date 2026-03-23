@@ -3,16 +3,17 @@ import { useState } from 'react'
 import { DECORATION_CATALOG, useOwnedDecorations } from '../store/gameStore'
 import type { DecorationCategory } from '../store/gameStore'
 import { DecorationCard } from './DecorationCard'
+import { Wrench, Palette, Lightbulb, Car, Trophy } from 'lucide-react'
 
 type FilterCategory = DecorationCategory | 'all'
 
-const CATEGORY_LABELS: Record<FilterCategory, string> = {
+const CATEGORY_LABELS: Record<FilterCategory, React.ReactNode> = {
   all:       'Все',
-  tools:     '🔧',
-  wall_decor:'🎨',
-  lighting:  '💡',
-  cars:      '🚗',
-  trophies:  '🏆',
+  tools:     <span className="flex items-center gap-1"><Wrench className="w-3 h-3" /> Инструменты</span>,
+  wall_decor:<span className="flex items-center gap-1"><Palette className="w-3 h-3" /> Декор стен</span>,
+  lighting:  <span className="flex items-center gap-1"><Lightbulb className="w-3 h-3" /> Освещение</span>,
+  cars:      <span className="flex items-center gap-1"><Car className="w-3 h-3" /> Машины</span>,
+  trophies:  <span className="flex items-center gap-1"><Trophy className="w-3 h-3" /> Ачивки</span>,
 }
 
 const ALL_CATEGORIES: FilterCategory[] = ['all', 'tools', 'wall_decor', 'lighting', 'cars', 'trophies']
@@ -55,7 +56,10 @@ export const DecorationSection: React.FC = () => {
                 : 'bg-gray-900 text-gray-500 hover:bg-gray-800'
               }`}
           >
-            {CATEGORY_LABELS[cat]} {ownedCount(cat)}/{totalCount(cat)}
+            <span className="flex items-center justify-center gap-1">
+              {CATEGORY_LABELS[cat]}
+              <span className="opacity-70 ml-0.5">({ownedCount(cat)}/{totalCount(cat)})</span>
+            </span>
           </button>
         ))}
       </div>

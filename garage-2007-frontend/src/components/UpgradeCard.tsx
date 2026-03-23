@@ -48,7 +48,7 @@ interface UpgradeCardProps {
   /** Коллбэк при нажатии кнопки "Купить" */
   onPurchase: () => void
   /** Опциональная иконка (emoji) */
-  icon?: string
+  icon?: React.ReactNode
   /** Максимальный уровень (если задан, показывает "MAX" при достижении) */
   maxLevel?: number
   /** Цветовая тема карточки */

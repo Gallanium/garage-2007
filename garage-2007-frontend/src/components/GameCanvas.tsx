@@ -6,6 +6,7 @@ import BoostModal from './BoostModal'
 import { EventBanner } from './EventBanner'
 import { ErrorBoundary } from './ErrorBoundary'
 import { useTelegramHaptic } from '../hooks/useTelegram'
+import { Pointer } from 'lucide-react'
 
 interface GameCanvasProps {
   garageLevel: number
@@ -77,8 +78,8 @@ export function GameCanvas({
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2
                       bg-gray-800/80 backdrop-blur-sm rounded-lg px-3 py-2
                       border border-orange-700/50">
-        <p className="text-[9px] text-garage-yellow font-mono text-center">
-          👆 Кликни по гаражу
+        <p className="text-[9px] text-garage-yellow font-mono text-center flex items-center justify-center gap-1">
+          <Pointer className="w-3 h-3" /> Кликни по гаражу
         </p>
       </div>
 

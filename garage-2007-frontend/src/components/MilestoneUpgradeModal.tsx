@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect } from 'react'
 import { formatLargeNumber, GARAGE_LEVEL_NAMES } from '../store/gameStore'
+import { Building, HardHat, Zap, Palette } from 'lucide-react'
 
 // ============================================
 // ТИПЫ
@@ -102,7 +103,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
             className="w-20 h-20 rounded-lg bg-gradient-to-br from-orange-950/80 to-amber-950/60
                        border border-orange-700/60 flex items-center justify-center"
           >
-            <span className="text-3xl">🏗️</span>
+            <span className="text-white"><Building className="w-8 h-8" /></span>
           </div>
         </div>
 
@@ -114,18 +115,18 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
           <ul className="space-y-0.5 text-[9px] text-gray-400 font-mono">
             {unlocks.workers.length > 0 &&
               unlocks.workers.map((worker, i) => (
-                <li key={`worker-${i}`}>👷 {worker}</li>
+                <li key={`worker-${i}`}><HardHat className="inline-block w-3 h-3 text-gray-500 mr-1 align-text-bottom" /> {worker}</li>
               ))}
             {unlocks.upgrades.length > 0 &&
               unlocks.upgrades.map((upgrade, i) => (
-                <li key={`upgrade-${i}`}>⚡ {upgrade}</li>
+                <li key={`upgrade-${i}`}><Zap className="inline-block w-3 h-3 text-gray-500 mr-1 align-text-bottom" /> {upgrade}</li>
               ))}
             {unlocks.decorations.length > 0 &&
               unlocks.decorations.map((deco, i) => (
-                <li key={`deco-${i}`}>🎨 {deco}</li>
+                <li key={`deco-${i}`}><Palette className="inline-block w-3 h-3 text-gray-500 mr-1 align-text-bottom" /> {deco}</li>
               ))}
             {unlocks.visual && (
-              <li>🏗️ {unlocks.visual}</li>
+              <li><Building className="inline-block w-3 h-3 text-gray-500 mr-1 align-text-bottom" /> {unlocks.visual}</li>
             )}
           </ul>
         </div>

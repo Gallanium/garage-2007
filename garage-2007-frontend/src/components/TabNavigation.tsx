@@ -9,7 +9,9 @@ export interface TabItem {
   /** Текстовая метка */
   label: string
   /** Опциональная иконка (emoji) */
-  icon?: string
+  icon?: React.ReactNode
+  /** Уведомление на табе */
+  badge?: number
 }
 
 /**
@@ -61,7 +63,16 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               }
             `}
           >
-            {tab.icon && <span className="text-base">{tab.icon}</span>}
+            {tab.icon && (
+              <span className="relative flex items-center justify-center">
+                {tab.icon}
+                {!!tab.badge && tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-orange-500 text-black text-[9px] font-bold px-1 min-w-[14px] h-[14px] flex items-center justify-center">
+                    {tab.badge}
+                  </span>
+                )}
+              </span>
+            )}
             <span>{tab.label}</span>
           </button>
         )

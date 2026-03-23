@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { formatLargeNumber } from '../store/gameStore'
+import { Wrench, Coins } from 'lucide-react'
 
 // ============================================
 // ТИПЫ
@@ -86,7 +87,9 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
                    shadow-2xl shadow-orange-900/30 text-center animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
       >
-        <div className="text-4xl mb-2">🔧</div>
+        <div className="mb-2 text-white flex justify-center">
+          <Wrench className="w-10 h-10" />
+        </div>
 
         <div className="text-center mb-4 animate-[fadeIn_300ms_ease-out]">
           <h2 className="text-garage-yellow text-sm font-bold tracking-widest">
@@ -121,7 +124,7 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
                      hover:from-orange-500 hover:to-amber-400
                      transition-colors"
         >
-          Забрать! 💰
+          <span className="flex items-center justify-center gap-1">Забрать! <Coins className="w-3.5 h-3.5" /></span>
         </button>
       </div>
     </div>

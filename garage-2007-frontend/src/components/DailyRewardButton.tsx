@@ -2,6 +2,8 @@
 // КНОПКА ЕЖЕДНЕВНОЙ НАГРАДЫ (на игровом экране)
 // ============================================
 
+import { Flame } from 'lucide-react'
+
 interface DailyRewardButtonProps {
   /** Текущая серия дней */
   streak: number
@@ -41,9 +43,8 @@ const DailyRewardButton: React.FC<DailyRewardButtonProps> = ({
       `}
       aria-label={canClaim ? 'Забрать ежедневную награду' : 'Ежедневные награды'}
     >
-      {/* Иконка огня */}
-      <span className={`text-xl leading-none ${canClaim ? '' : 'grayscale opacity-50'}`}>
-        🔥
+      <span className={`leading-none flex justify-center ${canClaim ? 'text-orange-500' : 'grayscale opacity-50 text-gray-400'}`}>
+        <Flame className="w-5 h-5" />
       </span>
 
       {/* Число стрика */}

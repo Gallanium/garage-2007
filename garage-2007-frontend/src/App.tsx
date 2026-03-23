@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   useGameStore,
@@ -32,18 +32,60 @@ import { useTelegramBackButton } from './hooks/useTelegram'
 import { useSwipeTabs } from './hooks/useSwipeTabs'
 import { useSoundEffects } from './hooks/useSoundEffects'
 import { AudioProvider } from './contexts/AudioContext'
+import { Home, ArrowUpCircle, Trophy, BarChart2 } from 'lucide-react'
 
 // ============================================
 // КОНСТАНТЫ
 // ============================================
 
-/** Конфигурация табов навигации */
-const tabs = [
-  { id: 'game', label: 'Игра', icon: '🏠' },
-  { id: 'upgrades', label: 'Улучшения', icon: '⬆️' },
-  { id: 'achievements', label: 'Ачивки', icon: '🏆' },
-  { id: 'stats', label: 'Статистика', icon: '📊' },
+/** Конфигурация табов навигации без бейджей (вычисляются динамически) */
+const baseTabs = [
+  { id: 'game', label: 'Игра', icon: <Home className="w-4 h-4" /> },
+  { id: 'upgrades', label: 'Улучшения', icon: <ArrowUpCircle className="w-4 h-4" /> },
+  { id: 'achievements', label: 'Ачивки', icon: <Trophy className="w-4 h-4" /> },
+  { id: 'stats', label: 'Статистика', icon: <BarChart2 className="w-4 h-4" /> },
 ]
+
+// ============================================
+// КОМПОНЕНТ ЗАГРУЗКИ
+// ============================================
+
+function LoadingScreen() {
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const updateProgress = () => {
+      setProgress(p => {
+        const next = p + (95 - p) * 0.1 + 1
+        return next > 95 ? 95 : next
+      })
+      timer = setTimeout(updateProgress, 100)
+    }
+    updateProgress()
+    return () => clearTimeout(timer)
+  }, [])
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-900 gap-6 px-4">
+      <h1 className="text-2xl font-bold text-garage-yellow font-mono tracking-widest drop-shadow-[0_0_8px_rgba(252,211,77,0.4)]">
+        ГАРАЖ 2007
+      </h1>
+      
+      <div className="flex flex-col items-center w-full max-w-[200px] gap-2">
+        <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-700/50 shadow-inner">
+          <div
+            className="bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-200 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
+          Загрузка...
+        </p>
+      </div>
+    </div>
+  )
+}
 
 // ============================================
 // КОМПОНЕНТ
@@ -81,7 +123,7 @@ function App() {
   useTelegramBackButton(activeTab !== 'game', goToGameTab)
 
   // --- Swipe navigation ---
-  const swipeRef = useSwipeTabs(tabs.map(t => t.id), activeTab, handleTabChange)
+  const swipeRef = useSwipeTabs(baseTabs.map(t => t.id), activeTab, handleTabChange)
 
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
@@ -128,6 +170,17 @@ function App() {
     closeMilestoneModal()
   }, [closeMilestoneModal])
 
+  // Уведомления ачивок
+  const achievements = useGameStore(s => s.achievements)
+  const unclaimedAchievements = Object.values(achievements).filter(a => a.unlocked && !a.claimed).length
+
+  const tabsWithBadges = baseTabs.map(tab => {
+    if (tab.id === 'achievements') {
+      return { ...tab, badge: unclaimedAchievements }
+    }
+    return tab
+  })
+
   // ============================================
   // ЭКРАН ОШИБКИ СЕРВЕРА
   // ============================================
@@ -159,16 +212,7 @@ function App() {
   // ============================================
 
   if (!isLoaded) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 gap-4">
-        <h1 className="text-xl font-bold text-garage-yellow font-mono">
-          ГАРАЖ 2007
-        </h1>
-        <p className="text-xs text-gray-400 font-mono">
-          Загрузка...
-        </p>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   // ============================================
@@ -191,7 +235,7 @@ function App() {
         <TabNavigation
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          tabs={tabs}
+          tabs={tabsWithBadges}
         />
       </div>
 

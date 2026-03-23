@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type { NutsPackId, NutsPack } from '@shared/types/purchase.js'
+import { Hexagon, Star } from 'lucide-react'
 
 interface NutsPackCardProps {
   packId: NutsPackId
@@ -40,7 +41,7 @@ export default function NutsPackCard({ packId, pack, isPurchasing, onPurchase, i
         <div className="flex items-center gap-3">
           {/* Icon */}
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${theme.iconBg}`}>
-            🔩
+            <Hexagon className="w-5 h-5 text-white" />
           </div>
 
           {/* Title + price */}
@@ -55,8 +56,8 @@ export default function NutsPackCard({ packId, pack, isPurchasing, onPurchase, i
                 </span>
               )}
             </div>
-            <span className="text-cyan-400 text-xs font-bold">
-              {pack.stars} ⭐
+            <span className="text-cyan-400 text-xs font-bold flex items-center gap-1">
+              {pack.stars} <Star className="w-3.5 h-3.5 fill-cyan-400" />
             </span>
           </div>
         </div>

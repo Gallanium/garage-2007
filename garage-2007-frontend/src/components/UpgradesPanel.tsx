@@ -16,7 +16,9 @@ import {
   REWARDED_VIDEO_COOLDOWN_MS,
   type WorkerType,
 } from '../store/gameStore'
+import { Hexagon, HardHat, Settings, Wrench, Briefcase, Building2, MonitorPlay, Hourglass, Building, Zap, Lock } from 'lucide-react'
 import UpgradeCard from './UpgradeCard'
+import WorkerCard from './WorkerCard'
 import { DecorationSection } from './DecorationSection'
 
 // ============================================
@@ -25,16 +27,16 @@ import { DecorationSection } from './DecorationSection'
 
 const WORKER_DEFS: Array<{
   type: WorkerType
-  icon: string
+  icon: React.ReactNode
   title: string
   incomeLabel: string
   requiredMilestone: number | null
 }> = [
-  { type: 'apprentice', icon: '👷', title: 'Подмастерье',  incomeLabel: '2 ₽/с',      requiredMilestone: null },
-  { type: 'mechanic',   icon: '⚙️', title: 'Механик',      incomeLabel: '20 ₽/с',     requiredMilestone: 5 },
-  { type: 'master',     icon: '🔧', title: 'Мастер',       incomeLabel: '200 ₽/с',    requiredMilestone: 10 },
-  { type: 'brigadier',  icon: '👔', title: 'Бригадир',     incomeLabel: '2000 ₽/с',   requiredMilestone: 15 },
-  { type: 'director',   icon: '🏢', title: 'Директор',     incomeLabel: '20000 ₽/с',  requiredMilestone: 20 },
+  { type: 'apprentice', icon: <HardHat className="w-5 h-5 text-white" />, title: 'Подмастерье',  incomeLabel: '2 ₽/с',      requiredMilestone: null },
+  { type: 'mechanic',   icon: <Settings className="w-5 h-5 text-white" />, title: 'Механик',      incomeLabel: '20 ₽/с',     requiredMilestone: 5 },
+  { type: 'master',     icon: <Wrench className="w-5 h-5 text-white" />, title: 'Мастер',       incomeLabel: '200 ₽/с',    requiredMilestone: 10 },
+  { type: 'brigadier',  icon: <Briefcase className="w-5 h-5 text-white" />, title: 'Бригадир',     incomeLabel: '2000 ₽/с',   requiredMilestone: 15 },
+  { type: 'director',   icon: <Building2 className="w-5 h-5 text-white" />, title: 'Директор',     incomeLabel: '20000 ₽/с',  requiredMilestone: 20 },
 ]
 
 // ============================================
@@ -87,8 +89,8 @@ const UpgradesPanel: React.FC = () => {
       <section>
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-lg flex-shrink-0">
-              📺
+            <div className="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-white flex-shrink-0">
+              <MonitorPlay className="w-6 h-6" />
             </div>
             <div>
               <p className="text-xs font-bold text-white font-mono">Посмотреть рекламу</p>
@@ -109,12 +111,12 @@ const UpgradesPanel: React.FC = () => {
                 }`}
             >
               {isWatching || rewardedVideo.isWatching
-                ? '📺 Просмотр...'
-                : `Смотреть → +${REWARDED_VIDEO_NUTS} 🔩`}
+                ? <div className="flex items-center justify-center gap-1.5"><MonitorPlay className="w-3.5 h-3.5" /> Просмотр...</div>
+                : <div className="flex items-center justify-center gap-1">Смотреть &rarr; +{REWARDED_VIDEO_NUTS} <Hexagon className="w-3.5 h-3.5" /></div>}
             </button>
           ) : (
-            <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono">
-              ⏳ Доступно через {minutesRemaining} мин
+            <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono flex justify-center items-center gap-1.5">
+              <Hourglass className="w-3 h-3" /> Доступно через {minutesRemaining} мин
             </div>
           )}
 
@@ -134,8 +136,8 @@ const UpgradesPanel: React.FC = () => {
             className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-lg flex-shrink-0">
-                🏗️
+              <div className="w-10 h-10 rounded-lg bg-orange-700 flex items-center justify-center text-white flex-shrink-0">
+                <Building className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-white font-mono">
@@ -149,10 +151,10 @@ const UpgradesPanel: React.FC = () => {
             {/* Что откроется */}
             <ul className="space-y-0.5 text-[9px] text-gray-400 font-mono mb-2">
               {milestoneInfo.upgrade.unlocks.workers.map((w, i) => (
-                <li key={`w-${i}`}>👷 {w}</li>
+                <li key={`w-${i}`} className="flex items-center gap-1"><HardHat className="w-3 h-3" /> {w}</li>
               ))}
               {milestoneInfo.upgrade.unlocks.upgrades.map((u, i) => (
-                <li key={`u-${i}`}>⚡ {u}</li>
+                <li key={`u-${i}`} className="flex items-center gap-1"><Zap className="w-3 h-3" /> {u}</li>
               ))}
             </ul>
             {/* Кнопка покупки */}
@@ -179,7 +181,7 @@ const UpgradesPanel: React.FC = () => {
 
         <div className="grid grid-cols-1 gap-2">
           <UpgradeCard
-            icon="🔧"
+            icon={<Wrench className="w-5 h-5" />}
             title="Инструменты"
             description="+1 ₽ за клик"
             currentLevel={upgrades.clickPower.level}
@@ -192,7 +194,7 @@ const UpgradesPanel: React.FC = () => {
 
           {purchasedUpgrades.includes(5) ? (
             <UpgradeCard
-              icon="⚡"
+              icon={<Zap className="w-5 h-5" />}
               title="Энергетики"
               description="+10% доход работников"
               currentLevel={upgrades.workSpeed.level}
@@ -204,16 +206,16 @@ const UpgradesPanel: React.FC = () => {
           ) : (
             <div className="bg-gradient-to-br from-gray-900/60 to-gray-800/40 rounded-lg border border-gray-700/40 p-3 opacity-50">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg opacity-40 flex-shrink-0">
-                  ⚡
+                <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-gray-500 flex-shrink-0">
+                  <Zap className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-500 font-mono">Энергетики</p>
                   <p className="text-[9px] text-gray-600 font-mono">+10% доход работников</p>
                 </div>
               </div>
-              <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono">
-                🔒 Уровень 5
+              <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono flex items-center justify-center gap-1.5">
+                <Lock className="w-3 h-3" /> Уровень 5
               </div>
             </div>
           )}
@@ -238,7 +240,7 @@ const UpgradesPanel: React.FC = () => {
                   className="bg-gradient-to-br from-gray-900/60 to-gray-800/40 rounded-lg border border-gray-700/40 p-3 opacity-50"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-lg opacity-40 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center opacity-40 flex-shrink-0">
                       {def.icon}
                     </div>
                     <div>
@@ -250,8 +252,8 @@ const UpgradesPanel: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono">
-                    🔒 Уровень {def.requiredMilestone}
+                  <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono flex items-center justify-center gap-1.5">
+                    <Lock className="w-3 h-3" /> Уровень {def.requiredMilestone}
                   </div>
                 </div>
               )
@@ -263,17 +265,16 @@ const UpgradesPanel: React.FC = () => {
             const isMaxed = worker.count >= limit
 
             return (
-              <UpgradeCard
+              <WorkerCard
                 key={def.type}
                 icon={def.icon}
                 title={def.title}
-                description={`${def.incomeLabel} (${worker.count}/${limit})`}
+                incomeLabel={def.incomeLabel}
                 currentLevel={worker.count}
+                maxLevel={limit}
                 cost={worker.cost}
                 canAfford={!isMaxed && balance >= worker.cost}
                 onPurchase={() => hireWorker(def.type)}
-                maxLevel={limit}
-                colorTheme="blue"
               />
             )
           })}

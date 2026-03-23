@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useBalance, useNuts, formatLargeNumber } from '../store/gameStore'
+import { Hexagon, Plus } from 'lucide-react'
 import ShopModal from './ShopModal'
 
 /**
@@ -17,7 +18,7 @@ export function GameHeader() {
       <div className="flex justify-between items-center">
         {/* Левая часть: Баланс */}
         <div className="flex flex-col">
-          <span className="text-game-xs text-gray-400 uppercase tracking-wider font-mono">Баланс</span>
+          <span className="text-game-xs text-gray-400 uppercase tracking-wider font-mono mb-0.5">Баланс</span>
           <div className="flex items-baseline gap-1">
             <span className="text-xl font-bold text-garage-yellow font-mono tabular-nums tracking-tight">
               {formatLargeNumber(balance)}
@@ -29,14 +30,17 @@ export function GameHeader() {
         {/* Правая часть: Гайки (тап → ShopModal) */}
         <button
           onClick={() => setShowShop(true)}
-          className="flex flex-col items-end border border-orange-700/40 hover:border-orange-500/60 rounded-lg transition-colors cursor-pointer px-2 py-1 -mr-2"
+          className="flex flex-col items-end group cursor-pointer text-right"
         >
-          <span className="text-game-xs text-gray-400 uppercase tracking-wider font-mono">Гайки</span>
-          <div className="flex items-baseline gap-1">
-            <span className="text-lg font-bold text-orange-400 font-mono tabular-nums">
+          <span className="text-game-xs text-gray-400 uppercase tracking-wider font-mono mb-0.5 pr-0.5">Гайки</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-[22px] h-[22px] rounded-sm bg-gradient-to-b from-orange-400 to-orange-600 group-hover:from-orange-300 group-hover:to-orange-500 flex justify-center items-center text-white transition-colors shadow-sm">
+              <Plus className="w-3.5 h-3.5 stroke-[4]" />
+            </div>
+            <span className="text-xl font-bold text-orange-400 font-mono tabular-nums tracking-tight">
               {formatLargeNumber(nuts)}
             </span>
-            <span className="text-base">🔩</span>
+            <Hexagon className="w-[20px] h-[20px] text-orange-400" />
           </div>
         </button>
       </div>

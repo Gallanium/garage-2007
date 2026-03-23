@@ -5,6 +5,7 @@ import {
 } from '../store/gameStore'
 import { getAchievementProgress } from '../store/constants/achievements'
 import { useShallow } from 'zustand/react/shallow'
+import { Hexagon } from 'lucide-react'
 import AchievementCard from './AchievementCard'
 
 // ============================================
@@ -81,7 +82,7 @@ const AchievementsPanel: React.FC = () => {
               <span className={`text-base font-bold font-mono tabular-nums ${stats.totalNutsAvailable > 0 ? 'text-cyan-400' : 'text-gray-600'}`}>
                 {stats.totalNutsAvailable}
               </span>
-              <span className="text-base">🔩</span>
+              <Hexagon className="w-5 h-5 text-gray-500" />
             </div>
           </div>
 

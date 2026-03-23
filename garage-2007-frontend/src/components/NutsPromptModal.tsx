@@ -2,6 +2,7 @@
 import { useCallback } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
+import { Hexagon, MonitorPlay, Gem } from 'lucide-react'
 
 interface NutsPromptModalProps {
   isOpen: boolean
@@ -49,25 +50,25 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
           Недостаточно гаек
         </h2>
 
-        <p className="text-gray-300 text-[10px] text-center mb-4">
-          Нужно ещё <span className="text-garage-yellow font-bold">{deficit} 🔩</span> для активации буста
+        <p className="text-gray-300 text-[10px] text-center mb-4 flex items-center justify-center gap-1">
+          Нужно ещё <span className="text-garage-yellow font-bold whitespace-nowrap">{deficit} <Hexagon className="inline-block w-3 h-3 align-text-bottom text-garage-yellow" /></span> для активации буста
         </p>
 
         <div className="flex flex-col gap-2">
           {canWatchVideo && (
             <button
               onClick={handleWatchAd}
-              className="w-full py-2.5 bg-blue-700 hover:bg-blue-600 text-white text-[10px] font-bold rounded transition-colors"
+              className="w-full py-2.5 bg-blue-700 hover:bg-blue-600 text-white text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-1.5"
             >
-              📺 Смотреть рекламу
+              <MonitorPlay className="w-3.5 h-3.5" /> Смотреть рекламу
             </button>
           )}
 
           <button
             onClick={handleBuyNuts}
-            className="w-full py-2.5 bg-garage-yellow/20 hover:bg-garage-yellow/30 border border-garage-yellow/50 text-garage-yellow text-[10px] font-bold rounded transition-colors"
+            className="w-full py-2.5 bg-garage-yellow/20 hover:bg-garage-yellow/30 border border-garage-yellow/50 text-garage-yellow text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-1.5"
           >
-            💎 Купить гайки
+            <Gem className="w-3.5 h-3.5" /> Купить гайки
           </button>
         </div>
       </div>

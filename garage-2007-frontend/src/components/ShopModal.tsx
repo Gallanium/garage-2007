@@ -7,6 +7,7 @@ import { openTelegramInvoice } from '../hooks/useTelegram'
 import { useTelegramHaptic } from '../hooks/useTelegram'
 import NutsPackCard from './NutsPackCard'
 import { useAudio } from '../contexts/AudioContext'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface ShopModalProps {
   isOpen: boolean
@@ -103,7 +104,7 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
               ? 'bg-green-900/50 border border-green-600/50 text-green-300'
               : 'bg-red-900/50 border border-red-600/50 text-red-300'
           }`}>
-            {purchaseResult.success ? '✅' : '❌'} {purchaseResult.message}
+            {purchaseResult.success ? <CheckCircle2 className="inline-block w-3 h-3 mr-1 align-text-bottom" /> : <XCircle className="inline-block w-3 h-3 mr-1 align-text-bottom" />} {purchaseResult.message}
           </div>
         )}
 

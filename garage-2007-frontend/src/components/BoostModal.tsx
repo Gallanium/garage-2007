@@ -8,6 +8,7 @@ import {
   BOOST_DEFINITIONS,
 } from '../store/gameStore'
 import type { BoostType } from '../store/gameStore'
+import { Hexagon, Timer, Lock, Zap, Sparkles } from 'lucide-react'
 import NutsPromptModal from './NutsPromptModal'
 import ShopModal from './ShopModal'
 import { useAudio } from '../contexts/AudioContext'
@@ -30,28 +31,28 @@ const BOOST_ORDER: BoostType[] = ['turbo', 'income_2x', 'income_3x']
 const BOOST_THEMES: Record<BoostType, {
   cardBg: string
   iconBg: string
-  icon: string
+  icon: React.ReactNode
   btnGradient: string
   timerColor: string
 }> = {
   income_2x: {
     cardBg: 'bg-gradient-to-br from-orange-950/80 to-amber-950/60 border-orange-700/60',
     iconBg: 'bg-orange-600',
-    icon: '⚡',
+    icon: <Zap className="w-5 h-5" />,
     btnGradient: 'from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400',
     timerColor: 'text-amber-300',
   },
   income_3x: {
     cardBg: 'bg-gradient-to-br from-red-950/80 to-rose-950/60 border-red-700/60',
     iconBg: 'bg-red-700',
-    icon: '⚡',
+    icon: <Zap className="w-5 h-5" />,
     btnGradient: 'from-red-700 to-rose-600 hover:from-red-600 hover:to-rose-500',
     timerColor: 'text-red-300',
   },
   turbo: {
     cardBg: 'bg-gradient-to-br from-purple-950/80 to-violet-950/60 border-purple-700/60',
     iconBg: 'bg-purple-700',
-    icon: '✦',
+    icon: <Sparkles className="w-5 h-5" />,
     btnGradient: 'from-purple-700 to-violet-600 hover:from-purple-600 hover:to-violet-500',
     timerColor: 'text-purple-300',
   },
@@ -203,25 +204,25 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                         <span className={`text-xs font-bold ${status === 'active' ? theme.timerColor : 'text-white'}`}>
                           {def.label}
                         </span>
-                        <span className="text-cyan-400 text-xs font-bold">
-                          {def.costNuts} 🔩
+                        <span className="text-cyan-400 text-xs font-bold whitespace-nowrap">
+                          {def.costNuts} <Hexagon className="inline-block w-4 h-4 ml-0.5 align-text-bottom" />
                         </span>
                       </div>
                       <div className="flex items-center justify-between mt-0.5">
                         <span className="text-gray-400 text-[9px]">{def.description}</span>
-                        <span className="text-gray-500 text-[9px]">⏱ {durationLabel}</span>
+                        <span className="text-gray-500 text-[9px] flex items-center justify-end gap-1"><Timer className="w-3 h-3" /> {durationLabel}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Кнопка / таймер */}
                   {status === 'active' ? (
-                    <div className={`w-full py-2 rounded text-center text-[10px] font-bold ${theme.timerColor} bg-black/30`}>
-                      ⏱ Активен — {formatTime(remaining)}
+                    <div className={`w-full py-2 rounded text-[10px] font-bold ${theme.timerColor} bg-black/30 flex items-center justify-center gap-1`}>
+                      <Timer className="w-3 h-3" /> Активен — {formatTime(remaining)}
                     </div>
                   ) : status === 'locked' ? (
-                    <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30">
-                      🔒 Уровень {def.unlockLevel}
+                    <div className="w-full py-2 rounded text-[10px] font-bold text-gray-500 bg-black/30 flex items-center justify-center gap-1">
+                      <Lock className="w-3 h-3" /> Уровень {def.unlockLevel}
                     </div>
                   ) : (
                     <button
@@ -231,7 +232,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                       }`}
                     >
                       {status === 'blocked_nuts'
-                        ? `Купить — не хватает ${def.costNuts - nuts} 🔩`
+                        ? <>Купить — не хватает {def.costNuts - nuts} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom" /></>
                         : status === 'blocked'
                         ? 'Заменить'
                         : 'Купить'}
