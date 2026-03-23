@@ -6,6 +6,7 @@ import { GarageVisualManager } from './managers/GarageVisualManager'
 import { ClickEffectManager } from './managers/ClickEffectManager'
 import { LevelUpEffectManager } from './managers/LevelUpEffectManager'
 import { DecorationManager } from './managers/DecorationManager'
+import { AudioManager } from './managers/AudioManager'
 import { DECORATION_CATALOG } from '../store/constants/decorations'
 
 /**
@@ -18,6 +19,7 @@ export default class MainScene extends Phaser.Scene {
   private clickEffect!: ClickEffectManager
   private levelUpEffect!: LevelUpEffectManager
   private decorationManager!: DecorationManager
+  private audioManager!: AudioManager
 
   constructor() {
     super({ key: 'MainScene' })
@@ -25,7 +27,8 @@ export default class MainScene extends Phaser.Scene {
 
   preload(): void {
     // TODO: Загрузка спрайтов гаража (Stage: Pixel Art Pipeline)
-    // TODO: Загрузка звуковых эффектов (Stage 11)
+    // Audio is loaded non-blocking in create() to avoid hanging
+    // the preloader in mobile WebViews with suspended AudioContext
   }
 
   create(): void {
@@ -33,10 +36,14 @@ export default class MainScene extends Phaser.Scene {
     this.clickEffect = new ClickEffectManager(this)
     this.levelUpEffect = new LevelUpEffectManager(this)
     this.decorationManager = new DecorationManager(this)
+    this.audioManager = new AudioManager(this)
+    this.audioManager.loadAndCreate()
 
     this.garageVisual.onPointerDown((x, y) => {
+      if (!this.input.enabled) return
       this.garageVisual.playClickBounce()
       this.clickEffect.spawn(this, x, y)
+      this.audioManager.playSfx('click_normal')
       const event: GarageClickEvent = { x, y, timestamp: Date.now() }
       this.events.emit('garageClicked', event)
     })
@@ -52,6 +59,7 @@ export default class MainScene extends Phaser.Scene {
       this.clickEffect.destroy()
       this.levelUpEffect.destroy()
       this.decorationManager.destroy()
+      this.audioManager.destroy()
     })
   }
 
@@ -66,6 +74,12 @@ export default class MainScene extends Phaser.Scene {
   public updateGarageLevel(level: number): void {
     this.garageVisual.setLevel(level)
     this.levelUpEffect.play(this, this.garageVisual.center)
+    this.audioManager.playSfx('level_up')
+  }
+
+  /** Play a sound effect by key — callable from React via PhaserGame bridge */
+  public playSound(key: string): void {
+    this.audioManager.playSfx(key)
   }
 
   /**

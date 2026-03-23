@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS, NUTS_PACK_ORDER } from '@shared/constants/purchase.js'
 import * as api from '../services/apiService'
@@ -6,6 +6,7 @@ import { useGameStore } from '../store/gameStore'
 import { openTelegramInvoice } from '../hooks/useTelegram'
 import { useTelegramHaptic } from '../hooks/useTelegram'
 import NutsPackCard from './NutsPackCard'
+import { useAudio } from '../contexts/AudioContext'
 
 interface ShopModalProps {
   isOpen: boolean
@@ -18,10 +19,15 @@ interface PurchaseResult {
 }
 
 export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
+  const { playSound } = useAudio()
   const [purchasingPackId, setPurchasingPackId] = useState<NutsPackId | null>(null)
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResult | null>(null)
   const applyServerState = useGameStore(s => s.applyServerState)
   const haptic = useTelegramHaptic()
+
+  useEffect(() => {
+    if (isOpen) playSound('modal_open')
+  }, [isOpen, playSound])
 
   const handlePurchase = useCallback(async (packId: NutsPackId) => {
     setPurchasingPackId(packId)
@@ -55,12 +61,17 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
     setPurchasingPackId(null)
   }, [applyServerState, haptic])
 
+  const handleClose = useCallback(() => {
+    playSound('modal_close')
+    onClose()
+  }, [onClose, playSound])
+
   if (!isOpen) return null
 
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]"
@@ -68,7 +79,7 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
       >
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl leading-none p-1"
           aria-label="Закрыть"
         >

@@ -11,6 +11,7 @@ import {
   useActiveDecorations,
   formatLargeNumber,
 } from '../store/gameStore'
+import { useAudio } from '../contexts/AudioContext'
 
 interface DecorationCardProps {
   id: string
@@ -25,6 +26,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
   const active = useActiveDecorations()
   const purchaseDecoration = usePurchaseDecoration()
   const toggleDecoration = useToggleDecoration()
+  const { playSound } = useAudio()
 
   if (!def) return null
 
@@ -167,7 +169,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
         </div>
       </div>
       <button
-        onClick={() => purchaseDecoration(id)}
+        onClick={() => { purchaseDecoration(id); playSound('purchase') }}
         className="w-full py-2 rounded text-[10px] font-bold text-white
                    bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400
                    transition-colors"

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS, type DailyRewardsState } from '../store/gameStore'
+import { useAudio } from '../contexts/AudioContext'
 
 // ============================================
 // ТИПЫ
@@ -116,6 +117,7 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
   onClaim,
   onClose,
 }) => {
+  const { playSound } = useAudio()
   const [, setTimerTick] = useState(0)
   const countdown = !isOpen ? null : getTimeUntilNextReward(dailyRewards.lastClaimTimestamp)
   const timerExpired = isOpen
@@ -126,6 +128,10 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
 
   const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
+  const handleClaim = useCallback(() => {
+    onClaim()
+    playSound('daily_reward')
+  }, [onClaim, playSound])
 
   // --- Escape ---
   useEffect(() => {
@@ -256,7 +262,7 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
         {effectiveCanClaim ? (
           <button
             type="button"
-            onClick={onClaim}
+            onClick={handleClaim}
             className="w-full py-2 rounded text-[10px] font-bold text-white
                        bg-gradient-to-r from-orange-600 to-amber-500
                        hover:from-orange-500 hover:to-amber-400

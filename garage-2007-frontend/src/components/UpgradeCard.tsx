@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { formatLargeNumber } from '../store/gameStore'
+import { useAudio } from '../contexts/AudioContext'
 
 // ============================================
 // ЦВЕТОВЫЕ ТЕМЫ КАРТОЧЕК
@@ -70,12 +71,16 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
 }) => {
   const isMaxed = maxLevel != null && currentLevel >= maxLevel
   const theme = CARD_THEMES[colorTheme]
+  const { playSound } = useAudio()
 
   const formattedCost = formatLargeNumber(cost)
 
   const handleClick = useCallback(() => {
-    if (canAfford && !isMaxed) onPurchase()
-  }, [canAfford, isMaxed, onPurchase])
+    if (canAfford && !isMaxed) {
+      onPurchase()
+      playSound('purchase')
+    }
+  }, [canAfford, isMaxed, onPurchase, playSound])
 
   return (
     <div

@@ -23,6 +23,9 @@ interface PhaserGameProps {
 
   /** Активные декорации для отображения в сцене */
   activeDecorations: string[]
+
+  /** Ref for React → Phaser sound bridge */
+  playSoundRef?: React.MutableRefObject<((key: string) => void) | null>
 }
 
 /**
@@ -35,7 +38,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, activeDecorations }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, activeDecorations, playSoundRef }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -147,6 +150,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       // Сохраняем ссылку на сцену
       sceneRef.current = mainScene
 
+      // Wire up React → Phaser sound bridge
+      if (playSoundRef) {
+        playSoundRef.current = (key: string) => {
+          if (sceneRef.current && isSceneAlive(sceneRef.current)) {
+            sceneRef.current.playSound(key)
+          }
+        }
+      }
+
       setIsGameReady(true)
 
       // FIX Баг 1: Синхронизируем garageLevel сразу после готовности сцены,
@@ -184,6 +196,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
       // Сбрасываем состояние готовности
       setIsGameReady(false)
+
+      // Clear sound bridge
+      if (playSoundRef) {
+        playSoundRef.current = null
+      }
 
       // Отписываемся от событий сцены
       if (sceneRef.current) {

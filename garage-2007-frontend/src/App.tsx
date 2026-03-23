@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   useGameStore,
@@ -30,6 +30,8 @@ import { useGameLifecycle } from './hooks/useGameLifecycle'
 import { useOfflineEarnings } from './hooks/useOfflineEarnings'
 import { useTelegramBackButton } from './hooks/useTelegram'
 import { useSwipeTabs } from './hooks/useSwipeTabs'
+import { useSoundEffects } from './hooks/useSoundEffects'
+import { AudioProvider } from './contexts/AudioContext'
 
 // ============================================
 // КОНСТАНТЫ
@@ -57,21 +59,29 @@ function App() {
   const { retryAuth } = useGameLifecycle()
   const { showWelcomeBack, offlineEarnings, offlineTime, handleWelcomeBackClose } = useOfflineEarnings()
 
+  // --- Sound bridge ---
+  const playSoundRef = useRef<((key: string) => void) | null>(null)
+
   // --- Локальное состояние ---
   const [activeTab, setActiveTab] = useState<string>('game')
 
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab)
+    playSoundRef.current?.('tab_switch')
+  }, [])
+
   // --- Telegram Back Button: показываем когда не на табе «Игра» ---
   const goToGameTab = useCallback(() => {
-    setActiveTab('game')
+    handleTabChange('game')
     // Снять :focus/:hover с кнопки таба — нативный BackButton не делает blur
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur()
     }
-  }, [])
+  }, [handleTabChange])
   useTelegramBackButton(activeTab !== 'game', goToGameTab)
 
   // --- Swipe navigation ---
-  const swipeRef = useSwipeTabs(tabs.map(t => t.id), activeTab, setActiveTab)
+  const swipeRef = useSwipeTabs(tabs.map(t => t.id), activeTab, handleTabChange)
 
   // --- Данные из store ---
   const isLoaded = useIsLoaded()
@@ -94,6 +104,29 @@ function App() {
 
   const canClaimToday = dailyRewards.lastClaimTimestamp === 0
     || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
+
+  // --- Sound effects ---
+  useSoundEffects(playSoundRef.current)
+
+  const handleOpenDailyRewards = useCallback(() => {
+    playSoundRef.current?.('modal_open')
+    openDailyRewardsModal()
+  }, [openDailyRewardsModal])
+
+  const handleCloseDailyRewards = useCallback(() => {
+    playSoundRef.current?.('modal_close')
+    closeDailyRewardsModal()
+  }, [closeDailyRewardsModal])
+
+  const handleCloseWelcomeBack = useCallback(() => {
+    playSoundRef.current?.('modal_close')
+    handleWelcomeBackClose()
+  }, [handleWelcomeBackClose])
+
+  const handleCloseMilestone = useCallback(() => {
+    playSoundRef.current?.('modal_close')
+    closeMilestoneModal()
+  }, [closeMilestoneModal])
 
   // ============================================
   // ЭКРАН ОШИБКИ СЕРВЕРА
@@ -145,6 +178,7 @@ function App() {
   const isGameTabActive = activeTab === 'game' && !showWelcomeBack && !showMilestoneModal && !showDailyRewardsModal
 
   return (
+    <AudioProvider playSoundRef={playSoundRef}>
     <div
       className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden"
       style={{ paddingTop: 'var(--tg-safe-area-top)' }}
@@ -156,7 +190,7 @@ function App() {
       <div className="px-2 pt-2 bg-gray-900">
         <TabNavigation
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           tabs={tabs}
         />
       </div>
@@ -174,8 +208,9 @@ function App() {
             onGarageClick={handleClick}
             dailyRewardStreak={dailyRewards.currentStreak}
             canClaimDaily={canClaimToday}
-            onOpenDailyRewards={openDailyRewardsModal}
+            onOpenDailyRewards={handleOpenDailyRewards}
             activeDecorations={activeDecorations}
+            playSoundRef={playSoundRef}
           />
           <GameFooter />
         </div>
@@ -205,13 +240,13 @@ function App() {
         offlineEarnings={offlineEarnings}
         offlineTime={offlineTime}
         isOpen={showWelcomeBack}
-        onClose={handleWelcomeBackClose}
+        onClose={handleCloseWelcomeBack}
       />
 
       {pendingMilestoneLevel !== null && MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel] && (
         <MilestoneUpgradeModal
           isOpen={showMilestoneModal}
-          onClose={closeMilestoneModal}
+          onClose={handleCloseMilestone}
           onPurchase={() => purchaseMilestone(pendingMilestoneLevel)}
           currentLevel={pendingMilestoneLevel - 1}
           nextLevel={pendingMilestoneLevel}
@@ -226,7 +261,7 @@ function App() {
         dailyRewards={dailyRewards}
         canClaim={canClaimToday}
         onClaim={claimDailyReward}
-        onClose={closeDailyRewardsModal}
+        onClose={handleCloseDailyRewards}
       />
 
       {/* Debug overlay (только dev) */}
@@ -242,6 +277,7 @@ function App() {
       )}
 
     </div>
+    </AudioProvider>
   )
 }
 

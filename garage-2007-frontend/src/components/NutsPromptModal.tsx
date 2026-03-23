@@ -1,6 +1,7 @@
 // src/components/NutsPromptModal.tsx
 import { useCallback } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { useAudio } from '../contexts/AudioContext'
 
 interface NutsPromptModalProps {
   isOpen: boolean
@@ -10,8 +11,14 @@ interface NutsPromptModalProps {
 }
 
 export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }: NutsPromptModalProps) {
+  const { playSound } = useAudio()
   const watchRewardedVideo = useGameStore((s) => s.watchRewardedVideo)
   const canWatchVideo = useGameStore((s) => s.canWatchRewardedVideo())
+
+  const handleClose = useCallback(() => {
+    playSound('modal_close')
+    onClose()
+  }, [onClose, playSound])
 
   const handleWatchAd = useCallback(async () => {
     const success = await watchRewardedVideo()
@@ -31,7 +38,7 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
 
         {/* Крестик закрытия */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-2 right-2 text-gray-400 hover:text-white text-lg leading-none p-1"
           aria-label="Закрыть"
         >

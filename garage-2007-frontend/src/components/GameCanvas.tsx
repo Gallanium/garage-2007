@@ -15,6 +15,7 @@ interface GameCanvasProps {
   canClaimDaily: boolean
   onOpenDailyRewards: () => void
   activeDecorations: string[]
+  playSoundRef: React.MutableRefObject<((key: string) => void) | null>
 }
 
 /**
@@ -28,6 +29,7 @@ export function GameCanvas({
   canClaimDaily,
   onOpenDailyRewards,
   activeDecorations,
+  playSoundRef,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
   const haptic = useTelegramHaptic()
@@ -36,6 +38,7 @@ export function GameCanvas({
     const isCritical = onGarageClick()
     if (isCritical) {
       haptic.impactMedium()
+      playSoundRef.current?.('click_critical')
     } else {
       haptic.impactLight()
     }
@@ -51,6 +54,7 @@ export function GameCanvas({
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
             activeDecorations={activeDecorations}
+            playSoundRef={playSoundRef}
           />
         </ErrorBoundary>
       </div>

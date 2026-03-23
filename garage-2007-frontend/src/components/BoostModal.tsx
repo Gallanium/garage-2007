@@ -10,6 +10,7 @@ import {
 import type { BoostType } from '../store/gameStore'
 import NutsPromptModal from './NutsPromptModal'
 import ShopModal from './ShopModal'
+import { useAudio } from '../contexts/AudioContext'
 
 interface BoostModalProps {
   isOpen: boolean
@@ -57,6 +58,7 @@ const BOOST_THEMES: Record<BoostType, {
 }
 
 export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
+  const { playSound } = useAudio()
   const nuts = useNuts()
   const activeBoosts = useBoosts()
   const garageLevel = useGarageLevel()
@@ -67,6 +69,10 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
   const [confirmType, setConfirmType] = useState<BoostType | null>(null)  // pending replace
   const [nutsDeficit, setNutsDeficit] = useState<number | null>(null)
   const [showShop, setShowShop] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) playSound('modal_open')
+  }, [isOpen, playSound])
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
@@ -113,16 +119,21 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
     setConfirmType(null)
   }, [confirmType, replaceBoost])
 
+  const handleClose = useCallback(() => {
+    playSound('modal_close')
+    onClose()
+  }, [onClose, playSound])
+
   if (!isOpen) return null
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]" onClick={onClose}>
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]" onClick={handleClose}>
         <div className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]" onClick={(e) => e.stopPropagation()}>
 
           {/* Крестик */}
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl leading-none p-1"
             aria-label="Закрыть"
           >
