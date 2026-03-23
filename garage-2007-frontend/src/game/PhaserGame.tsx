@@ -13,7 +13,7 @@ function isSceneAlive(scene: MainScene): boolean {
  */
 interface PhaserGameProps {
   /** Коллбэк, вызываемый при клике на гараж */
-  onGarageClick: () => void
+  onGarageClick: (event?: { x: number, y: number }) => void
 
   /** Текущий уровень гаража для синхронизации с Phaser */
   garageLevel: number
@@ -173,11 +173,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       }
 
       // Подписываемся на событие клика по гаражу из Phaser
-      mainScene.events.on('garageClicked', () => {
+      mainScene.events.on('garageClicked', (event: { x: number, y: number }) => {
         // Блокируем клики, если вкладка «Игра» неактивна
         if (!isActiveRef.current) return
         // Вызываем коллбэк через ref (защита от stale closure)
-        onGarageClickRef.current()
+        onGarageClickRef.current(event)
       })
 
       // Подписываемся на событие завершения анимации перехода уровня
@@ -215,6 +215,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
         gameRef.current = null
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportGameError]) // Инициализация Phaser при монтировании
 
   /**

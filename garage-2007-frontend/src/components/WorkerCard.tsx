@@ -96,10 +96,10 @@ const WorkerCard: React.FC<WorkerCardProps> = ({
             onClick={handleClick}
             className={`
               px-4 py-1.5 rounded text-[10px] font-bold min-w-[80px]
-              transition-colors
+              transition-all duration-150
               ${
                 canAfford
-                  ? 'bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500 text-white shadow shadow-cyan-900/50'
+                  ? 'bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.6)] active:scale-[0.95]'
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
               }
             `}

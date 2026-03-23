@@ -66,9 +66,16 @@ export const DecorationSection: React.FC = () => {
 
       {/* Cards grid */}
       <div className="grid grid-cols-1 gap-2">
-        {filteredIds.map(id => (
-          <DecorationCard key={id} id={id} />
-        ))}
+        {filteredIds.length > 0 ? (
+          filteredIds.map((id) => <DecorationCard key={id} id={id} />)
+        ) : (
+          <div className="flex flex-col items-center justify-center py-10 px-4 bg-gray-900/50 rounded-lg border border-gray-800/80 text-center gap-3">
+            <Palette className="w-12 h-12 text-gray-700/50 mb-1" />
+            <p className="text-gray-500 font-mono text-xs max-w-[200px]">
+              Декорации этой категории пока недоступны.
+            </p>
+          </div>
+        )}
       </div>
     </section>
   )

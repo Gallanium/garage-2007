@@ -41,3 +41,8 @@
 .animate-pulse-ring {
   animation: pulse-ring 2s ease-out infinite;
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  20%, 100% { transform: translateX(100%); }
+}

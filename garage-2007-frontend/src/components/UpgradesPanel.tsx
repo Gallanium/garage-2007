@@ -104,9 +104,9 @@ const UpgradesPanel: React.FC = () => {
             <button
               onClick={handleWatchVideo}
               disabled={isWatching || rewardedVideo.isWatching}
-              className={`w-full py-2 rounded text-[10px] font-bold font-mono transition-colors
+              className={`w-full py-2 rounded text-[10px] font-bold font-mono transition-all active:scale-95
                 ${isWatching || rewardedVideo.isWatching
-                  ? 'bg-gray-700 text-gray-500 cursor-wait'
+                  ? 'bg-gray-700 text-gray-500 cursor-wait active:scale-100'
                   : 'bg-gradient-to-r from-green-700 to-emerald-600 hover:from-green-600 hover:to-emerald-500 text-white'
                 }`}
             >

@@ -41,7 +41,7 @@ const BoostButton: React.FC<BoostButtonProps> = ({ onClick }) => {
         w-16 h-16 rounded-full
         flex flex-col items-center justify-center
         backdrop-blur-sm border-2
-        transition-colors duration-300
+        transition-all duration-200 active:scale-90
         font-mono
         ${isActive
           ? 'bg-orange-900/80 border-orange-400 shadow-lg shadow-orange-500/40 animate-pulse-ring'

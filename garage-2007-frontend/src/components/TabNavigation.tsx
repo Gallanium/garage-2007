@@ -43,7 +43,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   )
 
   return (
-    <nav className="flex gap-1 bg-gray-900 p-1.5 rounded-lg border border-orange-700/30">
+    <nav className="flex gap-1 p-1.5 rounded-lg border border-orange-700/30">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTab
 
@@ -55,7 +55,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
             className={`
               flex-1 flex flex-col items-center gap-0.5
               px-1 py-1.5 rounded text-game-xs font-mono font-medium
-              transition-colors duration-200
+              transition-all duration-200 active:scale-95
               ${
                 isActive
                   ? 'bg-gradient-to-r from-orange-700 to-amber-600 text-white'
@@ -67,7 +67,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               <span className="relative flex items-center justify-center">
                 {tab.icon}
                 {!!tab.badge && tab.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-orange-500 text-black text-[9px] font-bold px-1 min-w-[14px] h-[14px] flex items-center justify-center">
+                  <span className="absolute -top-2 -right-3 bg-gradient-to-br from-orange-400 to-orange-500 text-black text-[9px] font-bold px-1 min-w-[14px] h-[14px] flex items-center justify-center rounded-sm animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)] z-10">
                     {tab.badge}
                   </span>
                 )}

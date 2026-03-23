@@ -58,7 +58,7 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
           {canWatchVideo && (
             <button
               onClick={handleWatchAd}
-              className="w-full py-2.5 bg-blue-700 hover:bg-blue-600 text-white text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 bg-blue-700 hover:bg-blue-600 text-white text-[10px] font-bold rounded transition-all active:scale-95 flex items-center justify-center gap-1.5"
             >
               <MonitorPlay className="w-3.5 h-3.5" /> Смотреть рекламу
             </button>

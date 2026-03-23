@@ -73,11 +73,13 @@ function LoadingScreen() {
       </h1>
       
       <div className="flex flex-col items-center w-full max-w-[200px] gap-2">
-        <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-700/50 shadow-inner">
+        <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-700/50 shadow-inner relative">
           <div
-            className="bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-200 ease-linear"
+            className="absolute top-0 left-0 bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-200 ease-linear"
             style={{ width: `${progress}%` }}
           />
+          {/* Shimmer Effect */}
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
         </div>
         <p className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
           Загрузка...
@@ -181,6 +183,8 @@ function App() {
     return tab
   })
 
+  // Уведомления теперь внутри GameHeader
+
   // ============================================
   // ЭКРАН ОШИБКИ СЕРВЕРА
   // ============================================
@@ -224,14 +228,19 @@ function App() {
   return (
     <AudioProvider playSoundRef={playSoundRef}>
     <div
-      className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden"
+      className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden relative"
       style={{ paddingTop: 'var(--tg-safe-area-top)' }}
     >
+      {/* Фоновый Neon Mesh */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-40">
+        <div className="absolute w-[400px] h-[400px] bg-orange-700/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute w-[300px] h-[300px] bg-cyan-900/20 rounded-full blur-[100px] -translate-y-40 translate-x-20"></div>
+      </div>
 
       <GameHeader />
 
       {/* Навигация табов */}
-      <div className="px-2 pt-2 bg-gray-900">
+      <div className="px-2 pt-2 bg-gray-950">
         <TabNavigation
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -244,7 +253,7 @@ function App() {
       <div ref={swipeRef} className="relative flex-1 min-h-0">
 
         <div
-          className={`absolute inset-0 flex flex-col ${activeTab === 'game' ? 'visible' : 'invisible opacity-0 pointer-events-none'}`}
+          className={`absolute inset-0 flex flex-col transition-all duration-300 ease-out z-[40] ${activeTab === 'game' ? 'visible opacity-100 translate-x-0' : 'invisible opacity-0 -translate-x-12 pointer-events-none'}`}
         >
           <GameCanvas
             garageLevel={garageLevel}
@@ -260,19 +269,19 @@ function App() {
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'upgrades' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[30] ${activeTab === 'upgrades' ? 'opacity-100 translate-x-0' : activeTab === 'game' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
           <UpgradesPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'achievements' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[20] ${activeTab === 'achievements' ? 'opacity-100 translate-x-0' : activeTab === 'game' || activeTab === 'upgrades' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
           <AchievementsPanel />
         </div>
 
         <div
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden bg-gray-900 transition-opacity duration-75 ${activeTab === 'stats' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[10] ${activeTab === 'stats' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 pointer-events-none'}`}
         >
           <StatsPanel />
         </div>

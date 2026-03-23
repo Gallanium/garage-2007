@@ -10,22 +10,27 @@ const CARD_THEMES = {
   orange: {
     icon: 'bg-orange-700',
     btn: 'from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400',
+    glow: 'shadow-[0_0_12px_rgba(234,88,12,0.6)]',
   },
   purple: {
     icon: 'bg-purple-700',
     btn: 'from-purple-700 to-violet-600 hover:from-purple-600 hover:to-violet-500',
+    glow: 'shadow-[0_0_12px_rgba(147,51,234,0.6)]',
   },
   blue: {
     icon: 'bg-blue-700',
     btn: 'from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500',
+    glow: 'shadow-[0_0_12px_rgba(37,99,235,0.6)]',
   },
   green: {
     icon: 'bg-green-700',
     btn: 'from-green-700 to-emerald-600 hover:from-green-600 hover:to-emerald-500',
+    glow: 'shadow-[0_0_12px_rgba(22,163,74,0.6)]',
   },
   neutral: {
     icon: 'bg-gray-700',
     btn: 'from-gray-600 to-gray-500 hover:from-gray-500 hover:to-gray-400',
+    glow: 'shadow-[0_0_12px_rgba(75,85,99,0.5)]',
   },
 } as const
 
@@ -119,10 +124,10 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
           onClick={handleClick}
           className={`
             w-full py-2 rounded text-[10px] font-bold
-            transition-colors
+            transition-all duration-150
             ${
               canAfford
-                ? `bg-gradient-to-r ${theme.btn} text-white`
+                ? `bg-gradient-to-r ${theme.btn} text-white active:scale-[0.97] ${theme.glow}`
                 : 'bg-gray-700 text-gray-500 cursor-not-allowed'
             }
           `}
