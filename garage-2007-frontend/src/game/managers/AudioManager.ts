@@ -1,6 +1,6 @@
 import { AUDIO_ASSETS } from '../config/audioAssets'
 
-const DEFAULT_VOLUME = 0.035
+const DEFAULT_VOLUME = 0.03
 
 /**
  * Phaser-based audio manager.
