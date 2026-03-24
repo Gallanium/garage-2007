@@ -3,6 +3,7 @@
 // Состояния карточки: active (таймер), can_buy, locked, blocked (другой активен — с заменой), blocked_nuts.
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   useGameStore, useNuts, useBoosts, useGarageLevel,
   BOOST_DEFINITIONS,
@@ -127,10 +128,18 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]" onClick={handleClose}>
-        <div className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm max-h-[90vh] overflow-y-auto font-mono shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]" 
+        onClick={handleClose} 
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div 
+          className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm max-h-[90vh] overflow-y-auto font-mono shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]" 
+          onClick={(e) => e.stopPropagation()} 
+          onPointerDown={(e) => e.stopPropagation()}
+        >
 
           {/* Крестик */}
           <button
@@ -204,8 +213,9 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                         <span className={`text-xs font-bold ${status === 'active' ? theme.timerColor : 'text-white'}`}>
                           {def.label}
                         </span>
-                        <span className="text-cyan-400 text-xs font-bold whitespace-nowrap">
-                          {def.costNuts} <Hexagon className="inline-block w-4 h-4 ml-0.5 align-text-bottom" />
+                        <span className="flex items-end gap-1 text-white text-xs font-bold">
+                          <span className="leading-none">{def.costNuts}</span>
+                          <Hexagon className="w-3.5 h-3.5 text-white" />
                         </span>
                       </div>
                       <div className="flex items-center justify-between mt-0.5">
@@ -232,7 +242,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
                       }`}
                     >
                       {status === 'blocked_nuts'
-                        ? <>Купить — не хватает {def.costNuts - nuts} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom" /></>
+                        ? <span className="flex items-center justify-center gap-1">Купить — не хватает <span className="flex items-center gap-0.5"><span className="leading-none translate-y-px">{def.costNuts - nuts}</span><Hexagon className="w-3.5 h-3.5 text-white" /></span></span>
                         : status === 'blocked'
                         ? 'Заменить'
                         : 'Купить'}
@@ -256,6 +266,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
       )}
 
       <ShopModal isOpen={showShop} onClose={() => setShowShop(false)} />
-    </>
+    </>,
+    document.body
   )
 }

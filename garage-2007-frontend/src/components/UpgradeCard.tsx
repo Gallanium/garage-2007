@@ -58,6 +58,8 @@ interface UpgradeCardProps {
   maxLevel?: number
   /** Цветовая тема карточки */
   colorTheme?: CardTheme
+  /** Процент скидки (Например: 50) */
+  discountPercent?: number
 }
 
 /**
@@ -73,12 +75,16 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
   icon,
   maxLevel,
   colorTheme = 'orange',
+  discountPercent = 0,
 }) => {
   const isMaxed = maxLevel != null && currentLevel >= maxLevel
   const theme = CARD_THEMES[colorTheme]
   const { playSound } = useAudio()
 
   const formattedCost = formatLargeNumber(cost)
+  // Если есть скидка, вычисляем оригинальную цену для зачеркивания
+  const originalCost = discountPercent > 0 ? (cost / (1 - discountPercent / 100)) : cost
+  const formattedOriginalCost = formatLargeNumber(originalCost)
 
   const handleClick = useCallback(() => {
     if (canAfford && !isMaxed) {
@@ -96,11 +102,18 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
     >
       {/* ---- Верхняя строка: иконка + текст ---- */}
       <div className="flex items-center gap-3 mb-2">
-        {icon && (
-          <div className={`w-10 h-10 rounded-lg ${theme.icon} flex items-center justify-center text-white text-lg flex-shrink-0`}>
-            <span>{icon}</span>
-          </div>
-        )}
+        <div className="relative">
+          {icon && (
+            <div className={`w-10 h-10 rounded-lg ${theme.icon} flex items-center justify-center text-white text-lg flex-shrink-0`}>
+              <span>{icon}</span>
+            </div>
+          )}
+          {discountPercent > 0 && (
+            <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-black text-[8px] font-bold px-1 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.8)] border border-green-300 z-10 animate-[pulse_2s_infinite]">
+              -{discountPercent}%
+            </div>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-white font-mono">{title}</h3>
@@ -132,7 +145,14 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
             }
           `}
         >
-          {formattedCost}&nbsp;₽
+          {discountPercent > 0 ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <span className="text-gray-400/80 line-through text-[8px] decoration-red-500/80">{formattedOriginalCost} ₽</span>
+              <span>{formattedCost} ₽</span>
+            </span>
+          ) : (
+            <>{formattedCost} ₽</>
+          )}
         </button>
       )}
     </div>

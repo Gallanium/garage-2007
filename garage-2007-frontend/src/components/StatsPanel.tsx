@@ -8,9 +8,12 @@ import {
   useBestStreak,
   formatLargeNumber,
   GARAGE_LEVEL_NAMES,
+  useActiveEvent,
+  GAME_EVENTS,
 } from '../store/gameStore'
 import { useTelegramUser } from '../hooks/useTelegram'
-import { User, Building, MousePointer2, Trophy, Timer, Coins, RotateCcw, Flame } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { User, Building, MousePointer2, Trophy, Timer, Coins, RotateCcw, Flame, AudioWaveform } from 'lucide-react'
 
 // ============================================
 // УТИЛИТЫ
@@ -40,6 +43,15 @@ const StatsPanel: React.FC = () => {
   const totalEarned = useTotalEarned()
   const sessionCount = useSessionCount()
   const bestStreak = useBestStreak()
+  const activeEvent = useActiveEvent()
+
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!activeEvent) return
+    const clock = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(clock)
+  }, [activeEvent])
 
   const levelName =
     GARAGE_LEVEL_NAMES[garageLevel as keyof typeof GARAGE_LEVEL_NAMES] ?? '—'
@@ -86,6 +98,48 @@ const StatsPanel: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* ======== Активный Эффект (Событие) ======== */}
+      {activeEvent && GAME_EVENTS[activeEvent.id] && (() => {
+        const def = GAME_EVENTS[activeEvent.id]
+        const remaining = Math.max(0, Math.ceil((activeEvent.expiresAt - now) / 1000))
+        const m = Math.floor(remaining / 60)
+        const s = remaining % 60
+        const timeStr = `${m}:${s.toString().padStart(2, '0')}`
+
+        const isPos = def.category === 'positive'
+        const isNeg = def.category === 'negative'
+        const bgGradient = isPos ? 'from-green-950/80 to-emerald-950/60'
+                         : isNeg ? 'from-red-950/80 to-rose-950/60'
+                         : 'from-blue-950/80 to-cyan-950/60'
+        const borderColor = isPos ? 'border-green-700/50'
+                          : isNeg ? 'border-red-700/50'
+                          : 'border-blue-700/50'
+        const textColor = isPos ? 'text-green-400'
+                        : isNeg ? 'text-red-400'
+                        : 'text-cyan-400'
+        
+        return (
+          <section className={`bg-gradient-to-br ${bgGradient} rounded-lg border ${borderColor} p-3 shadow-lg shadow-black/20`}>
+             <div className="flex items-center justify-between">
+               <div className="flex flex-col gap-1.5 flex-1 min-w-0 pr-2">
+                 <div className="flex items-center gap-1.5">
+                    <AudioWaveform className={`w-4 h-4 shrink-0 ${textColor}`} />
+                    <p className={`text-[10px] uppercase font-bold font-mono truncate ${textColor}`}>{def.name}</p>
+                 </div>
+                 <p className="text-[8px] text-gray-300 font-mono leading-relaxed line-clamp-2" style={{ overflowWrap: 'break-word' }}>
+                   {def.description}
+                 </p>
+               </div>
+               
+               <div className="flex flex-col items-end shrink-0 border-l border-white/10 pl-3">
+                 <p className={`text-sm font-bold font-mono tabular-nums ${textColor}`}>{timeStr}</p>
+                 <p className="text-[8px] text-gray-500 font-mono uppercase tracking-widest mt-0.5">осталось</p>
+               </div>
+             </div>
+          </section>
+        )
+      })()}
 
       {/* ======== Статистика — грид ======== */}
       <section>

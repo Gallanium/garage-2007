@@ -1,5 +1,5 @@
-// src/components/NutsPromptModal.tsx
 import { useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useGameStore } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
 import { Hexagon, MonitorPlay, Gem } from 'lucide-react'
@@ -33,10 +33,18 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
 
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative bg-gray-900 border border-garage-yellow/50 rounded-lg p-5 mx-4 max-w-xs w-full font-mono">
-
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      onClick={handleClose}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {/* Container (останов кликов внутри) */}
+      <div 
+        className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-5 mx-4 w-full max-w-sm text-center font-mono shadow-2xl shadow-orange-900/40 animate-[slideUp_300ms_ease-out]"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         {/* Крестик закрытия */}
         <button
           onClick={handleClose}
@@ -72,6 +80,7 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

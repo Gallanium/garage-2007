@@ -41,7 +41,7 @@ export default function NutsPackCard({ packId, pack, isPurchasing, onPurchase, i
         <div className="flex items-center gap-3">
           {/* Icon */}
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${theme.iconBg}`}>
-            <Hexagon className="w-5 h-5 text-white" />
+            <Hexagon className="w-5 h-5 text-orange-400" />
           </div>
 
           {/* Title + price */}

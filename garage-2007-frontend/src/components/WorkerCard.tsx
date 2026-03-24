@@ -11,6 +11,7 @@ interface WorkerCardProps {
   cost: number
   canAfford: boolean
   onPurchase: () => void
+  discountPercent?: number
 }
 
 const WorkerCard: React.FC<WorkerCardProps> = ({
@@ -22,9 +23,13 @@ const WorkerCard: React.FC<WorkerCardProps> = ({
   cost,
   canAfford,
   onPurchase,
+  discountPercent = 0,
 }) => {
   const isMaxed = currentLevel >= maxLevel
   const formattedCost = formatLargeNumber(cost)
+  // Вычисляем старую цену
+  const originalCost = discountPercent > 0 ? (cost / (1 - discountPercent / 100)) : cost
+  const formattedOriginalCost = formatLargeNumber(originalCost)
 
   const handleClick = useCallback(() => {
     if (canAfford && !isMaxed) onPurchase()
@@ -62,8 +67,15 @@ const WorkerCard: React.FC<WorkerCardProps> = ({
     >
       {/* ---- Верхняя строка: иконка + текст ---- */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-blue-800 flex items-center justify-center text-white text-lg flex-shrink-0 shadow-inner">
-          <span>{icon}</span>
+        <div className="relative">
+          <div className="w-10 h-10 rounded-lg bg-blue-800 flex items-center justify-center text-white text-lg flex-shrink-0 shadow-inner">
+            <span>{icon}</span>
+          </div>
+          {discountPercent > 0 && (
+            <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-black text-[8px] font-bold px-1 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.8)] border border-green-300 z-10 animate-[pulse_2s_infinite]">
+              -{discountPercent}%
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-xs font-bold text-white font-mono truncate">{title}</h3>
@@ -104,7 +116,14 @@ const WorkerCard: React.FC<WorkerCardProps> = ({
               }
             `}
           >
-            {formattedCost}&nbsp;₽
+            {discountPercent > 0 ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="text-gray-400/80 line-through text-[8px] decoration-red-500/80">{formattedOriginalCost} ₽</span>
+                <span>{formattedCost} ₽</span>
+              </span>
+            ) : (
+              <>{formattedCost} ₽</>
+            )}
           </button>
         )}
       </div>

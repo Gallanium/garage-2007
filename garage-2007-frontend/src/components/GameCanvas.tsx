@@ -7,7 +7,7 @@ import BoostModal from './BoostModal'
 import { ErrorBoundary } from './ErrorBoundary'
 import { useTelegramHaptic } from '../hooks/useTelegram'
 import { Pointer } from 'lucide-react'
-import { useMomentaryClickIncome } from '../store/gameStore'
+import { useClickValue, useActiveBoostType, useActiveEvent, useGameStore } from '../store/gameStore'
 import { CRITICAL_CLICK_MULTIPLIER } from '../store/constants/economy'
 
 interface FloatingTextData {
@@ -46,9 +46,25 @@ export function GameCanvas({
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([])
   const haptic = useTelegramHaptic()
-  const momentaryClickIncome = useMomentaryClickIncome()
+  const clickValue = useClickValue()
+  const activeBoostType = useActiveBoostType()
+  const activeEvent = useActiveEvent()
+  const getActiveMultiplier = useGameStore((s) => s.getActiveMultiplier)
+  const getEventMultiplier = useGameStore((s) => s.getEventMultiplier)
+
+  const clickMultiplier = 
+    (activeBoostType ? getActiveMultiplier('click') : 1) *
+    (activeEvent ? getEventMultiplier('click') : 1)
+  
+  const baseAmount = clickValue * clickMultiplier
 
   const handleGarageClick = (event?: { x: number, y: number }) => {
+    // ЖЕСТКАЯ ПРОВЕРКА: пропускаем клики ТОЛЬКО при отсутствии открытых модальных окон!
+    // Мы ищем любой элемент React Portal, который является модалкой.
+    if (document.querySelector('.fixed.inset-0.z-\\[100\\], .fixed.inset-0.z-\\[110\\]')) {
+      return false // отменяем клик (возвращая false, мы даем знать движку, чтобы он не делал эффекты)
+    }
+
     const isCritical = onGarageClick()
     if (isCritical) {
       haptic.impactMedium()
@@ -58,7 +74,7 @@ export function GameCanvas({
     }
 
     if (event && typeof event.x === 'number' && typeof event.y === 'number') {
-      const amount = momentaryClickIncome * (isCritical ? CRITICAL_CLICK_MULTIPLIER : 1)
+      const amount = baseAmount * (isCritical ? CRITICAL_CLICK_MULTIPLIER : 1)
       const newText: FloatingTextData = {
         id: Date.now() + Math.random(),
         x: event.x,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS, type DailyRewardsState } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
 import { Hexagon, Check, Hourglass } from 'lucide-react'
@@ -76,7 +77,7 @@ interface DayCardProps {
 }
 
 const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state }) => {
-  const base = 'rounded-lg p-1.5 text-center font-mono'
+  const base = 'rounded-lg p-1.5 text-center font-mono h-full flex flex-col justify-between min-h-[64px]'
   const styles: Record<DayCardState, string> = {
     claimed: 'bg-gray-800 border border-green-700/40',
     current: 'bg-gray-800 border-2 border-green-500/60',
@@ -92,17 +93,16 @@ const DayCard: React.FC<DayCardProps> = ({ dayLabel, reward, state }) => {
       <p className={`text-game-xs uppercase mb-0.5 ${isDone ? 'text-gray-600' : 'text-gray-400'}`}>
         Д{dayLabel}
       </p>
-      <div className={`flex items-center justify-center text-base font-bold ${
-        isDone ? 'text-gray-600 grayscale'
-          : isClaimed ? 'text-green-400'
-            : state === 'next' ? 'text-orange-300'
-              : 'text-gray-500'
-      }`}>
-        {isClaimed || isDone ? <Check className="w-5 h-5 inline-block" /> : `${reward}`}
-      </div>
-      <p className="flex justify-center text-[9px] mt-0.5">
-        {isClaimed || isDone ? null : <Hexagon className="w-3 h-3 inline-block" />}
-      </p>
+      {isClaimed || isDone ? (
+        <div className="flex-1 flex flex-col items-center justify-center -mt-2">
+          <Check className={`w-8 h-8 ${isDone ? 'text-gray-600 grayscale' : 'text-green-500'}`} />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center gap-1">
+          <span className="text-base leading-none font-bold text-orange-300 translate-y-px">{reward}</span>
+          <Hexagon className="w-3.5 h-3.5 text-orange-400" />
+        </div>
+      )}
     </div>
   )
 }
@@ -169,11 +169,12 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
     return 'future'
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
+      onPointerDown={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
       aria-label="Ежедневные награды"
@@ -183,6 +184,7 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
                    mx-3 w-full max-w-sm font-mono
                    shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {/* Крестик */}
         <button
@@ -211,12 +213,17 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
               {DAILY_REWARDS.slice(0, 4).map((reward, i) => {
                 const pos = i + 1
                 return (
-                  <DayCard
-                    key={pos}
-                    dayLabel={weekStartDay + i}
-                    reward={reward}
-                    state={isWeekComplete ? 'weekDone' : getDayState(pos)}
-                  />
+                  <div 
+                    key={pos} 
+                    className="animate-[slideUp_400ms_ease-out] h-full" 
+                    style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'backwards' }}
+                  >
+                    <DayCard
+                      dayLabel={weekStartDay + i}
+                      reward={reward}
+                      state={isWeekComplete ? 'weekDone' : getDayState(pos)}
+                    />
+                  </div>
                 )
               })}
             </div>
@@ -224,12 +231,17 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
               {DAILY_REWARDS.slice(4).map((reward, i) => {
                 const pos = i + 5
                 return (
-                  <DayCard
-                    key={pos}
-                    dayLabel={weekStartDay + pos - 1}
-                    reward={reward}
-                    state={isWeekComplete ? 'weekDone' : getDayState(pos)}
-                  />
+                  <div 
+                    key={pos} 
+                    className="animate-[slideUp_400ms_ease-out] h-full" 
+                    style={{ animationDelay: `${(i + 4) * 80}ms`, animationFillMode: 'backwards' }}
+                  >
+                    <DayCard
+                      dayLabel={weekStartDay + pos - 1}
+                      reward={reward}
+                      state={isWeekComplete ? 'weekDone' : getDayState(pos)}
+                    />
+                  </div>
                 )
               })}
             </div>
@@ -253,8 +265,8 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
             <p className="text-game-xs text-gray-500 font-mono mb-0.5">
               Следующая награда через
             </p>
-            <p className="flex items-center justify-center gap-1 text-sm font-bold text-orange-300 font-mono tracking-wider">
-              <Hourglass className="w-4 h-4" /> {countdown}
+            <p className="flex items-end justify-center gap-1 text-sm font-bold text-orange-300 font-mono tracking-wider">
+              <Hourglass className="w-4 h-4" /> <span className="leading-none">{countdown}</span>
             </p>
           </div>
         )}
@@ -269,7 +281,13 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
                        hover:from-orange-500 hover:to-amber-400
             transition-colors flex items-center justify-center gap-1"
           >
-            Забрать {nextReward} <Hexagon className="w-3 h-3" />
+            <span className="flex items-center gap-1">
+              Забрать
+              <span className="flex items-center gap-0.5">
+                <span className="leading-none translate-y-px">{nextReward}</span>
+                <Hexagon className="w-3.5 h-3.5 text-white" />
+              </span>
+            </span>
           </button>
         ) : (
           <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 flex items-center justify-center gap-1">
@@ -277,7 +295,8 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

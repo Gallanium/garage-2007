@@ -72,8 +72,8 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
               <Check className="inline-block w-4 h-4 text-green-400" />
             </div>
             <p className="text-[9px] text-gray-500 font-mono">{description}</p>
-            <p className="text-[9px] text-gray-600 font-mono mt-0.5 whitespace-nowrap">
-              Забрано: {nutsReward} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom" />
+            <p className="text-[9px] text-gray-600 font-mono mt-0.5 whitespace-nowrap flex items-center justify-start gap-1">
+              Забрано: <span className="flex items-center gap-0.5"><span className="leading-none translate-y-[0.5px]">{nutsReward}</span><Hexagon className="w-3 h-3 text-gray-500" /></span>
             </p>
           </div>
         </div>
@@ -92,7 +92,10 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white font-mono">{title}</h3>
-              <span className="text-cyan-400 text-xs font-bold whitespace-nowrap">+{nutsReward} <Hexagon className="inline-block w-4 h-4 ml-0.5 align-text-bottom" /></span>
+              <span className="flex items-center gap-0.5 text-white text-xs font-bold whitespace-nowrap">
+                <span className="leading-none translate-y-px">{nutsReward}</span>
+                <Hexagon className="w-3.5 h-3.5 text-orange-400" />
+              </span>
             </div>
             <p className="text-[9px] text-gray-400 font-mono mt-0.5">{description}</p>
           </div>
@@ -121,7 +124,10 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-0.5">
             <h3 className="text-xs font-bold text-white/60 font-mono">{title}</h3>
-            <span className="text-gray-500 text-[9px] font-mono whitespace-nowrap">{nutsReward} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom" /></span>
+            <div className="flex items-center gap-0.5 text-gray-500 text-[9px] font-mono">
+              <span className="leading-none translate-y-[0.5px]">{nutsReward}</span>
+              <Hexagon className="w-3 h-3 text-gray-500" />
+            </div>
           </div>
           <p className="text-[9px] text-gray-500 font-mono mb-1.5">{description}</p>
 

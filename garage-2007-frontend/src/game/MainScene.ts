@@ -41,6 +41,12 @@ export default class MainScene extends Phaser.Scene {
 
     this.garageVisual.onPointerDown((x, y) => {
       if (!this.input.enabled) return
+      
+      // БЛОКИРОВКА КЛИКОВ: если открыто хотя бы одно модальное окно (например, Награды, Бусты, Shop), игнорируем!
+      if (document.querySelector('.fixed.inset-0.z-\\[100\\], .fixed.inset-0.z-\\[110\\]')) {
+        return
+      }
+
       this.garageVisual.playClickBounce()
       this.clickEffect.spawn(this, x, y)
       this.audioManager.playSfx('click_normal')

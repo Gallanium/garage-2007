@@ -67,7 +67,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               <span className="relative flex items-center justify-center">
                 {tab.icon}
                 {!!tab.badge && tab.badge > 0 && (
-                  <span className="absolute -top-2 -right-3 bg-gradient-to-br from-orange-400 to-orange-500 text-black text-[9px] font-bold px-1 min-w-[14px] h-[14px] flex items-center justify-center rounded-sm animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)] z-10">
+                  <span className="absolute top-0 right-0 translate-x-[60%] -translate-y-[60%] bg-gradient-to-br from-orange-400 to-orange-500 text-black text-[9px] font-bold px-1 min-w-[14px] h-[14px] flex items-center justify-center rounded-sm animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)] z-10">
                     {tab.badge}
                   </span>
                 )}

@@ -69,7 +69,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
 
   const costLabel = def.currency === 'rubles'
     ? <>{formatLargeNumber(def.cost)} ₽</>
-    : <>{def.cost} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom" /></>
+    : <>{def.cost} <Hexagon className="inline-block w-3 h-3 ml-0.5 align-text-bottom text-orange-400" /></>
 
   const slotLabel = SLOT_LABELS[def.slot]
   const subline = `${def.description} · 📍 ${slotLabel}`

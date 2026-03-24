@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 
 const SWIPE_THRESHOLD = 50
+const MIN_SWIPE_DURATION_MS = 80 // reject taps shorter than this
 
 /**
  * Hook for horizontal swipe-based tab navigation.
@@ -10,6 +11,7 @@ const SWIPE_THRESHOLD = 50
  * - Swipe right → previous tab
  * - No wraparound (first/last tab stops)
  * - Vertical scrolling is not hijacked (horizontal must dominate)
+ * - Multi-touch gestures (e.g. two-thumb tapping) are ignored
  */
 export function useSwipeTabs(
   tabIds: string[],
@@ -21,10 +23,13 @@ export function useSwipeTabs(
   const startY = useRef(0)
   const currentX = useRef(0)
   const currentY = useRef(0)
+  const startTime = useRef(0)
+  const multiTouch = useRef(false) // flag: was there ever >1 finger?
 
   const handleSwipe = useCallback((deltaX: number, deltaY: number) => {
     if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
-    if (Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return
+    // Horizontal movement must clearly dominate vertical
+    if (Math.abs(deltaX) < Math.abs(deltaY) * 2) return
 
     const currentIndex = tabIds.indexOf(activeTab)
     if (currentIndex === -1) return
@@ -41,20 +46,33 @@ export function useSwipeTabs(
     if (!el) return
 
     const onTouchStart = (e: TouchEvent) => {
+      // If gesture starts with multiple fingers, mark immediately
+      multiTouch.current = e.touches.length > 1
       const touch = e.touches[0]
       startX.current = touch.clientX
       startY.current = touch.clientY
       currentX.current = touch.clientX
       currentY.current = touch.clientY
+      startTime.current = Date.now()
     }
 
     const onTouchMove = (e: TouchEvent) => {
+      // If any extra finger appears mid-gesture, invalidate
+      if (e.touches.length > 1) {
+        multiTouch.current = true
+        return
+      }
       const touch = e.touches[0]
       currentX.current = touch.clientX
       currentY.current = touch.clientY
     }
 
     const onTouchEnd = () => {
+      // Reject multi-touch gestures entirely
+      if (multiTouch.current) return
+      // Reject very short gestures (taps)
+      if (Date.now() - startTime.current < MIN_SWIPE_DURATION_MS) return
+
       const deltaX = currentX.current - startX.current
       const deltaY = currentY.current - startY.current
       handleSwipe(deltaX, deltaY)
@@ -73,3 +91,4 @@ export function useSwipeTabs(
 
   return ref
 }
+

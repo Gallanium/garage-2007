@@ -125,8 +125,6 @@ export function GameFooter() {
               className="absolute top-0 left-0 bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-500"
               style={{ width: `${Math.round(garageProgress * 100)}%` }}
             />
-            {/* Shimmer Effect */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
           </div>
           <p className="text-game-xs text-gray-500 mt-1 font-mono flex items-center gap-1">
             {milestoneInfo

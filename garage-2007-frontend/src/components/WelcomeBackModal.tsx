@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { formatLargeNumber } from '../store/gameStore'
 import { Wrench, Coins } from 'lucide-react'
 
@@ -72,9 +73,9 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
   const formattedEarnings = formatLargeNumber(offlineEarnings)
   const formattedTime = formatOfflineTime(offlineTime)
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
       role="dialog"
@@ -127,7 +128,8 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
           <span className="flex items-center justify-center gap-1">Забрать! <Coins className="w-3.5 h-3.5" /></span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

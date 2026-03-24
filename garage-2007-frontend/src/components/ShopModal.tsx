@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS, NUTS_PACK_ORDER } from '@shared/constants/purchase.js'
 import * as api from '../services/apiService'
@@ -69,14 +70,16 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]"
       onClick={handleClose}
+      onPointerDown={(e) => e.stopPropagation()}
     >
       <div
         className="relative bg-gray-950 border-2 border-orange-700/70 rounded-xl p-4 mx-3 w-full max-w-sm font-mono shadow-2xl shadow-orange-900/30 animate-[slideUp_400ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
@@ -122,6 +125,7 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -3,6 +3,7 @@
 // ============================================
 
 import { useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { formatLargeNumber, GARAGE_LEVEL_NAMES } from '../store/gameStore'
 import { Building, HardHat, Zap, Palette } from 'lucide-react'
 
@@ -23,7 +24,6 @@ interface MilestoneUpgradeModalProps {
     decorations: string[]
     visual: string
   }
-  canAfford: boolean
 }
 
 // ============================================
@@ -38,7 +38,6 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
   nextLevel,
   upgradeCost,
   unlocks,
-  canAfford,
 }) => {
   const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
@@ -57,11 +56,12 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
 
   const levelName = GARAGE_LEVEL_NAMES[nextLevel as keyof typeof GARAGE_LEVEL_NAMES] || 'Неизвестно'
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_300ms_ease-out]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
       onClick={handleOverlayClick}
+      onPointerDown={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
       aria-label="Повышение класса гаража"
@@ -71,6 +71,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
                    mx-3 w-full max-w-sm font-mono
                    shadow-2xl shadow-orange-900/30 text-center animate-[slideUp_400ms_ease-out]"
         onClick={handleCardClick}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {/* X-кнопка */}
         <button
@@ -134,19 +135,15 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
         <button
           type="button"
           onClick={handlePurchase}
-          disabled={!canAfford}
-          className={`w-full py-2 rounded text-[10px] font-bold
-                      transition-colors
-                      ${canAfford
-                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white'
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                      }`}
+          className="w-full py-2 rounded text-[10px] font-bold transition-colors active:scale-95
+                     bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white"
         >
           Повысить за {formatLargeNumber(upgradeCost)} ₽
         </button>
 
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

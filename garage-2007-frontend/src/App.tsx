@@ -26,6 +26,8 @@ import DailyRewardsModal from './components/DailyRewardsModal'
 import { GameHeader } from './components/GameHeader'
 import { GameFooter } from './components/GameFooter'
 import { GameCanvas } from './components/GameCanvas'
+import { AmbientEventSystem } from './components/AmbientEventSystem'
+import { LandscapeBlocker } from './components/LandscapeBlocker'
 import { useGameLifecycle } from './hooks/useGameLifecycle'
 import { useOfflineEarnings } from './hooks/useOfflineEarnings'
 import { useTelegramBackButton } from './hooks/useTelegram'
@@ -78,8 +80,6 @@ function LoadingScreen() {
             className="absolute top-0 left-0 bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-200 ease-linear"
             style={{ width: `${progress}%` }}
           />
-          {/* Shimmer Effect */}
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
         </div>
         <p className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
           Загрузка...
@@ -228,9 +228,11 @@ function App() {
   return (
     <AudioProvider playSoundRef={playSoundRef}>
     <div
-      className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden relative"
+      className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden relative"
       style={{ paddingTop: 'var(--tg-safe-area-top)' }}
     >
+      <LandscapeBlocker />
+      <AmbientEventSystem />
       {/* Фоновый Neon Mesh */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-40">
         <div className="absolute w-[400px] h-[400px] bg-orange-700/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '4s' }}></div>
@@ -240,7 +242,7 @@ function App() {
       <GameHeader />
 
       {/* Навигация табов */}
-      <div className="px-2 pt-2 bg-gray-950">
+      <div className="px-2 pt-2 bg-gray-900">
         <TabNavigation
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -305,7 +307,6 @@ function App() {
           nextLevel={pendingMilestoneLevel}
           upgradeCost={MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].cost}
           unlocks={MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].unlocks}
-          canAfford={balance >= MILESTONE_UPGRADES[pendingMilestoneLevel as MilestoneLevel].cost}
         />
       )}
 

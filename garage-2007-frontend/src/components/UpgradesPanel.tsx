@@ -7,6 +7,7 @@ import {
   useMilestonesPurchased,
   usePendingMilestoneInfo,
   usePurchaseMilestone,
+  useActiveEvent,
   isWorkerUnlocked,
   formatLargeNumber,
   WORKER_LIMITS,
@@ -54,6 +55,10 @@ const UpgradesPanel: React.FC = () => {
   const purchaseClickUpgrade = useGameStore((s) => s.purchaseClickUpgrade)
   const purchaseWorkSpeedUpgrade = useGameStore((s) => s.purchaseWorkSpeedUpgrade)
   const hireWorker = useGameStore((s) => s.hireWorker)
+
+  // --- Активное событие (Скидки) ---
+  const activeEvent = useActiveEvent()
+  const discountPercent = activeEvent?.id === 'supplier_sale' ? 50 : 0
 
   // --- Rewarded Video ---
   const rewardedVideo = useGameStore((s) => s.rewardedVideo)
@@ -112,7 +117,7 @@ const UpgradesPanel: React.FC = () => {
             >
               {isWatching || rewardedVideo.isWatching
                 ? <div className="flex items-center justify-center gap-1.5"><MonitorPlay className="w-3.5 h-3.5" /> Просмотр...</div>
-                : <div className="flex items-center justify-center gap-1">Смотреть &rarr; +{REWARDED_VIDEO_NUTS} <Hexagon className="w-3.5 h-3.5" /></div>}
+                : <span className="flex items-center justify-center gap-1">Смотреть &rarr; <span className="flex items-center gap-0.5"><span className="leading-none translate-y-px">+{REWARDED_VIDEO_NUTS}</span><Hexagon className="w-3.5 h-3.5 text-white block" /></span></span>}
             </button>
           ) : (
             <div className="w-full py-2 rounded text-center text-[10px] font-bold text-gray-500 bg-black/30 font-mono flex justify-center items-center gap-1.5">
@@ -190,6 +195,7 @@ const UpgradesPanel: React.FC = () => {
             onPurchase={purchaseClickUpgrade}
             maxLevel={CLICK_UPGRADE_MAX_LEVEL}
             colorTheme="orange"
+            discountPercent={discountPercent}
           />
 
           {purchasedUpgrades.includes(5) ? (
@@ -202,6 +208,7 @@ const UpgradesPanel: React.FC = () => {
               canAfford={balance >= upgrades.workSpeed.cost}
               onPurchase={purchaseWorkSpeedUpgrade}
               colorTheme="purple"
+              discountPercent={discountPercent}
             />
           ) : (
             <div className="bg-gradient-to-br from-gray-900/60 to-gray-800/40 rounded-lg border border-gray-700/40 p-3 opacity-50">
@@ -275,6 +282,7 @@ const UpgradesPanel: React.FC = () => {
                 cost={worker.cost}
                 canAfford={!isMaxed && balance >= worker.cost}
                 onPurchase={() => hireWorker(def.type)}
+                discountPercent={discountPercent}
               />
             )
           })}

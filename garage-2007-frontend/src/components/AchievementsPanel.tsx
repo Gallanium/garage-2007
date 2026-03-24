@@ -78,11 +78,11 @@ const AchievementsPanel: React.FC = () => {
             <p className="text-game-xs text-gray-500 uppercase tracking-widest font-mono mb-1">
               К получению
             </p>
-            <div className="flex items-center justify-end gap-1">
-              <span className={`text-base font-bold font-mono tabular-nums ${stats.totalNutsAvailable > 0 ? 'text-cyan-400' : 'text-gray-600'}`}>
+            <div className="flex items-center justify-end gap-1 mt-0.5">
+              <span className={`text-base leading-none translate-y-[1.5px] font-bold font-mono tabular-nums ${stats.totalNutsAvailable > 0 ? 'text-white' : 'text-gray-600'}`}>
                 {stats.totalNutsAvailable}
               </span>
-              <Hexagon className="w-5 h-5 text-gray-500" />
+              <Hexagon className={`w-4 h-4 ${stats.totalNutsAvailable > 0 ? 'text-orange-400' : 'text-gray-500'}`} />
             </div>
           </div>
 
