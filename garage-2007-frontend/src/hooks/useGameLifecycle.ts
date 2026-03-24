@@ -120,7 +120,9 @@ export function useGameLifecycle(): { retryAuth: () => void } {
     const syncInterval = setInterval(() => {
       const buffer = useGameStore.getState()._pendingClickBuffer ?? []
       const clicksToSend = buffer.length
-      api.syncWithLock(clicksToSend).then((result) => {
+      const normalClicks = buffer.filter(c => !c.isCritical).length
+      const criticalClicks = buffer.filter(c => c.isCritical).length
+      api.syncWithLock(normalClicks, criticalClicks).then((result) => {
         if (result?.gameState) {
           // Remove only the clicks we sent after the server acknowledged them.
           // Clicks that arrived during the roundtrip stay in the buffer.
@@ -179,9 +181,11 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       saveProgress()
       // Best-effort sync with auth header (keepalive ensures delivery on close)
       if (api.isOnline()) {
-        const clicks = (useGameStore.getState()._pendingClickBuffer ?? []).length
+        const buffer = useGameStore.getState()._pendingClickBuffer ?? []
         const token = api.getToken()
-        if (token && clicks > 0) {
+        if (token && buffer.length > 0) {
+          const normalClicks = buffer.filter(c => !c.isCritical).length
+          const criticalClicks = buffer.filter(c => c.isCritical).length
           fetch(`${api.getApiBase()}/game/sync`, {
             method: 'POST',
             keepalive: true,
@@ -190,7 +194,8 @@ export function useGameLifecycle(): { retryAuth: () => void } {
               'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-              clicksSinceLastSync: clicks,
+              normalClicks,
+              criticalClicks,
               clientTimestamp: Date.now(),
               syncNonce: crypto.randomUUID(),
             }),

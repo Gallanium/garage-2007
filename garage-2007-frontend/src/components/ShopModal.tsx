@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS, NUTS_PACK_ORDER } from '@shared/constants/purchase.js'
@@ -24,12 +24,19 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
   const { playSound } = useAudio()
   const [purchasingPackId, setPurchasingPackId] = useState<NutsPackId | null>(null)
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResult | null>(null)
+  const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const applyServerState = useGameStore(s => s.applyServerState)
   const haptic = useTelegramHaptic()
 
   useEffect(() => {
     if (isOpen) playSound('modal_open')
   }, [isOpen, playSound])
+
+  useEffect(() => {
+    return () => {
+      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current)
+    }
+  }, [])
 
   const handlePurchase = useCallback(async (packId: NutsPackId) => {
     setPurchasingPackId(packId)
@@ -53,7 +60,8 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
       if (serverState?.gameState) {
         applyServerState(serverState.gameState)
       }
-      setTimeout(() => setPurchaseResult(null), 3000)
+      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current)
+      resultTimeoutRef.current = setTimeout(() => setPurchaseResult(null), 3000)
     } else if (status === 'failed') {
       setPurchaseResult({ success: false, message: 'Ошибка оплаты' })
       haptic.notificationError()

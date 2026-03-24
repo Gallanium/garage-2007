@@ -24,7 +24,7 @@ export class LevelUpEffectManager {
       x: center.x,
       y: center.y,
       count: 20,
-      color: 0xFFD700,
+      color: EFFECT_COLORS.money,
       radiusRange: [4, 4],
       distanceRange: [120, 120],
       durationRange: [800, 800],

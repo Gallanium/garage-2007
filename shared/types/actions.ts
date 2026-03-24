@@ -77,7 +77,8 @@ export interface GameActionRequest {
 }
 
 export interface SyncRequest {
-  clicksSinceLastSync: number
+  normalClicks: number
+  criticalClicks: number
   clientTimestamp: number
 }
 

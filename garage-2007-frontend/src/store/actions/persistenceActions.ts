@@ -5,6 +5,9 @@ import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSI
 import { roundCurrency } from '../../utils/math'
 import { BASE_COSTS, CRITICAL_CLICK_MULTIPLIER } from '../constants/economy'
 import { DECORATION_CATALOG } from '../constants/decorations'
+import { BOOST_DEFINITIONS } from '../constants/boosts'
+import { GAME_EVENTS } from '../constants/events'
+import type { BoostType } from '../types'
 import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
@@ -271,13 +274,39 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
 
     // Compensate for pending unsynced clicks: server balance is "confirmed" state,
     // add estimated income from clicks the server hasn't processed yet.
+    // Use server-provided boost/event data for multipliers (not local store) to avoid
+    // drift when boosts expire between click time and sync time.
     const pendingBuffer = get()._pendingClickBuffer ?? []
     let pendingClickIncome = 0
     if (pendingBuffer.length > 0) {
       const clickLevel = upgrades?.clickPower?.level ?? get().upgrades.clickPower.level
       const clickIncomePerClick = calculateClickIncome(clickLevel)
-      const boostMult = get().getActiveMultiplier('click')
-      const eventMult = get().getEventMultiplier('click')
+
+      // Compute boost multiplier from server-provided boost data
+      const now = Date.now()
+      let boostMult = 1
+      if (boostsData?.active) {
+        for (const b of boostsData.active) {
+          if (b.expiresAt <= now) continue
+          const def = BOOST_DEFINITIONS[b.type as BoostType]
+          if (!def) continue
+          if (b.type === 'turbo') {
+            boostMult *= def.multiplier
+          } else if (b.type === 'income_2x' || b.type === 'income_3x') {
+            boostMult *= def.multiplier
+          }
+        }
+      }
+
+      // Compute event multiplier from server-provided event data
+      let eventMult = 1
+      if (eventsData?.activeEvent && eventsData.activeEvent.expiresAt > now) {
+        const evDef = GAME_EVENTS[eventsData.activeEvent.id]
+        if (evDef && evDef.effect.scope === 'click') {
+          eventMult = evDef.effect.multiplier
+        }
+      }
+
       const normalClicks = pendingBuffer.filter(c => !c.isCritical).length
       const criticalClicks = pendingBuffer.filter(c => c.isCritical).length
       pendingClickIncome = roundCurrency(
@@ -347,7 +376,9 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     if (buffer.length === 0) return true
 
     const clicksToSend = buffer.length
-    const result = await api.syncWithLock(clicksToSend)
+    const normalClicks = buffer.slice(0, clicksToSend).filter(c => !c.isCritical).length
+    const criticalClicks = buffer.slice(0, clicksToSend).filter(c => c.isCritical).length
+    const result = await api.syncWithLock(normalClicks, criticalClicks)
     if (result?.gameState) {
       _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
       get().applyServerState(result.gameState)

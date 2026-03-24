@@ -11,8 +11,12 @@ type Slice = Pick<GameStore,
   | 'getEventMultiplier' | 'getEventCostMultiplier'
 >
 
+// Concurrency guard — prevent double-fire of event triggers
+let _eventTriggerPending = false
+
 export const createEventSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   triggerRandomEvent: (): boolean => {
+    if (_eventTriggerPending) return false
     const now = Date.now()
     const { events } = get()
 
@@ -22,9 +26,10 @@ export const createEventSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     // No local Math.random() calls. Server picks category + event + timing.
     if (!api.isOnline()) return false
 
+    _eventTriggerPending = true
     api.performAction('trigger_event', {}).then(r => {
       if (r?.gameState) get().applyServerState(r.gameState)
-    })
+    }).finally(() => { _eventTriggerPending = false })
 
     return true
   },

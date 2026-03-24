@@ -39,7 +39,7 @@ export const gameStateResponseSchema = z.object({
   }),
   boosts: z.object({
     active: z.array(z.object({
-      type: z.string(),
+      type: z.enum(['income_2x', 'income_3x', 'turbo']),
       activatedAt: z.number(),
       expiresAt: z.number(),
     })),

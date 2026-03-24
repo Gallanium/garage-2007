@@ -29,7 +29,7 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
     _set({ showDailyRewardsModal: true })
   },
 
-  claimDailyReward: async () => {
+  claimDailyReward: async (): Promise<boolean> => {
     const state = get()
     const now = Date.now()
     if (
@@ -38,23 +38,24 @@ export const createDailyRewardSlice: StateCreator<GameStore, [], [], Slice> = (_
     ) {
       const h = Math.ceil((DAILY_STREAK_GRACE_PERIOD_MS - (now - state.dailyRewards.lastClaimTimestamp)) / 3600000)
       if (import.meta.env.DEV) console.warn(`[Daily] Следующая через ${h} ч`)
-      return
+      return false
     }
 
     // Server-first: premium action (nuts). No optimistic mutation.
     if (!api.isOnline()) {
       console.warn('[Daily] Cannot claim: not connected to server')
-      // TODO: show user-facing error toast
-      return
+      get().showToast('Нет подключения к серверу', 'error')
+      return false
     }
 
     const r = await api.performAction('claim_daily_reward', {})
     if (r?.gameState) {
       get().applyServerState(r.gameState)
-    } else {
-      console.warn('[Daily] Server rejected claim_daily_reward')
-      // TODO: show user-facing error toast
+      return true
     }
+    console.warn('[Daily] Server rejected claim_daily_reward')
+    get().showToast('Ошибка получения награды', 'error')
+    return false
   },
 
   closeDailyRewardsModal: () => _set({ showDailyRewardsModal: false }),

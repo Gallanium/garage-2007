@@ -66,7 +66,7 @@ describe('Rate limiting (spec section 9)', () => {
       'post',
       '/api/game/sync',
       5,
-      { clicksSinceLastSync: 0, clientTimestamp: Date.now() },
+      { normalClicks: 0, criticalClicks: 0, clientTimestamp: Date.now() },
       createAuthHeader(token),
     )
 

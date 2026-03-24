@@ -53,7 +53,11 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
 
     // Flush pending clicks so backend has accurate balance
     if ((get()._pendingClickBuffer ?? []).length > 0) {
-      await get().flushPendingClicks()
+      const flushOk = await get().flushPendingClicks()
+      if (!flushOk) {
+        get().showToast('Ошибка синхронизации, попробуйте снова', 'error')
+        return
+      }
     }
     // Re-read state after flush
     const stateAfterFlush = get()
@@ -95,7 +99,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
         _set(snapshot)
         get().saveProgress()
         console.warn(`[Hire] Server rejected hire_worker (${workerType}) — rolled back`)
-        // TODO: show user-facing error toast
+        get().showToast('Ошибка найма работника', 'error')
       } else if (r.gameState) {
         get().applyServerState(r.gameState)
       }

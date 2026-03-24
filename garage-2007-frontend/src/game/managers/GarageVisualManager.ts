@@ -72,6 +72,18 @@ export class GarageVisualManager {
     this.levelText.setText(`Ур. ${level}`)
   }
 
+  /**
+   * Устанавливает цвет и текст уровня БЕЗ tween-анимации.
+   * Используется при начальной загрузке, чтобы не проигрывать ложный level-up.
+   */
+  setLevelSilently(level: number): void {
+    if (level < 1) return
+    const maxDefined = Math.max(...Object.keys(LEVEL_COLORS).map(Number))
+    const colorKey = Math.min(level, maxDefined)
+    this.sprite.setFillStyle(LEVEL_COLORS[colorKey])
+    this.levelText.setText(`Ур. ${level}`)
+  }
+
   /** Анимация "нажатия" спрайта при клике. */
   playClickBounce(): void {
     this.scene.tweens.add({

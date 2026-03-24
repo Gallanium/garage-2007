@@ -8,19 +8,21 @@ describe('validation — Zod schemas', () => {
 
   describe('syncSchema', () => {
     it('valid input passes', () => {
-      const input = { clicksSinceLastSync: 42, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
+      const input = { normalClicks: 40, criticalClicks: 2, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data.clicksSinceLastSync).toBe(42)
+        expect(result.data.normalClicks).toBe(40)
+        expect(result.data.criticalClicks).toBe(2)
         expect(result.data.clientTimestamp).toBe(1710590400000)
       }
     })
 
     it('extra fields rejected (strict mode)', () => {
       const input = {
-        clicksSinceLastSync: 42,
+        normalClicks: 40,
+        criticalClicks: 2,
         clientTimestamp: 1710590400000,
         syncNonce: '550e8400-e29b-41d4-a716-446655440000',
         extraField: 'should_fail',
@@ -30,22 +32,22 @@ describe('validation — Zod schemas', () => {
       expect(result.success).toBe(false)
     })
 
-    it('clicksSinceLastSync > 1000 rejected', () => {
-      const input = { clicksSinceLastSync: 1001, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
+    it('normalClicks > 1000 rejected', () => {
+      const input = { normalClicks: 1001, criticalClicks: 0, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(false)
     })
 
-    it('negative clicksSinceLastSync rejected', () => {
-      const input = { clicksSinceLastSync: -1, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
+    it('negative normalClicks rejected', () => {
+      const input = { normalClicks: -1, criticalClicks: 0, clientTimestamp: 1710590400000, syncNonce: '550e8400-e29b-41d4-a716-446655440000' }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(false)
     })
 
     it('missing syncNonce rejected', () => {
-      const input = { clicksSinceLastSync: 10, clientTimestamp: 1710590400000 }
+      const input = { normalClicks: 10, criticalClicks: 0, clientTimestamp: 1710590400000 }
       const result = syncSchema.safeParse(input)
 
       expect(result.success).toBe(false)

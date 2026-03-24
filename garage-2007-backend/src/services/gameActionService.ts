@@ -3,7 +3,7 @@ import { calculateClickIncome, calculateTotalPassiveIncome } from '@shared/formu
 import { calculateUpgradeCost, calculateWorkerCost } from '@shared/formulas/costs.js'
 import { checkAutoLevel, isWorkerUnlocked } from '@shared/formulas/progression.js'
 import { roundCurrency } from '@shared/utils/math.js'
-import { BASE_COSTS, CLICK_UPGRADE_MAX_LEVEL, WORKER_LIMITS } from '@shared/constants/economy.js'
+import { BASE_COSTS, CLICK_UPGRADE_MAX_LEVEL, WORKER_LIMITS, CRITICAL_CLICK_MULTIPLIER } from '@shared/constants/economy.js'
 import { MILESTONE_LEVELS, MILESTONE_UPGRADES } from '@shared/constants/garageLevels.js'
 import type { MilestoneLevel } from '@shared/constants/garageLevels.js'
 import { BOOST_DEFINITIONS } from '@shared/constants/boosts.js'
@@ -151,7 +151,8 @@ function weightedRandomPick<T extends { weight: number }>(items: T[]): T {
 
 export async function processSync(
   userId: number,
-  clicksSinceLastSync: number,
+  normalClicks: number,
+  criticalClicks: number,
   clientTimestamp?: number,
   syncNonce?: string,
 ): Promise<{ gameState: Record<string, unknown>; serverTime: number }> {
@@ -177,7 +178,9 @@ export async function processSync(
     const secondsSinceLastSync = Math.max(1, (now - gs.lastSyncAt.getTime()) / 1000)
 
     // Validate click rate: max 20 clicks/sec
-    let clicks = Math.max(0, Math.floor(clicksSinceLastSync))
+    let normal = Math.max(0, Math.floor(normalClicks))
+    let critical = Math.max(0, Math.floor(criticalClicks))
+    let clicks = normal + critical
     const maxClicks = Math.floor(secondsSinceLastSync * 20)
     if (clicks > maxClicks) {
       logSuspiciousActivity({
@@ -185,7 +188,20 @@ export async function processSync(
         reason: 'excessive_click_rate',
         details: { reported: clicks, max: maxClicks, seconds: secondsSinceLastSync },
       })
+      // Scale down proportionally
+      const ratio = maxClicks / clicks
+      normal = Math.floor(normal * ratio)
+      critical = maxClicks - normal
       clicks = maxClicks
+    }
+
+    // Anti-cheat: suspiciously high critical click ratio (>30% on 50+ clicks)
+    if (clicks > 50 && critical / clicks > 0.3) {
+      logSuspiciousActivity({
+        userId,
+        reason: 'suspicious_critical_ratio',
+        details: { normal, critical, ratio: critical / clicks },
+      })
     }
 
     const boosts = parseBoosts(gs.boosts)
@@ -196,9 +212,10 @@ export async function processSync(
     const eventClickMult = getEventMultiplier(events, 'click')
     const eventIncomeMult = getEventMultiplier(events, 'income')
 
-    // Click income
+    // Click income (critical clicks get CRITICAL_CLICK_MULTIPLIER bonus)
+    const baseClickIncome = calculateClickIncome(gs.clickPowerLevel)
     const clickIncome = roundCurrency(
-      clicks * calculateClickIncome(gs.clickPowerLevel) * boostClickMult * eventClickMult,
+      (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * boostClickMult * eventClickMult,
     )
 
     // Passive income

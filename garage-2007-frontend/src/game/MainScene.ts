@@ -49,7 +49,6 @@ export default class MainScene extends Phaser.Scene {
 
       this.garageVisual.playClickBounce()
       this.clickEffect.spawn(this, x, y)
-      this.audioManager.playSfx('click_normal')
       const event: GarageClickEvent = { x, y, timestamp: Date.now() }
       this.events.emit('garageClicked', event)
     })
@@ -81,6 +80,19 @@ export default class MainScene extends Phaser.Scene {
     this.garageVisual.setLevel(level)
     this.levelUpEffect.play(this, this.garageVisual.center)
     this.audioManager.playSfx('level_up')
+  }
+
+  /**
+   * Устанавливает уровень гаража без анимации и звука.
+   * Используется при начальной загрузке, чтобы избежать ложного level-up эффекта.
+   */
+  public setLevelSilently(level: number): void {
+    this.garageVisual.setLevelSilently(level)
+  }
+
+  /** Воспроизводит усиленный визуальный эффект критического клика. */
+  public playCriticalClickEffect(x: number, y: number): void {
+    this.clickEffect.spawnCritical(this, x, y)
   }
 
   /** Play a sound effect by key — callable from React via PhaserGame bridge */

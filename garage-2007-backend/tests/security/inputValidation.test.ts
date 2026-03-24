@@ -49,7 +49,8 @@ describe('Input validation & security', () => {
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
       .send({
-        clicksSinceLastSync: 10,
+        normalClicks: 10,
+        criticalClicks: 0,
         clientTimestamp: Date.now(),
         hackField: true, // not in schema
       })

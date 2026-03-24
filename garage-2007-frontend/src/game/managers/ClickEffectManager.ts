@@ -31,6 +31,22 @@ export class ClickEffectManager {
     })
   }
 
+  /** Воспроизводит усиленный взрыв частиц для критического клика. */
+  spawnCritical(scene: Phaser.Scene, x: number, y: number): void {
+    spawnParticles({
+      scene,
+      container: this.container,
+      x,
+      y,
+      count: 15,
+      color: EFFECT_COLORS.critical,
+      radiusRange: [4, 8],
+      distanceRange: [50, 100],
+      durationRange: [400, 600],
+      riseY: 40,
+    })
+  }
+
   destroy(): void {
     this.container.destroy()
   }

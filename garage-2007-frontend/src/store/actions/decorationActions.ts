@@ -28,7 +28,7 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
 
     if (!api.isOnline()) {
       console.warn('[Decoration] Cannot purchase: not connected to server')
-      // TODO: show user-facing error toast
+      get().showToast('Нет подключения к серверу', 'error')
       return false
     }
 
@@ -45,13 +45,17 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
         return true
       }
       console.warn('[Decoration] Server rejected purchase_decoration (nuts)')
-      // TODO: show user-facing error toast
+      get().showToast('Ошибка покупки декорации', 'error')
       return false
     }
 
     // Flush pending clicks so backend has accurate balance
     if ((get()._pendingClickBuffer ?? []).length > 0) {
-      await get().flushPendingClicks()
+      const flushOk = await get().flushPendingClicks()
+      if (!flushOk) {
+        get().showToast('Ошибка синхронизации, попробуйте снова', 'error')
+        return false
+      }
     }
     // Re-validate balance after flush
     if (get().balance < def.cost) {
@@ -89,7 +93,7 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       _set(snapshot)
       get().saveProgress()
       console.warn('[Decoration] Server rejected purchase_decoration (rubles) — rolled back')
-      // TODO: show user-facing error toast
+      get().showToast('Ошибка покупки декорации', 'error')
       return false
     }
     if (r.gameState) {
@@ -104,6 +108,14 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     if (!state.decorations.owned.includes(id)) return
     const def = DECORATION_CATALOG[id]
     if (!def) return
+
+    // Snapshot for rollback
+    const snapshot = {
+      decorations: {
+        owned: [...state.decorations.owned],
+        active: [...state.decorations.active],
+      },
+    }
 
     if (state.decorations.active.includes(id)) {
       // Deactivate
@@ -130,7 +142,17 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     get().saveProgress()
     if (api.isOnline()) {
       api.performAction('toggle_decoration', { decorationId: id }).then(r => {
-        if (r?.gameState) get().applyServerState(r.gameState)
+        if (r?.gameState) {
+          get().applyServerState(r.gameState)
+        } else {
+          _set({ decorations: snapshot.decorations })
+          get().saveProgress()
+          get().showToast('Ошибка переключения декорации', 'error')
+        }
+      }).catch(() => {
+        _set({ decorations: snapshot.decorations })
+        get().saveProgress()
+        get().showToast('Ошибка сети', 'error')
       })
     }
   },

@@ -49,6 +49,8 @@ Thumbs.db
 # Тестирование
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
 
 # Кэш различных инструментов
 .eslintcache

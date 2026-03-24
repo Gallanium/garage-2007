@@ -35,7 +35,11 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
 
     // Flush pending clicks so backend has accurate balance
     if ((get()._pendingClickBuffer ?? []).length > 0) {
-      await get().flushPendingClicks()
+      const flushOk = await get().flushPendingClicks()
+      if (!flushOk) {
+        get().showToast('Ошибка синхронизации, попробуйте снова', 'error')
+        return false
+      }
     }
     // Re-validate balance after flush
     if (get().balance < upgrade.cost) {
@@ -78,7 +82,7 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
       _set(snapshot)
       get().saveProgress()
       console.warn(`[Milestone] Server rejected purchase_milestone (level ${level}) — rolled back`)
-      // TODO: show user-facing error toast
+      get().showToast('Ошибка покупки улучшения гаража', 'error')
       return false
     }
     if (r.gameState) {

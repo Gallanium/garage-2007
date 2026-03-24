@@ -10,6 +10,16 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../shared'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          phaser: ['phaser'],
+          vendor: ['react', 'react-dom', 'zustand', 'framer-motion'],
+        },
+      },
+    },
+  },
   server: {
     allowedHosts: true,
     // Bypass ngrok browser warning interstitial

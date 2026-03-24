@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   useGameStore,
@@ -17,9 +17,10 @@ import {
   type MilestoneLevel,
 } from './store/gameStore'
 import TabNavigation from './components/TabNavigation'
-import UpgradesPanel from './components/UpgradesPanel'
-import AchievementsPanel from './components/AchievementsPanel'
-import StatsPanel from './components/StatsPanel'
+import ToastContainer from './components/ToastContainer'
+const UpgradesPanel = lazy(() => import('./components/UpgradesPanel'))
+const AchievementsPanel = lazy(() => import('./components/AchievementsPanel'))
+const StatsPanel = lazy(() => import('./components/StatsPanel'))
 import WelcomeBackModal from './components/WelcomeBackModal'
 import MilestoneUpgradeModal from './components/MilestoneUpgradeModal'
 import DailyRewardsModal from './components/DailyRewardsModal'
@@ -108,9 +109,16 @@ function App() {
 
   // --- Локальное состояние ---
   const [activeTab, setActiveTab] = useState<string>('game')
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set(['game']))
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab)
+    setMountedTabs(prev => {
+      if (prev.has(tab)) return prev
+      const next = new Set(prev)
+      next.add(tab)
+      return next
+    })
     playSoundRef.current?.('tab_switch')
   }, [])
 
@@ -273,19 +281,31 @@ function App() {
         <div
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[30] ${activeTab === 'upgrades' ? 'opacity-100 translate-x-0' : activeTab === 'game' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
-          <UpgradesPanel />
+          {mountedTabs.has('upgrades') && (
+            <Suspense fallback={<div className="flex items-center justify-center h-full"><span className="text-gray-500 font-mono text-xs">Загрузка...</span></div>}>
+              <UpgradesPanel />
+            </Suspense>
+          )}
         </div>
 
         <div
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[20] ${activeTab === 'achievements' ? 'opacity-100 translate-x-0' : activeTab === 'game' || activeTab === 'upgrades' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
-          <AchievementsPanel />
+          {mountedTabs.has('achievements') && (
+            <Suspense fallback={<div className="flex items-center justify-center h-full"><span className="text-gray-500 font-mono text-xs">Загрузка...</span></div>}>
+              <AchievementsPanel />
+            </Suspense>
+          )}
         </div>
 
         <div
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[10] ${activeTab === 'stats' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 pointer-events-none'}`}
         >
-          <StatsPanel />
+          {mountedTabs.has('stats') && (
+            <Suspense fallback={<div className="flex items-center justify-center h-full"><span className="text-gray-500 font-mono text-xs">Загрузка...</span></div>}>
+              <StatsPanel />
+            </Suspense>
+          )}
         </div>
 
       </div>
@@ -317,6 +337,8 @@ function App() {
         onClaim={claimDailyReward}
         onClose={handleCloseDailyRewards}
       />
+
+      <ToastContainer />
 
       {/* Debug overlay (только dev) */}
       {import.meta.env.DEV && (

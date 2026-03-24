@@ -44,7 +44,11 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
 
       // Flush pending clicks so backend has accurate balance
       if ((get()._pendingClickBuffer ?? []).length > 0) {
-        await get().flushPendingClicks()
+        const flushOk = await get().flushPendingClicks()
+        if (!flushOk) {
+          get().showToast('Ошибка синхронизации, попробуйте снова', 'error')
+          return false
+        }
       }
       // Re-validate balance after flush (server state may differ from optimistic)
       if (get().balance < Math.floor(get().upgrades.clickPower.cost * get().getEventCostMultiplier())) {
@@ -84,7 +88,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         _set(snapshot)
         get().saveProgress()
         console.warn('[ClickUpgrade] Server rejected purchase_upgrade — rolled back')
-        // TODO: show user-facing error toast
+        get().showToast('Ошибка покупки улучшения', 'error')
         return false
       }
 
@@ -124,7 +128,11 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
 
       // Flush pending clicks so backend has accurate balance
       if ((get()._pendingClickBuffer ?? []).length > 0) {
-        await get().flushPendingClicks()
+        const flushOk = await get().flushPendingClicks()
+        if (!flushOk) {
+          get().showToast('Ошибка синхронизации, попробуйте снова', 'error')
+          return false
+        }
       }
       // Re-read state after flush
       const stateAfterFlush = get()
@@ -165,7 +173,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         _set(snapshot)
         get().saveProgress()
         console.warn('[WorkSpeedUpgrade] Server rejected purchase_upgrade — rolled back')
-        // TODO: show user-facing error toast
+        get().showToast('Ошибка покупки улучшения', 'error')
         return false
       }
 

@@ -164,11 +164,12 @@ export async function loadState(): Promise<GameStateResponse | null> {
 
 // ── Sync ────────────────────────────────────────────────────────────────────
 
-export async function sync(clicksSinceLastSync: number): Promise<GameStateResponse | null> {
+export async function sync(normalClicks: number, criticalClicks: number): Promise<GameStateResponse | null> {
   return apiFetch<GameStateResponse>('/game/sync', {
     method: 'POST',
     body: JSON.stringify({
-      clicksSinceLastSync,
+      normalClicks,
+      criticalClicks,
       clientTimestamp: Date.now(),
       syncNonce: crypto.randomUUID(),
     }),
@@ -179,9 +180,9 @@ export async function sync(clicksSinceLastSync: number): Promise<GameStateRespon
 let _syncInFlight: Promise<GameStateResponse | null> | null = null
 
 /** Sync with concurrency guard — if a sync is already in flight, return its result */
-export async function syncWithLock(clicksSinceLastSync: number): Promise<GameStateResponse | null> {
+export async function syncWithLock(normalClicks: number, criticalClicks: number): Promise<GameStateResponse | null> {
   if (_syncInFlight) return _syncInFlight
-  _syncInFlight = sync(clicksSinceLastSync).finally(() => { _syncInFlight = null })
+  _syncInFlight = sync(normalClicks, criticalClicks).finally(() => { _syncInFlight = null })
   return _syncInFlight
 }
 

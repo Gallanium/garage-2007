@@ -36,7 +36,8 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
       .send({
-        clicksSinceLastSync: 500,
+        normalClicks: 475,
+        criticalClicks: 25,
         clientTimestamp: Date.now(),
         syncNonce: crypto.randomUUID(),
       })
@@ -47,13 +48,14 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
     expect(res.body).toBeDefined()
   })
 
-  it('rejects negative clicksSinceLastSync with 400', async () => {
+  it('rejects negative normalClicks with 400', async () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
       .send({
-        clicksSinceLastSync: -10,
+        normalClicks: -10,
+        criticalClicks: 0,
         clientTimestamp: Date.now(),
         syncNonce: crypto.randomUUID(),
       })
@@ -61,13 +63,14 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects fractional clicksSinceLastSync with 400', async () => {
+  it('rejects fractional normalClicks with 400', async () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
       .send({
-        clicksSinceLastSync: 10.5,
+        normalClicks: 10.5,
+        criticalClicks: 0,
         clientTimestamp: Date.now(),
         syncNonce: crypto.randomUUID(),
       })
@@ -94,7 +97,8 @@ describe('Anti-cheat measures (spec section 6.3)', () => {
       .set('Content-Type', 'application/json')
       .set(createAuthHeader(validToken))
       .send({
-        clicksSinceLastSync: 5,
+        normalClicks: 5,
+        criticalClicks: 0,
         clientTimestamp: oneHourFuture,
         syncNonce: crypto.randomUUID(),
       })
