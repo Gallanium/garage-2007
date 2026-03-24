@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import PhaserGame from '../game/PhaserGame'
 import DailyRewardButton from './DailyRewardButton'
@@ -45,6 +45,8 @@ export function GameCanvas({
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([])
+  const critEffectRef = useRef<((x: number, y: number) => void) | null>(null)
+  const floatingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const haptic = useTelegramHaptic()
   const clickValue = useClickValue()
   const activeBoostType = useActiveBoostType()
@@ -52,7 +54,15 @@ export function GameCanvas({
   const getActiveMultiplier = useGameStore((s) => s.getActiveMultiplier)
   const getEventMultiplier = useGameStore((s) => s.getEventMultiplier)
 
-  const clickMultiplier = 
+  useEffect(() => {
+    const timeouts = floatingTimeoutsRef.current
+    return () => {
+      timeouts.forEach(id => clearTimeout(id))
+      timeouts.clear()
+    }
+  }, [])
+
+  const clickMultiplier =
     (activeBoostType ? getActiveMultiplier('click') : 1) *
     (activeEvent ? getEventMultiplier('click') : 1)
   
@@ -69,8 +79,12 @@ export function GameCanvas({
     if (isCritical) {
       haptic.impactMedium()
       playSoundRef.current?.('click_critical')
+      if (event && typeof event.x === 'number' && typeof event.y === 'number') {
+        critEffectRef.current?.(event.x, event.y)
+      }
     } else {
       haptic.impactLight()
+      playSoundRef.current?.('click_normal')
     }
 
     if (event && typeof event.x === 'number' && typeof event.y === 'number') {
@@ -84,9 +98,11 @@ export function GameCanvas({
         isCritical
       }
       setFloatingTexts(prev => [...prev, newText])
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setFloatingTexts(prev => prev.filter(t => t.id !== newText.id))
+        floatingTimeoutsRef.current.delete(timeoutId)
       }, 1000)
+      floatingTimeoutsRef.current.add(timeoutId)
     }
   }
 
@@ -101,6 +117,7 @@ export function GameCanvas({
             isActive={isActive && !showBoostModal}
             activeDecorations={activeDecorations}
             playSoundRef={playSoundRef}
+            critEffectRef={critEffectRef}
           />
         </ErrorBoundary>
       </div>

@@ -26,6 +26,9 @@ interface PhaserGameProps {
 
   /** Ref for React → Phaser sound bridge */
   playSoundRef?: React.MutableRefObject<((key: string) => void) | null>
+
+  /** Ref for React → Phaser critical click effect bridge */
+  critEffectRef?: React.MutableRefObject<((x: number, y: number) => void) | null>
 }
 
 /**
@@ -38,7 +41,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, activeDecorations, playSoundRef }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, activeDecorations, playSoundRef, critEffectRef }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -159,12 +162,21 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
         }
       }
 
+      // Wire up React → Phaser critical click effect bridge
+      if (critEffectRef) {
+        critEffectRef.current = (x: number, y: number) => {
+          if (sceneRef.current && isSceneAlive(sceneRef.current)) {
+            sceneRef.current.playCriticalClickEffect(x, y)
+          }
+        }
+      }
+
       setIsGameReady(true)
 
-      // FIX Баг 1: Синхронизируем garageLevel сразу после готовности сцены,
+      // Синхронизируем garageLevel сразу после готовности сцены без анимации,
       // чтобы визуал соответствовал текущему уровню из store
       if (garageLevelRef.current > 1) {
-        mainScene.updateGarageLevel(garageLevelRef.current)
+        mainScene.setLevelSilently(garageLevelRef.current)
       }
 
       // Синхронизируем декорации сразу после готовности сцены
@@ -200,6 +212,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       // Clear sound bridge
       if (playSoundRef) {
         playSoundRef.current = null
+      }
+
+      // Clear critical effect bridge
+      if (critEffectRef) {
+        critEffectRef.current = null
       }
 
       // Отписываемся от событий сцены

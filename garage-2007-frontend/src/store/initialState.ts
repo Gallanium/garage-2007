@@ -60,4 +60,5 @@ export const initialState: GameState = {
   _pendingClickBuffer: [],
   serverError: false,
   _lastServerTime: 0,
+  toasts: [],
 }

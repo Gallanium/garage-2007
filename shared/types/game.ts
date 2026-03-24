@@ -219,6 +219,19 @@ export interface GameState {
   serverError: boolean
   /** Timestamp of the last applied server state (staleness guard) */
   _lastServerTime: number
+  /** UI-only toast notifications (not synced to server) */
+  toasts: ToastItem[]
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+
+export type ToastType = 'error' | 'success' | 'info'
+
+export interface ToastItem {
+  id: string
+  message: string
+  type: ToastType
+  createdAt: number
 }
 
 // ── Persistence types ────────────────────────────────────────────────────────

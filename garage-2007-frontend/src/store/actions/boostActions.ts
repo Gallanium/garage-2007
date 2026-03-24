@@ -9,8 +9,14 @@ type Slice = Pick<GameStore,
   | 'getActiveMultiplier'
 >
 
+// Concurrency guard — prevent double-fire from mobile tap events
+let _boostPending = false
+
 export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   activateBoost: async (type: BoostType): Promise<boolean> => {
+    if (_boostPending) return false
+    _boostPending = true
+    try {
     const state = get()
     const def = BOOST_DEFINITIONS[type]
 
@@ -28,7 +34,7 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     // Server-first: premium action (nuts). No optimistic mutation.
     if (!api.isOnline()) {
       console.warn('[Boost] Cannot activate: not connected to server')
-      // TODO: show user-facing error toast
+      get().showToast('Ошибка активации буста', 'error')
       return false
     }
 
@@ -38,11 +44,15 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
       return true
     }
     console.warn('[Boost] Server rejected activate_boost')
-    // TODO: show user-facing error toast
+    get().showToast('Ошибка активации буста', 'error')
     return false
+    } finally { _boostPending = false }
   },
 
   replaceBoost: async (type: BoostType): Promise<boolean> => {
+    if (_boostPending) return false
+    _boostPending = true
+    try {
     const state = get()
     const def = BOOST_DEFINITIONS[type]
 
@@ -55,7 +65,7 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     // Server-first: premium action (nuts). No optimistic mutation.
     if (!api.isOnline()) {
       console.warn('[Boost] Cannot replace: not connected to server')
-      // TODO: show user-facing error toast
+      get().showToast('Ошибка активации буста', 'error')
       return false
     }
 
@@ -65,8 +75,9 @@ export const createBoostSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
       return true
     }
     console.warn('[Boost] Server rejected replace_boost')
-    // TODO: show user-facing error toast
+    get().showToast('Ошибка активации буста', 'error')
     return false
+    } finally { _boostPending = false }
   },
 
   tickBoosts: (): void => {

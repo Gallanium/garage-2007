@@ -26,7 +26,8 @@ describe('POST /api/game/sync', () => {
       .post('/api/game/sync')
       .set(createAuthHeader(token))
       .send({
-        clicksSinceLastSync: 10,
+        normalClicks: 9,
+        criticalClicks: 1,
         clientTimestamp: Date.now(),
         syncNonce: crypto.randomUUID(),
       })
@@ -53,7 +54,8 @@ describe('POST /api/game/sync', () => {
       .post('/api/game/sync')
       .set(createAuthHeader(markerToken))
       .send({
-        clicksSinceLastSync: 0,
+        normalClicks: 0,
+        criticalClicks: 0,
         clientTimestamp: Date.now(),
         syncNonce,
       })
@@ -88,7 +90,7 @@ describe('POST /api/game/sync', () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(fastToken))
-      .send({ clicksSinceLastSync: 100, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
+      .send({ normalClicks: 95, criticalClicks: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     // Server caps at 20 clicks/sec * ~1s = 20 clicks
@@ -111,14 +113,14 @@ describe('POST /api/game/sync', () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(earnerToken))
-      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
+      .send({ normalClicks: 5, criticalClicks: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     // Balance should have increased (at least by click income for accepted clicks)
     expect(res.body.gameState.balance).toBeGreaterThanOrEqual(1000)
   })
 
-  it('increments totalClicks by the accepted clicksSinceLastSync', async () => {
+  it('increments totalClicks by the accepted clicks', async () => {
     const clickerToken = signToken({ sub: 4, tgId: 444555667 })
     const gameSave = createTestGameSave({
       userId: 4,
@@ -134,7 +136,7 @@ describe('POST /api/game/sync', () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(clickerToken))
-      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
+      .send({ normalClicks: 5, criticalClicks: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     expect(res.body.gameState.totalClicks).toBeGreaterThan(10)
@@ -155,7 +157,7 @@ describe('POST /api/game/sync', () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(levelerToken))
-      .send({ clicksSinceLastSync: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
+      .send({ normalClicks: 0, criticalClicks: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(200)
     expect(res.body.gameState).toHaveProperty('garageLevel')
@@ -166,7 +168,7 @@ describe('POST /api/game/sync', () => {
   it('returns 401 when no auth header is provided', async () => {
     const res = await request(app)
       .post('/api/game/sync')
-      .send({ clicksSinceLastSync: 5, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
+      .send({ normalClicks: 5, criticalClicks: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(401)
   })
@@ -178,7 +180,7 @@ describe('POST /api/game/sync', () => {
     const res = await request(app)
       .post('/api/game/sync')
       .set(createAuthHeader(noSaveToken))
-      .send({ clicksSinceLastSync: 1, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
+      .send({ normalClicks: 1, criticalClicks: 0, clientTimestamp: Date.now(), syncNonce: crypto.randomUUID() })
 
     expect(res.status).toBe(404)
   })

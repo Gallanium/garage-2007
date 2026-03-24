@@ -15,6 +15,7 @@ import { createBoostSlice }        from './actions/boostActions'
 import { createEventSlice }        from './actions/eventActions'
 import { createPersistenceSlice }   from './actions/persistenceActions'
 import { createDecorationSlice }   from './actions/decorationActions'
+import { createToastSlice }       from './actions/toastActions'
 
 export const useGameStore = create<GameStore>((...a) => ({
   ...initialState,
@@ -29,6 +30,7 @@ export const useGameStore = create<GameStore>((...a) => ({
   ...createBoostSlice(...a),
   ...createEventSlice(...a),
   ...createDecorationSlice(...a),
+  ...createToastSlice(...a),
 }))
 
 // ── Re-exports so components keep importing from '../store/gameStore' ─────────

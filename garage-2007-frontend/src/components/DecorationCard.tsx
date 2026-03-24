@@ -201,7 +201,7 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
         </div>
       </div>
       <button
-        onClick={() => { purchaseDecoration(id); playSound('purchase') }}
+        onClick={async () => { const ok = await purchaseDecoration(id); if (ok) playSound('purchase') }}
         className="w-full py-2 rounded text-[10px] font-bold text-white
                    bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400
                    transition-colors flex items-center justify-center gap-1"

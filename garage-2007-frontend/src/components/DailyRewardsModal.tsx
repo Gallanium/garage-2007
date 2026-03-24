@@ -12,7 +12,7 @@ interface DailyRewardsModalProps {
   isOpen: boolean
   dailyRewards: DailyRewardsState
   canClaim: boolean
-  onClaim: () => void
+  onClaim: () => Promise<boolean> | boolean | void
   onClose: () => void
 }
 
@@ -129,9 +129,9 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
 
   const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
-  const handleClaim = useCallback(() => {
-    onClaim()
-    playSound('daily_reward')
+  const handleClaim = useCallback(async () => {
+    const ok = await onClaim()
+    if (ok) playSound('daily_reward')
   }, [onClaim, playSound])
 
   // --- Escape ---

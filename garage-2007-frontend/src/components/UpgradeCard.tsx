@@ -51,7 +51,7 @@ interface UpgradeCardProps {
   /** Может ли игрок позволить себе покупку */
   canAfford: boolean
   /** Коллбэк при нажатии кнопки "Купить" */
-  onPurchase: () => void
+  onPurchase: () => Promise<boolean> | boolean | void
   /** Опциональная иконка (emoji) */
   icon?: React.ReactNode
   /** Максимальный уровень (если задан, показывает "MAX" при достижении) */
@@ -86,10 +86,10 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
   const originalCost = discountPercent > 0 ? (cost / (1 - discountPercent / 100)) : cost
   const formattedOriginalCost = formatLargeNumber(originalCost)
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback(async () => {
     if (canAfford && !isMaxed) {
-      onPurchase()
-      playSound('purchase')
+      const ok = await onPurchase()
+      if (ok) playSound('purchase')
     }
   }, [canAfford, isMaxed, onPurchase, playSound])
 

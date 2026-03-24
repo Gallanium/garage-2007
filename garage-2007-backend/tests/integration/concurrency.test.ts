@@ -47,7 +47,8 @@ describe('Concurrency: sync + action', () => {
         .post('/api/game/sync')
         .set(createAuthHeader(token))
         .send({
-          clicksSinceLastSync: 5,
+          normalClicks: 5,
+          criticalClicks: 0,
           clientTimestamp: Date.now(),
           syncNonce: crypto.randomUUID(),
         }),
@@ -55,7 +56,8 @@ describe('Concurrency: sync + action', () => {
         .post('/api/game/sync')
         .set(createAuthHeader(token))
         .send({
-          clicksSinceLastSync: 3,
+          normalClicks: 3,
+          criticalClicks: 0,
           clientTimestamp: Date.now(),
           syncNonce: crypto.randomUUID(),
         }),
@@ -84,7 +86,8 @@ describe('Concurrency: sync + action', () => {
         .post('/api/game/sync')
         .set(createAuthHeader(token))
         .send({
-          clicksSinceLastSync: 5,
+          normalClicks: 5,
+          criticalClicks: 0,
           clientTimestamp: Date.now(),
           syncNonce: crypto.randomUUID(),
         }),
@@ -132,7 +135,8 @@ describe('Concurrency: sync + action', () => {
       .post('/api/game/sync')
       .set(createAuthHeader(token))
       .send({
-        clicksSinceLastSync: 3,
+        normalClicks: 3,
+        criticalClicks: 0,
         clientTimestamp: Date.now(),
         syncNonce: crypto.randomUUID(),
       })

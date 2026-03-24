@@ -30,6 +30,8 @@ export type {
   DecorationDefinition,
   DecorationsState,
   PendingClick,
+  ToastItem,
+  ToastType,
   GameState,
   PlayerData,
   SavedUpgrades,
@@ -43,6 +45,7 @@ import type {
   AchievementId,
   WorkerType,
   BoostType,
+  ToastType,
 } from '@shared/types/game.ts'
 
 // ── Frontend-only types ─────────────────────────────────────────────────────
@@ -65,7 +68,7 @@ export interface GameActions {
   claimAchievement: (achievementId: AchievementId) => Promise<boolean>
   clearNewAchievementsFlag: () => void
   checkDailyReward: () => void
-  claimDailyReward: () => Promise<void>
+  claimDailyReward: () => Promise<boolean>
   closeDailyRewardsModal: () => void
   openDailyRewardsModal: () => void
   canWatchRewardedVideo: () => boolean
@@ -83,6 +86,8 @@ export interface GameActions {
   toggleDecoration: (id: string) => void
   applyServerState: (serverState: Record<string, unknown>) => void
   flushPendingClicks: () => Promise<boolean>
+  showToast: (message: string, type: ToastType) => void
+  dismissToast: (id: string) => void
 }
 
 export type GameStore = GameState & GameActions

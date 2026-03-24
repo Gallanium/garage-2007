@@ -24,7 +24,7 @@ export const createRewardedVideoSlice: StateCreator<GameStore, [], [], Slice> = 
     // Server-first: premium action (nuts). No optimistic mutation.
     if (!api.isOnline()) {
       console.warn('[RewardedVideo] Cannot watch: not connected to server')
-      // TODO: show user-facing error toast
+      get().showToast('Нет подключения к серверу', 'error')
       return false
     }
 
@@ -39,7 +39,7 @@ export const createRewardedVideoSlice: StateCreator<GameStore, [], [], Slice> = 
       return true
     }
     console.warn('[RewardedVideo] Server rejected watch_rewarded_video')
-    // TODO: show user-facing error toast
+    get().showToast('Ошибка просмотра видео', 'error')
     return false
   },
 })

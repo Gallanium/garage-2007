@@ -45,7 +45,7 @@ export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_
     // Server-first: premium action (nuts). No optimistic mutation.
     if (!api.isOnline()) {
       console.warn('[Achievement] Cannot claim: not connected to server')
-      // TODO: show user-facing error toast
+      get().showToast('Нет подключения к серверу', 'error')
       return false
     }
 
@@ -55,7 +55,7 @@ export const createAchievementSlice: StateCreator<GameStore, [], [], Slice> = (_
       return true
     }
     console.warn('[Achievement] Server rejected claim_achievement')
-    // TODO: show user-facing error toast
+    get().showToast('Ошибка получения награды', 'error')
     return false
   },
 
