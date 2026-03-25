@@ -44,6 +44,7 @@ export function GameCanvas({
   playSoundRef,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
+  const [showNutsPrompt, setShowNutsPrompt] = useState(false)
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([])
   const [phaserKey, setPhaserKey] = useState(0)
   const mainRef = useRef<HTMLElement | null>(null)
@@ -56,7 +57,7 @@ export function GameCanvas({
   const getActiveMultiplier = useGameStore((s) => s.getActiveMultiplier)
   const getEventMultiplier = useGameStore((s) => s.getEventMultiplier)
   const storeModalOpen = useIsModalOpen()
-  const isAnyModalOpen = storeModalOpen || showBoostModal
+  const isAnyModalOpen = storeModalOpen || showBoostModal || showNutsPrompt
 
   useEffect(() => {
     const timeouts = floatingTimeoutsRef.current
@@ -158,7 +159,8 @@ export function GameCanvas({
 
       <BoostModal
         isOpen={showBoostModal}
-        onClose={() => setShowBoostModal(false)}
+        onClose={() => { setShowBoostModal(false); setShowNutsPrompt(false) }}
+        onNutsPromptChange={setShowNutsPrompt}
       />
 
       {/* Floating Text Overlay */}
