@@ -181,6 +181,13 @@ export interface PendingClick {
   multiplier: number
 }
 
+/** Aggregated click bucket for sync — groups clicks by multiplier value */
+export interface ClickBucket {
+  multiplier: number
+  normalClicks: number
+  criticalClicks: number
+}
+
 // ── GameState ─────────────────────────────────────────────────────────────────
 
 export interface GameState {

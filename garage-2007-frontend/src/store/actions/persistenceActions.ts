@@ -1,6 +1,6 @@
 // src/store/actions/persistenceActions.ts
 import type { StateCreator } from 'zustand'
-import type { GameStore, GameState, UpgradesState, WorkersState, AchievementId, PlayerAchievement } from '../types'
+import type { GameStore, GameState, UpgradesState, WorkersState, AchievementId, PlayerAchievement, PendingClick, ClickBucket } from '../types'
 import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSION } from '../../utils/storageService'
 import { roundCurrency } from '../../utils/math'
 import { BASE_COSTS, CRITICAL_CLICK_MULTIPLIER } from '../constants/economy'
@@ -12,6 +12,23 @@ import { gameStateResponseSchema } from '../validation/gameStateSchema'
 import * as api from '../../services/apiService'
 
 let _flushInProgress = false
+
+/** Aggregate PendingClick[] into ClickBuckets grouped by multiplier */
+function aggregateClickBuckets(buffer: PendingClick[]): ClickBucket[] {
+  const map = new Map<number, { normal: number; critical: number }>()
+  for (const click of buffer) {
+    const mult = click.multiplier ?? 1
+    const entry = map.get(mult) ?? { normal: 0, critical: 0 }
+    if (click.isCritical) entry.critical++
+    else entry.normal++
+    map.set(mult, entry)
+  }
+  return Array.from(map.entries()).map(([multiplier, counts]) => ({
+    multiplier,
+    normalClicks: counts.normal,
+    criticalClicks: counts.critical,
+  }))
+}
 
 type Slice = Pick<GameStore,
   | 'saveProgress' | 'loadProgress' | 'addOfflineEarnings'
@@ -356,9 +373,8 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     _flushInProgress = true
     try {
       const clicksToSend = buffer.length
-      const normalClicks = buffer.slice(0, clicksToSend).filter(c => !c.isCritical).length
-      const criticalClicks = buffer.slice(0, clicksToSend).filter(c => c.isCritical).length
-      const result = await api.syncWithLock(normalClicks, criticalClicks)
+      const buckets = aggregateClickBuckets(buffer.slice(0, clicksToSend))
+      const result = await api.syncWithLock(buckets)
       if (result?.gameState) {
         _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
         get().applyServerState(result.gameState)

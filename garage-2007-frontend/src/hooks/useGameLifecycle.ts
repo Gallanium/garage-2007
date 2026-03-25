@@ -174,8 +174,21 @@ export function useGameLifecycle(): { retryAuth: () => void } {
         const buffer = useGameStore.getState()._pendingClickBuffer ?? []
         const token = api.getToken()
         if (token && buffer.length > 0) {
-          const normalClicks = buffer.filter(c => !c.isCritical).length
-          const criticalClicks = buffer.filter(c => c.isCritical).length
+          // Aggregate clicks into multiplier buckets
+          const bucketMap = new Map<number, { normal: number; critical: number }>()
+          for (const click of buffer) {
+            const mult = click.multiplier ?? 1
+            const entry = bucketMap.get(mult) ?? { normal: 0, critical: 0 }
+            if (click.isCritical) entry.critical++
+            else entry.normal++
+            bucketMap.set(mult, entry)
+          }
+          const clickBuckets = Array.from(bucketMap.entries()).map(([multiplier, c]) => ({
+            multiplier, normalClicks: c.normal, criticalClicks: c.critical,
+          }))
+          const normalClicks = clickBuckets.reduce((s, b) => s + b.normalClicks, 0)
+          const criticalClicks = clickBuckets.reduce((s, b) => s + b.criticalClicks, 0)
+
           // Clear buffer optimistically — if page actually closes, no double-send.
           // If page stays open, buffer is empty → next sync sends 0 → no duplicate.
           useGameStore.setState({ _pendingClickBuffer: [] })
@@ -189,6 +202,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
             body: JSON.stringify({
               normalClicks,
               criticalClicks,
+              clickBuckets,
               clientTimestamp: Date.now(),
               syncNonce: crypto.randomUUID(),
             }),

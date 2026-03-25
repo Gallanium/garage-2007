@@ -18,6 +18,7 @@ describe('sync race condition', () => {
       _pendingClickBuffer: Array.from({ length: 10 }, (_, i) => ({
         timestamp: Date.now() - i * 100,
         isCritical: false,
+        multiplier: 1,
       })),
     })
 
@@ -44,7 +45,7 @@ describe('sync race condition', () => {
 
   it('second concurrent flush returns true without calling sync', async () => {
     useGameStore.setState({
-      _pendingClickBuffer: [{ timestamp: Date.now(), isCritical: false }],
+      _pendingClickBuffer: [{ timestamp: Date.now(), isCritical: false, multiplier: 1 }],
     })
 
     let resolveSyncPromise: ((v: unknown) => void) | null = null
@@ -75,7 +76,7 @@ describe('sync race condition', () => {
 
   it('flushPendingClicks resets guard on failure so next call can proceed', async () => {
     useGameStore.setState({
-      _pendingClickBuffer: [{ timestamp: Date.now(), isCritical: false }],
+      _pendingClickBuffer: [{ timestamp: Date.now(), isCritical: false, multiplier: 1 }],
     })
 
     // First flush fails (null response)

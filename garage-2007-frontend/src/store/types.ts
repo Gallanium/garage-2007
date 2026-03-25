@@ -30,6 +30,7 @@ export type {
   DecorationDefinition,
   DecorationsState,
   PendingClick,
+  ClickBucket,
   ToastItem,
   ToastType,
   GameState,

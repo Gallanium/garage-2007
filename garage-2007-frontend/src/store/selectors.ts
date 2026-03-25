@@ -94,3 +94,10 @@ export const useOwnedDecorations   = () => useGameStore(useShallow((s) => s.deco
 export const useActiveDecorations  = () => useGameStore(useShallow((s) => s.decorations.active))
 export const usePurchaseDecoration = () => useGameStore((s) => s.purchaseDecoration)
 export const useToggleDecoration   = () => useGameStore((s) => s.toggleDecoration)
+
+/** True when any modal overlay is open — blocks Phaser click interaction */
+export function useIsModalOpen(): boolean {
+  const showMilestoneModal = useGameStore((s) => s.showMilestoneModal)
+  const showDailyRewardsModal = useGameStore((s) => s.showDailyRewardsModal)
+  return showMilestoneModal || showDailyRewardsModal
+}
