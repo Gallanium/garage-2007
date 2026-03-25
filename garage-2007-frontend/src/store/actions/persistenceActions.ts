@@ -244,7 +244,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       console.warn('[applyServerState] Invalid server response shape:', parseResult.error.issues)
       return
     }
-    const s = serverState
+    const s = parseResult.data as Record<string, unknown>
 
     // Staleness guard: reject state older than the last applied state.
     // Prevents sync responses from overwriting more recent action responses.
