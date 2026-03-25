@@ -5,9 +5,6 @@ import { saveGameFull, loadGame, calculateOfflineEarnings, clearSave, SAVE_VERSI
 import { roundCurrency } from '../../utils/math'
 import { BASE_COSTS, CRITICAL_CLICK_MULTIPLIER } from '../constants/economy'
 import { DECORATION_CATALOG } from '../constants/decorations'
-import { BOOST_DEFINITIONS } from '../constants/boosts'
-import { GAME_EVENTS } from '../constants/events'
-import type { BoostType } from '../types'
 import { checkAutoLevel } from '../formulas/progression'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '../formulas/income'
 import { initialState } from '../initialState'
@@ -284,36 +281,14 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       const clickLevel = upgrades?.clickPower?.level ?? get().upgrades.clickPower.level
       const clickIncomePerClick = calculateClickIncome(clickLevel)
 
-      // Compute boost multiplier from server-provided boost data
-      const now = Date.now()
-      let boostMult = 1
-      if (boostsData?.active) {
-        for (const b of boostsData.active) {
-          if (b.expiresAt <= now) continue
-          const def = BOOST_DEFINITIONS[b.type as BoostType]
-          if (!def) continue
-          if (b.type === 'turbo') {
-            boostMult *= def.multiplier
-          } else if (b.type === 'income_2x' || b.type === 'income_3x') {
-            boostMult *= def.multiplier
-          }
-        }
+      // Use per-click multiplier snapshots — accurate even when boosts expire
+      for (const click of pendingBuffer) {
+        const base = click.isCritical
+          ? clickIncomePerClick * CRITICAL_CLICK_MULTIPLIER
+          : clickIncomePerClick
+        pendingClickIncome += base * (click.multiplier ?? 1)
       }
-
-      // Compute event multiplier from server-provided event data
-      let eventMult = 1
-      if (eventsData?.activeEvent && eventsData.activeEvent.expiresAt > now) {
-        const evDef = GAME_EVENTS[eventsData.activeEvent.id]
-        if (evDef && evDef.effect.scope === 'click') {
-          eventMult = evDef.effect.multiplier
-        }
-      }
-
-      const normalClicks = pendingBuffer.filter(c => !c.isCritical).length
-      const criticalClicks = pendingBuffer.filter(c => c.isCritical).length
-      pendingClickIncome = roundCurrency(
-        (normalClicks * clickIncomePerClick + criticalClicks * clickIncomePerClick * CRITICAL_CLICK_MULTIPLIER) * boostMult * eventMult,
-      )
+      pendingClickIncome = roundCurrency(pendingClickIncome)
     }
     const serverBalance = (s.balance as number) ?? 0
     const adjustedBalance = roundCurrency(serverBalance + pendingClickIncome)

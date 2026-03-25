@@ -177,6 +177,8 @@ export interface DecorationsState {
 export interface PendingClick {
   timestamp: number
   isCritical: boolean
+  /** Total click multiplier snapshot (boosts × events) at click time */
+  multiplier: number
 }
 
 // ── GameState ─────────────────────────────────────────────────────────────────
