@@ -17,6 +17,7 @@ import { useAudio } from '../contexts/AudioContext'
 interface BoostModalProps {
   isOpen: boolean
   onClose: () => void
+  onNutsPromptChange?: (isOpen: boolean) => void
 }
 
 function formatTime(ms: number): string {
@@ -59,7 +60,7 @@ const BOOST_THEMES: Record<BoostType, {
   },
 }
 
-export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
+export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: BoostModalProps) {
   const { playSound } = useAudio()
   const nuts = useNuts()
   const activeBoosts = useBoosts()
@@ -102,6 +103,7 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
     if (status === 'blocked_nuts') {
       setNutsDeficit(BOOST_DEFINITIONS[type].costNuts - nuts)
+      onNutsPromptChange?.(true)
       return
     }
 
@@ -123,8 +125,9 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
 
   const handleClose = useCallback(() => {
     playSound('modal_close')
+    onNutsPromptChange?.(false)
     onClose()
-  }, [onClose, playSound])
+  }, [onClose, onNutsPromptChange, playSound])
 
   if (!isOpen) return null
 
@@ -260,8 +263,8 @@ export default function BoostModal({ isOpen, onClose }: BoostModalProps) {
         <NutsPromptModal
           isOpen
           deficit={nutsDeficit}
-          onClose={() => setNutsDeficit(null)}
-          onOpenShop={() => { setNutsDeficit(null); setShowShop(true) }}
+          onClose={() => { setNutsDeficit(null); onNutsPromptChange?.(false) }}
+          onOpenShop={() => { setNutsDeficit(null); onNutsPromptChange?.(false); setShowShop(true) }}
         />
       )}
 
