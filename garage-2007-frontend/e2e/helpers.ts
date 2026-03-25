@@ -187,6 +187,7 @@ export async function injectBalance(page: Page, amount: number): Promise<void> {
 
 /** Clear localStorage and reload the page */
 export async function resetGameState(page: Page): Promise<void> {
+  await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.reload()
   await waitForGameLoaded(page)
