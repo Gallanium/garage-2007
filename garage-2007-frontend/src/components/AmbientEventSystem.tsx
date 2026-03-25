@@ -21,21 +21,27 @@ export function AmbientEventSystem() {
     // Если появилось новое активное событие...
     if (activeEventId && activeEventId !== lastEventIdRef.current) {
       lastEventIdRef.current = activeEventId
+
+      // Не показываем баннер при ре-логине / рефреше страницы:
+      // если событие стартовало более 5 секунд назад — пропускаем
+      const eventAge = activeEvent ? Date.now() - activeEvent.activatedAt : Infinity
+      if (eventAge > 5000) return
+
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowBanner(true)
-      
+
       // Показываем массивный поп-ап ровно на 3.5 секунды
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => {
         setShowBanner(false)
       }, 3500)
     }
-    
+
     return () => {
       // Очищаем таймер при смене события или анмаунте
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [activeEventId])
+  }, [activeEventId, activeEvent])
 
   // Если нет активного события — сбрасываем состояние и скрываемся
   if (!activeEvent) {
