@@ -219,6 +219,8 @@ export interface GameState {
   _pendingClickBuffer: PendingClick[]
   /** Server connection error — auth or loadState failed */
   serverError: boolean
+  /** App is running in degraded mode — loaded from localStorage, not server */
+  degradedMode: boolean
   /** Timestamp of the last applied server state (staleness guard) */
   _lastServerTime: number
   /** UI-only toast notifications (not synced to server) */

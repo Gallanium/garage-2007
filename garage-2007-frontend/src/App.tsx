@@ -153,6 +153,7 @@ function App() {
   const closeDailyRewardsModal = useGameStore((s) => s.closeDailyRewardsModal)
   const openDailyRewardsModal = useGameStore((s) => s.openDailyRewardsModal)
   const activeDecorations = useGameStore(useShallow((s) => s.decorations.active))
+  const degradedMode = useGameStore((s) => s.degradedMode)
 
   const canClaimToday = dailyRewards.lastClaimTimestamp === 0
     || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
@@ -248,6 +249,18 @@ function App() {
       </div>
 
       <GameHeader />
+
+      {degradedMode && (
+        <div className="bg-amber-900/80 text-amber-200 text-[10px] font-mono text-center py-1 px-2 z-50 relative">
+          Офлайн-режим — прогресс не сохраняется на сервере
+          <button
+            onClick={retryAuth}
+            className="ml-2 underline hover:text-white"
+          >
+            Переподключиться
+          </button>
+        </div>
+      )}
 
       {/* Навигация табов */}
       <div className="px-2 pt-2 bg-gray-900">

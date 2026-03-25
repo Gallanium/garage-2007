@@ -56,6 +56,11 @@ export function useGameLifecycle(): { retryAuth: () => void } {
         const initData = getInitData()
         if (!initData) {
           useGameStore.setState({ serverError: true })
+          // localStorage fallback for degraded mode
+          useGameStore.getState().loadProgress()
+          if (useGameStore.getState().isLoaded && useGameStore.getState().balance > 0) {
+            useGameStore.setState({ serverError: false, degradedMode: true })
+          }
           return
         }
         const authResult = await api.authenticate(initData)
@@ -67,6 +72,11 @@ export function useGameLifecycle(): { retryAuth: () => void } {
           retryCooldownRef.current = true
           setTimeout(() => { retryCooldownRef.current = false }, delay)
           useGameStore.setState({ serverError: true })
+          // localStorage fallback for degraded mode
+          useGameStore.getState().loadProgress()
+          if (useGameStore.getState().isLoaded && useGameStore.getState().balance > 0) {
+            useGameStore.setState({ serverError: false, degradedMode: true })
+          }
           return
         }
       }
@@ -78,7 +88,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       const stateResult = await api.loadState()
       if (stateResult?.gameState) {
         useGameStore.getState().applyServerState(stateResult.gameState)
-        useGameStore.setState({ serverError: false })
+        useGameStore.setState({ serverError: false, degradedMode: false })
 
         // Show offline earnings if any
         if (stateResult.offlineEarnings && stateResult.offlineEarnings.amount > 0) {
@@ -91,11 +101,16 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       }
       // New player — server returned null gameState, initial state was created
       if (stateResult && !stateResult.gameState) {
-        useGameStore.setState({ isLoaded: true, serverError: false })
+        useGameStore.setState({ isLoaded: true, serverError: false, degradedMode: false })
         return
       }
 
       useGameStore.setState({ serverError: true })
+      // localStorage fallback for degraded mode
+      useGameStore.getState().loadProgress()
+      if (useGameStore.getState().isLoaded && useGameStore.getState().balance > 0) {
+        useGameStore.setState({ serverError: false, degradedMode: true })
+      }
     } finally {
       authInProgressRef.current = false
     }
@@ -119,6 +134,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
     if (!api.isOnline()) return
 
     const syncInterval = setInterval(() => {
+      if (useGameStore.getState().degradedMode) return
       useGameStore.getState().flushPendingClicks()
     }, SYNC_INTERVAL_MS)
 
