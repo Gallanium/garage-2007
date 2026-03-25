@@ -186,6 +186,11 @@ export async function syncWithLock(normalClicks: number, criticalClicks: number)
   return _syncInFlight
 }
 
+/** Check if a sync request is currently in flight */
+export function isSyncInFlight(): boolean {
+  return _syncInFlight !== null
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 export interface ActionResponse {

@@ -12,9 +12,12 @@ vi.mock('../src/services/apiService', () => ({
     return { success: true, gameState: null }
   }),
   sync: vi.fn(async () => null),
+  syncWithLock: vi.fn(async () => ({ gameState: buildMockServerState() })),
+  isSyncInFlight: vi.fn(() => false),
   authenticate: vi.fn(async () => null),
   loadState: vi.fn(async () => null),
   getToken: () => 'test-token',
+  getApiBase: () => 'http://localhost:3001/api',
   setToken: vi.fn(),
   clearToken: vi.fn(),
 }))

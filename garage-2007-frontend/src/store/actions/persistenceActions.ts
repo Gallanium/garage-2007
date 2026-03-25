@@ -14,6 +14,8 @@ import { initialState } from '../initialState'
 import { gameStateResponseSchema } from '../validation/gameStateSchema'
 import * as api from '../../services/apiService'
 
+let _flushInProgress = false
+
 type Slice = Pick<GameStore,
   | 'saveProgress' | 'loadProgress' | 'addOfflineEarnings'
   | 'clearOfflineEarnings' | 'startPassiveIncome' | 'resetGame'
@@ -372,18 +374,24 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
   },
 
   flushPendingClicks: async () => {
+    if (_flushInProgress) return true  // Already flushing — skip, not an error
     const buffer = get()._pendingClickBuffer ?? []
     if (buffer.length === 0) return true
 
-    const clicksToSend = buffer.length
-    const normalClicks = buffer.slice(0, clicksToSend).filter(c => !c.isCritical).length
-    const criticalClicks = buffer.slice(0, clicksToSend).filter(c => c.isCritical).length
-    const result = await api.syncWithLock(normalClicks, criticalClicks)
-    if (result?.gameState) {
-      _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
-      get().applyServerState(result.gameState)
-      return true
+    _flushInProgress = true
+    try {
+      const clicksToSend = buffer.length
+      const normalClicks = buffer.slice(0, clicksToSend).filter(c => !c.isCritical).length
+      const criticalClicks = buffer.slice(0, clicksToSend).filter(c => c.isCritical).length
+      const result = await api.syncWithLock(normalClicks, criticalClicks)
+      if (result?.gameState) {
+        _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
+        get().applyServerState(result.gameState)
+        return true
+      }
+      return false
+    } finally {
+      _flushInProgress = false
     }
-    return false
   },
 })

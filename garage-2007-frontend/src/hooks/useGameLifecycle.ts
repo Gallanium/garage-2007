@@ -118,32 +118,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
     if (!api.isOnline()) return
 
     const syncInterval = setInterval(() => {
-      const buffer = useGameStore.getState()._pendingClickBuffer ?? []
-      const clicksToSend = buffer.length
-      const normalClicks = buffer.filter(c => !c.isCritical).length
-      const criticalClicks = buffer.filter(c => c.isCritical).length
-      api.syncWithLock(normalClicks, criticalClicks).then((result) => {
-        if (result?.gameState) {
-          // Remove only the clicks we sent after the server acknowledged them.
-          // Clicks that arrived during the roundtrip stay in the buffer.
-          useGameStore.setState((s) => ({
-            _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend),
-          }))
-
-          // Then: apply server state — applyServerState compensates for any
-          // remaining pending clicks so balance doesn't visually drop.
-          useGameStore.getState().applyServerState(result.gameState)
-          return
-        }
-
-        // Don't set serverError from sync loop — let attemptAuth handle recovery.
-        // Setting serverError here caused a cascade: any transient token loss
-        // (e.g., failed re-auth after page reload) immediately showed the error
-        // screen, even when the JWT was still valid for other calls.
-        if (!api.isOnline()) {
-          if (import.meta.env.DEV) console.warn('[Sync] Token lost — skipping sync, auth will recover')
-        }
-      })
+      useGameStore.getState().flushPendingClicks()
     }, SYNC_INTERVAL_MS)
 
     return () => clearInterval(syncInterval)
