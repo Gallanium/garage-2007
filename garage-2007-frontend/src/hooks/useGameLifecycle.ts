@@ -108,9 +108,10 @@ export function useGameLifecycle(): { retryAuth: () => void } {
 
   // 2. Passive income tick (client-side for instant UI feedback)
   useEffect(() => {
+    if (!isLoaded) return
     const cleanup = startPassiveIncome()
     return cleanup
-  }, [startPassiveIncome])
+  }, [isLoaded, startPassiveIncome])
 
   // 3. Sync loop — every 30s, send accumulated clicks to server
   useEffect(() => {
@@ -152,15 +153,16 @@ export function useGameLifecycle(): { retryAuth: () => void } {
   // 6. Save + sync on tab close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // localStorage backup
       saveProgress()
-      // Best-effort sync with auth header (keepalive ensures delivery on close)
-      if (api.isOnline()) {
+      if (api.isOnline() && !api.isSyncInFlight()) {
         const buffer = useGameStore.getState()._pendingClickBuffer ?? []
         const token = api.getToken()
         if (token && buffer.length > 0) {
           const normalClicks = buffer.filter(c => !c.isCritical).length
           const criticalClicks = buffer.filter(c => c.isCritical).length
+          // Clear buffer optimistically — if page actually closes, no double-send.
+          // If page stays open, buffer is empty → next sync sends 0 → no duplicate.
+          useGameStore.setState({ _pendingClickBuffer: [] })
           fetch(`${api.getApiBase()}/game/sync`, {
             method: 'POST',
             keepalive: true,
@@ -174,7 +176,15 @@ export function useGameLifecycle(): { retryAuth: () => void } {
               clientTimestamp: Date.now(),
               syncNonce: crypto.randomUUID(),
             }),
-          }).catch(() => { /* best-effort — ignore errors on close */ })
+          }).catch(() => {
+            // Restore buffer on failure — page might stay open
+            useGameStore.setState(s => ({
+              _pendingClickBuffer: [
+                ...s._pendingClickBuffer,
+                ...buffer,
+              ],
+            }))
+          })
         }
       }
     }
