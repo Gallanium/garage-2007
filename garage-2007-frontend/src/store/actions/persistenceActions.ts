@@ -324,7 +324,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       totalEarned: (s.totalEarned as number) ?? 0,
       sessionCount: (s.sessionCount as number) ?? 0,
       lastSessionDate: (s.lastSessionDate as string) ?? '',
-      peakClickIncome: (s.peakClickIncome as number) ?? 0,
+      peakClickIncome: Math.max(get().peakClickIncome, (s.peakClickIncome as number) ?? 0),
       totalPlayTimeSeconds: (s.totalPlayTimeSeconds as number) ?? 0,
       bestStreak: (s.bestStreak as number) ?? 0,
       clickValue: calculateClickIncome(upgrades?.clickPower?.level ?? 0),
