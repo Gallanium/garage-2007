@@ -52,6 +52,7 @@ export const initialState: GameState = {
 
   dailyRewards: { lastClaimTimestamp: 0, currentStreak: 0 },
   showDailyRewardsModal: false,
+  showShopModal: false,
 
   rewardedVideo: { lastWatchedTimestamp: 0, totalWatches: 0, isWatching: false },
   boosts: { active: [] },

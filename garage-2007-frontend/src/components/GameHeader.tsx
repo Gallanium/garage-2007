@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useBalance, useNuts, formatLargeNumber } from '../store/gameStore'
+import { useBalance, useNuts, formatLargeNumber, useGameStore } from '../store/gameStore'
 import { Hexagon, Plus } from 'lucide-react'
 import CountUp from 'react-countup'
 import ShopModal from './ShopModal'
@@ -10,7 +9,7 @@ import ShopModal from './ShopModal'
 export function GameHeader() {
   const balance = useBalance()
   const nuts = useNuts()
-  const [showShop, setShowShop] = useState(false)
+  const showShop = useGameStore((s) => s.showShopModal)
 
   return (
   <>
@@ -32,7 +31,7 @@ export function GameHeader() {
 
         {/* Правая часть: Гайки (тап → ShopModal) */}
         <button
-          onClick={() => setShowShop(true)}
+          onClick={() => useGameStore.setState({ showShopModal: true })}
           className="flex flex-col items-end group cursor-pointer text-right transition-transform active:scale-95"
         >
           <span className="text-game-xs text-gray-400 uppercase tracking-wider font-mono mb-0.5 pr-0.5">Гайки</span>
@@ -50,7 +49,7 @@ export function GameHeader() {
 
     </header>
 
-    <ShopModal isOpen={showShop} onClose={() => setShowShop(false)} />
+    <ShopModal isOpen={showShop} onClose={() => useGameStore.setState({ showShopModal: false })} />
   </>
   )
 }

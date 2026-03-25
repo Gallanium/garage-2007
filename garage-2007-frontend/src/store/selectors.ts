@@ -99,5 +99,6 @@ export const useToggleDecoration   = () => useGameStore((s) => s.toggleDecoratio
 export function useIsModalOpen(): boolean {
   const showMilestoneModal = useGameStore((s) => s.showMilestoneModal)
   const showDailyRewardsModal = useGameStore((s) => s.showDailyRewardsModal)
-  return showMilestoneModal || showDailyRewardsModal
+  const showShopModal = useGameStore((s) => s.showShopModal)
+  return showMilestoneModal || showDailyRewardsModal || showShopModal
 }

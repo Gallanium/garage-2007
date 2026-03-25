@@ -68,10 +68,10 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
   const activateBoost = useGameStore(s => s.activateBoost)
   const replaceBoost = useGameStore(s => s.replaceBoost)
 
+  const showShop = useGameStore((s) => s.showShopModal)
   const [now, setNow] = useState(() => Date.now())
   const [confirmType, setConfirmType] = useState<BoostType | null>(null)  // pending replace
   const [nutsDeficit, setNutsDeficit] = useState<number | null>(null)
-  const [showShop, setShowShop] = useState(false)
 
   useEffect(() => {
     if (isOpen) playSound('modal_open')
@@ -264,11 +264,11 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
           isOpen
           deficit={nutsDeficit}
           onClose={() => { setNutsDeficit(null); onNutsPromptChange?.(false) }}
-          onOpenShop={() => { setNutsDeficit(null); onNutsPromptChange?.(false); setShowShop(true) }}
+          onOpenShop={() => { setNutsDeficit(null); onNutsPromptChange?.(false); useGameStore.setState({ showShopModal: true }) }}
         />
       )}
 
-      <ShopModal isOpen={showShop} onClose={() => setShowShop(false)} />
+      <ShopModal isOpen={showShop} onClose={() => useGameStore.setState({ showShopModal: false })} />
     </>,
     document.body
   )

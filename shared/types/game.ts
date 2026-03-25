@@ -218,6 +218,7 @@ export interface GameState {
   hasNewAchievements: boolean
   dailyRewards: DailyRewardsState
   showDailyRewardsModal: boolean
+  showShopModal: boolean
   rewardedVideo: RewardedVideoState
   boosts: BoostsState
   events: EventsState
