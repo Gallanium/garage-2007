@@ -46,7 +46,7 @@ export function initTelegram(): void {
             language_code: 'ru',
             is_premium: false,
           })],
-          ['hash', 'mock_hash_dev_only'],
+          ['hash', '0000000000000000000000000000000000000000000000000000000000000000'],
           ['auth_date', String(Math.floor(Date.now() / 1000))],
           ['signature', 'mock_signature'],
         ]).toString(),
