@@ -45,6 +45,8 @@ export function GameCanvas({
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([])
+  const [phaserKey, setPhaserKey] = useState(0)
+  const mainRef = useRef<HTMLElement | null>(null)
   const critEffectRef = useRef<((x: number, y: number) => void) | null>(null)
   const floatingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const haptic = useTelegramHaptic()
@@ -61,6 +63,27 @@ export function GameCanvas({
     return () => {
       timeouts.forEach(id => clearTimeout(id))
       timeouts.clear()
+    }
+  }, [])
+
+  useEffect(() => {
+    const main = mainRef.current
+    if (!main) return
+    let initHeight = main.getBoundingClientRect().height
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height
+      if (h && Math.abs(h - initHeight) > 50) {
+        initHeight = h
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(() => setPhaserKey(k => k + 1), 500)
+      }
+    })
+    observer.observe(main)
+    return () => {
+      observer.disconnect()
+      if (timer) clearTimeout(timer)
     }
   }, [])
 
@@ -108,11 +131,12 @@ export function GameCanvas({
   }
 
   return (
-    <main className="flex-1 min-h-0 relative bg-gray-900">
+    <main ref={mainRef} className="flex-1 min-h-0 relative bg-gray-900">
 
       <div className="w-full h-full flex items-center justify-center">
         <ErrorBoundary fallback="Игровой движок недоступен. Попробуй перезагрузить страницу.">
           <PhaserGame
+            key={phaserKey}
             onGarageClick={handleGarageClick}
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
