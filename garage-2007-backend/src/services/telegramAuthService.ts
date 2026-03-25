@@ -58,6 +58,19 @@ export function validateInitData(initData: string, botToken: string): TelegramUs
   // Timing-safe comparison
   try {
     if (!crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(hash, 'hex'))) {
+      // Dev-only bypass: accept mock initData when explicitly enabled
+      if (process.env.NODE_ENV === 'development' && process.env.DEV_BYPASS_AUTH === 'true') {
+        const userParam = params.get('user')
+        if (userParam) {
+          try {
+            const user = JSON.parse(userParam) as TelegramUser
+            if (user.id && user.first_name) {
+              console.warn('[AUTH] DEV BYPASS: accepting unverified initData for user', user.id)
+              return user
+            }
+          } catch { /* fall through to null */ }
+        }
+      }
       return null
     }
   } catch {

@@ -5,6 +5,8 @@
 export const GAME_DIMENSIONS = {
   width: 360,
   height: 480,
+  minHeight: 480,
+  maxHeight: 720,
   // Вычисляемые центры экрана
   get CENTER_X() { return this.width / 2 },
   get CENTER_Y() { return this.height / 2 },

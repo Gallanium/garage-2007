@@ -15,7 +15,7 @@ import {
   GAME_EVENTS,
 } from '../store/gameStore'
 import type { BoostType, EventCategory } from '../store/gameStore'
-import { Unlock, RotateCcw } from 'lucide-react'
+import { Unlock } from 'lucide-react'
 
 const BOOST_COLORS: Record<BoostType, { text: string; glow: string }> = {
   turbo:     { text: 'text-purple-300', glow: 'drop-shadow-[0_0_6px_rgba(192,132,252,0.6)]' },
@@ -30,7 +30,7 @@ const EVENT_COLORS: Record<EventCategory, { text: string; glow: string }> = {
 }
 
 /**
- * Нижняя панель: статистика доходов, прогресс-бар уровня гаража, кнопка сброса.
+ * Нижняя панель: статистика доходов, прогресс-бар уровня гаража.
  */
 export function GameFooter() {
   const clickValue = useClickValue()
@@ -61,7 +61,6 @@ export function GameFooter() {
   const nextLevelCost = useNextLevelCost()
   const garageProgress = useGarageProgress()
   const milestoneInfo = usePendingMilestoneInfo()
-  const resetGame = useGameStore((s) => s.resetGame)
 
   return (
     <footer
@@ -116,37 +115,22 @@ export function GameFooter() {
 
       </div>
 
-      {/* Прогресс уровня гаража + кнопка сброса */}
-      <div className="px-3 pb-3 space-y-2">
+      {/* Прогресс уровня гаража */}
+      <div className="px-3 pb-3">
 
-        <div>
-          <div className="bg-gray-800 rounded-full h-2 overflow-hidden relative">
-            <div
-              className="absolute top-0 left-0 bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-500"
-              style={{ width: `${Math.round(garageProgress * 100)}%` }}
-            />
-          </div>
-          <p className="text-game-xs text-gray-500 mt-1 font-mono flex items-center gap-1">
-            {milestoneInfo
-              ? <><Unlock className="w-3 h-3 text-cyan-400" /> Апгрейд: «{GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» — ур.{milestoneInfo.level}</>
-              : nextLevelCost
-                ? `До ур.${garageLevel + 1}: ${formatLargeNumber(Math.max(0, nextLevelCost - balance))}₽ (${Math.round(garageProgress * 100)}%)`
-                : 'Максимальный уровень!'}
-          </p>
+        <div className="bg-gray-800 rounded-full h-2 overflow-hidden relative">
+          <div
+            className="absolute top-0 left-0 bg-gradient-to-r from-garage-rust to-garage-yellow h-full transition-all duration-500"
+            style={{ width: `${Math.round(garageProgress * 100)}%` }}
+          />
         </div>
-
-        <div className="flex justify-end items-center gap-2">
-          <button
-            onClick={resetGame}
-            className="bg-gradient-to-r from-red-900/60 to-red-800/40 hover:from-red-800/60 hover:to-red-700/40
-                       text-red-300 text-game-xs font-medium py-1.5 px-2 rounded
-                       transition-colors duration-200
-                       border border-red-700/50 font-mono shrink-0"
-            title="Сбросить игру к начальным значениям"
-          >
-            <RotateCcw className="inline-block w-3 h-3 align-text-bottom mr-1" /> Сброс
-          </button>
-        </div>
+        <p className="text-game-xs text-gray-500 mt-1 font-mono flex items-center gap-1">
+          {milestoneInfo
+            ? <><Unlock className="w-3 h-3 text-cyan-400" /> Апгрейд: «{GARAGE_LEVEL_NAMES[milestoneInfo.level as keyof typeof GARAGE_LEVEL_NAMES]}» — ур.{milestoneInfo.level}</>
+            : nextLevelCost
+              ? `До ур.${garageLevel + 1}: ${formatLargeNumber(Math.max(0, nextLevelCost - balance))}₽ (${Math.round(garageProgress * 100)}%)`
+              : 'Максимальный уровень!'}
+        </p>
 
       </div>
 

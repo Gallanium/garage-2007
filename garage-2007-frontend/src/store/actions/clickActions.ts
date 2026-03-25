@@ -30,7 +30,8 @@ export const createClickSlice: StateCreator<GameStore, [], [], Slice> = (_set, g
     get().checkForMilestone()
     if (get().garageLevel !== prevLevel) get().saveProgress()
     get().checkAchievements()
-    _set((s) => ({ _pendingClickBuffer: [...s._pendingClickBuffer, { timestamp: Date.now(), isCritical }] }))
+    const totalMultiplier = boostMultiplier * eventMultiplier
+    _set((s) => ({ _pendingClickBuffer: [...s._pendingClickBuffer, { timestamp: Date.now(), isCritical, multiplier: totalMultiplier }] }))
     return isCritical
   },
 })

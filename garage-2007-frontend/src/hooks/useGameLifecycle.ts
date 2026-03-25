@@ -56,6 +56,11 @@ export function useGameLifecycle(): { retryAuth: () => void } {
         const initData = getInitData()
         if (!initData) {
           useGameStore.setState({ serverError: true })
+          // localStorage fallback for degraded mode
+          useGameStore.getState().loadProgress()
+          if (useGameStore.getState().isLoaded && useGameStore.getState().balance > 0) {
+            useGameStore.setState({ serverError: false, degradedMode: true })
+          }
           return
         }
         const authResult = await api.authenticate(initData)
@@ -67,6 +72,11 @@ export function useGameLifecycle(): { retryAuth: () => void } {
           retryCooldownRef.current = true
           setTimeout(() => { retryCooldownRef.current = false }, delay)
           useGameStore.setState({ serverError: true })
+          // localStorage fallback for degraded mode
+          useGameStore.getState().loadProgress()
+          if (useGameStore.getState().isLoaded && useGameStore.getState().balance > 0) {
+            useGameStore.setState({ serverError: false, degradedMode: true })
+          }
           return
         }
       }
@@ -78,7 +88,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       const stateResult = await api.loadState()
       if (stateResult?.gameState) {
         useGameStore.getState().applyServerState(stateResult.gameState)
-        useGameStore.setState({ serverError: false })
+        useGameStore.setState({ serverError: false, degradedMode: false })
 
         // Show offline earnings if any
         if (stateResult.offlineEarnings && stateResult.offlineEarnings.amount > 0) {
@@ -91,11 +101,16 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       }
       // New player — server returned null gameState, initial state was created
       if (stateResult && !stateResult.gameState) {
-        useGameStore.setState({ isLoaded: true, serverError: false })
+        useGameStore.setState({ isLoaded: true, serverError: false, degradedMode: false })
         return
       }
 
       useGameStore.setState({ serverError: true })
+      // localStorage fallback for degraded mode
+      useGameStore.getState().loadProgress()
+      if (useGameStore.getState().isLoaded && useGameStore.getState().balance > 0) {
+        useGameStore.setState({ serverError: false, degradedMode: true })
+      }
     } finally {
       authInProgressRef.current = false
     }
@@ -108,9 +123,10 @@ export function useGameLifecycle(): { retryAuth: () => void } {
 
   // 2. Passive income tick (client-side for instant UI feedback)
   useEffect(() => {
+    if (!isLoaded) return
     const cleanup = startPassiveIncome()
     return cleanup
-  }, [startPassiveIncome])
+  }, [isLoaded, startPassiveIncome])
 
   // 3. Sync loop — every 30s, send accumulated clicks to server
   useEffect(() => {
@@ -118,32 +134,8 @@ export function useGameLifecycle(): { retryAuth: () => void } {
     if (!api.isOnline()) return
 
     const syncInterval = setInterval(() => {
-      const buffer = useGameStore.getState()._pendingClickBuffer ?? []
-      const clicksToSend = buffer.length
-      const normalClicks = buffer.filter(c => !c.isCritical).length
-      const criticalClicks = buffer.filter(c => c.isCritical).length
-      api.syncWithLock(normalClicks, criticalClicks).then((result) => {
-        if (result?.gameState) {
-          // Remove only the clicks we sent after the server acknowledged them.
-          // Clicks that arrived during the roundtrip stay in the buffer.
-          useGameStore.setState((s) => ({
-            _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend),
-          }))
-
-          // Then: apply server state — applyServerState compensates for any
-          // remaining pending clicks so balance doesn't visually drop.
-          useGameStore.getState().applyServerState(result.gameState)
-          return
-        }
-
-        // Don't set serverError from sync loop — let attemptAuth handle recovery.
-        // Setting serverError here caused a cascade: any transient token loss
-        // (e.g., failed re-auth after page reload) immediately showed the error
-        // screen, even when the JWT was still valid for other calls.
-        if (!api.isOnline()) {
-          if (import.meta.env.DEV) console.warn('[Sync] Token lost — skipping sync, auth will recover')
-        }
-      })
+      if (useGameStore.getState().degradedMode) return
+      useGameStore.getState().flushPendingClicks()
     }, SYNC_INTERVAL_MS)
 
     return () => clearInterval(syncInterval)
@@ -177,15 +169,16 @@ export function useGameLifecycle(): { retryAuth: () => void } {
   // 6. Save + sync on tab close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // localStorage backup
       saveProgress()
-      // Best-effort sync with auth header (keepalive ensures delivery on close)
-      if (api.isOnline()) {
+      if (api.isOnline() && !api.isSyncInFlight()) {
         const buffer = useGameStore.getState()._pendingClickBuffer ?? []
         const token = api.getToken()
         if (token && buffer.length > 0) {
           const normalClicks = buffer.filter(c => !c.isCritical).length
           const criticalClicks = buffer.filter(c => c.isCritical).length
+          // Clear buffer optimistically — if page actually closes, no double-send.
+          // If page stays open, buffer is empty → next sync sends 0 → no duplicate.
+          useGameStore.setState({ _pendingClickBuffer: [] })
           fetch(`${api.getApiBase()}/game/sync`, {
             method: 'POST',
             keepalive: true,
@@ -199,7 +192,15 @@ export function useGameLifecycle(): { retryAuth: () => void } {
               clientTimestamp: Date.now(),
               syncNonce: crypto.randomUUID(),
             }),
-          }).catch(() => { /* best-effort — ignore errors on close */ })
+          }).catch(() => {
+            // Restore buffer on failure — page might stay open
+            useGameStore.setState(s => ({
+              _pendingClickBuffer: [
+                ...s._pendingClickBuffer,
+                ...buffer,
+              ],
+            }))
+          })
         }
       }
     }

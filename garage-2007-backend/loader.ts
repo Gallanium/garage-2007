@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { register } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
