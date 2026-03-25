@@ -12,7 +12,7 @@ const ToastContainer: React.FC = () => {
   const dismissToast = useGameStore(s => s.dismissToast)
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[90] flex flex-col gap-2 w-[90%] max-w-[340px] pointer-events-none">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 w-[90%] max-w-[340px] pointer-events-none">
       <AnimatePresence mode="popLayout">
         {toasts.map(toast => (
           <motion.div
