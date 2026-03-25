@@ -276,6 +276,7 @@ function App() {
       <div ref={swipeRef} className="relative flex-1 min-h-0">
 
         <div
+          aria-hidden={activeTab !== 'game'}
           className={`absolute inset-0 flex flex-col transition-all duration-300 ease-out z-[40] ${activeTab === 'game' ? 'visible opacity-100 translate-x-0' : 'invisible opacity-0 -translate-x-12 pointer-events-none'}`}
         >
           <GameCanvas
@@ -292,6 +293,7 @@ function App() {
         </div>
 
         <div
+          aria-hidden={activeTab !== 'upgrades'}
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[30] ${activeTab === 'upgrades' ? 'opacity-100 translate-x-0' : activeTab === 'game' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
           {mountedTabs.has('upgrades') && (
@@ -302,6 +304,7 @@ function App() {
         </div>
 
         <div
+          aria-hidden={activeTab !== 'achievements'}
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[20] ${activeTab === 'achievements' ? 'opacity-100 translate-x-0' : activeTab === 'game' || activeTab === 'upgrades' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
           {mountedTabs.has('achievements') && (
@@ -312,6 +315,7 @@ function App() {
         </div>
 
         <div
+          aria-hidden={activeTab !== 'stats'}
           className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[10] ${activeTab === 'stats' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 pointer-events-none'}`}
         >
           {mountedTabs.has('stats') && (
