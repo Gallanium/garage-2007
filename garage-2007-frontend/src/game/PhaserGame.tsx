@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
-import { gameConfig } from './gameConfig'
+import { createGameConfig } from './gameConfig'
 import MainScene from './MainScene'
 
 /** Проверяет что Phaser сцена жива (не уничтожена и не остановлена) */
@@ -112,8 +112,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
     // Создаём новый инстанс Phaser.Game с защитой от ошибок
     let game: Phaser.Game
     try {
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const config = createGameConfig(containerRect.height)
+
       game = new Phaser.Game({
-        ...gameConfig,
+        ...config,
         parent: containerRef.current, // Передаём DOM элемент напрямую
       })
     } catch (error) {

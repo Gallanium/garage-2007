@@ -2,26 +2,28 @@ import Phaser from 'phaser';
 import MainScene from './MainScene';
 import { GAME_DIMENSIONS } from './types';
 
-/**
- * ИСПРАВЛЕНИЕ БАГА 2: Убрана строка parent: 'phaser-container'
- * 
- * Причина: parent передается напрямую в PhaserGame.tsx как containerRef.current,
- * а 'phaser-container' не существует в DOM, что вызывало проблемы с позиционированием
- */
-export const gameConfig: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
-  width: GAME_DIMENSIONS.width,
-  height: GAME_DIMENSIONS.height,
-  // parent: 'phaser-container', <-- УДАЛЕНО: parent устанавливается в PhaserGame.tsx
-  transparent: true,
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-  },
-  scene: [MainScene],
-  // Дополнительная настройка для точного позиционирования
-  render: {
-    pixelArt: true, // Четкий рендеринг pixel art без размытия
-    antialias: false,
-  },
-};
+/** Create Phaser config with dynamic height based on container */
+export function createGameConfig(containerHeight?: number): Phaser.Types.Core.GameConfig {
+  const height = containerHeight
+    ? Math.max(GAME_DIMENSIONS.minHeight, Math.min(containerHeight, GAME_DIMENSIONS.maxHeight))
+    : GAME_DIMENSIONS.height
+
+  return {
+    type: Phaser.AUTO,
+    width: GAME_DIMENSIONS.width,
+    height,
+    transparent: true,
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    scene: [MainScene],
+    render: {
+      pixelArt: true,
+      antialias: false,
+    },
+  };
+}
+
+// Backward-compatible default export for any code that imports gameConfig directly
+export const gameConfig = createGameConfig();
