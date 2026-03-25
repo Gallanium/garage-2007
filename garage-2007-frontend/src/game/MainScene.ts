@@ -15,6 +15,9 @@ import { DECORATION_CATALOG } from '../store/constants/decorations'
  * Вся логика визуала делегирована managers/*.
  */
 export default class MainScene extends Phaser.Scene {
+  /** Установить в true когда открыто любое модальное окно — блокирует клики в Phaser */
+  public isModalOpen = false
+
   private garageVisual!: GarageVisualManager
   private clickEffect!: ClickEffectManager
   private levelUpEffect!: LevelUpEffectManager
@@ -42,8 +45,8 @@ export default class MainScene extends Phaser.Scene {
     this.garageVisual.onPointerDown((x, y) => {
       if (!this.input.enabled) return
       
-      // БЛОКИРОВКА КЛИКОВ: если открыто хотя бы одно модальное окно (например, Награды, Бусты, Shop), игнорируем!
-      if (document.querySelector('.fixed.inset-0.z-\\[100\\], .fixed.inset-0.z-\\[110\\]')) {
+      // Блокируем клики если открыто любое модальное окно (флаг синхронизируется из React)
+      if (this.isModalOpen) {
         return
       }
 

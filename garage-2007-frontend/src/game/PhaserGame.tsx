@@ -29,6 +29,9 @@ interface PhaserGameProps {
 
   /** Ref for React → Phaser critical click effect bridge */
   critEffectRef?: React.MutableRefObject<((x: number, y: number) => void) | null>
+
+  /** True when any modal overlay is open — prevents Phaser from processing clicks */
+  isModalOpen?: boolean
 }
 
 /**
@@ -41,7 +44,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, activeDecorations, playSoundRef, critEffectRef }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, isModalOpen, activeDecorations, playSoundRef, critEffectRef }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -56,6 +59,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
   // Ref для активности вкладки (блокирует клики, когда вкладка «Игра» неактивна)
   const isActiveRef = useRef(isActive)
+
+  // Ref для флага открытого модального окна (блокирует клики в Phaser при открытых модалках)
+  const isModalOpenRef = useRef(isModalOpen ?? false)
 
   // FIX Баг 1: Ref для актуального garageLevel, чтобы синхронизировать при готовности сцены
   const garageLevelRef = useRef(garageLevel)
@@ -84,6 +90,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
   useEffect(() => {
     isActiveRef.current = isActive
   }, [isActive])
+
+  useEffect(() => {
+    isModalOpenRef.current = isModalOpen ?? false
+  }, [isModalOpen])
 
   useEffect(() => {
     garageLevelRef.current = garageLevel
@@ -155,6 +165,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
 
       // Сохраняем ссылку на сцену
       sceneRef.current = mainScene
+
+      // Синхронизируем флаг открытых модалок сразу после готовности сцены
+      mainScene.isModalOpen = isModalOpenRef.current
 
       // Wire up React → Phaser sound bridge
       if (playSoundRef) {
@@ -268,6 +281,16 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
     if (!sceneRef.current || !isSceneAlive(sceneRef.current)) return
     sceneRef.current.syncGameData({ activeDecorations })
   }, [activeDecorations])
+
+  /**
+   * Эффект синхронизации флага открытых модалок с Phaser сценой.
+   * Позволяет MainScene блокировать клики без DOM-запросов.
+   */
+  useEffect(() => {
+    if (sceneRef.current && isSceneAlive(sceneRef.current)) {
+      sceneRef.current.isModalOpen = isModalOpen ?? false
+    }
+  }, [isModalOpen])
 
   /**
    * Рендер контейнера для Phaser canvas
