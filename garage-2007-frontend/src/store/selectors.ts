@@ -52,10 +52,10 @@ export const useGarageProgress = () =>
     if (s.garageLevel >= 20) return 1
     const next = GARAGE_LEVEL_THRESHOLDS[s.garageLevel + 1]
     if (!next) return 1
-    const curr = GARAGE_LEVEL_THRESHOLDS[s.garageLevel] ?? 0
-    const range = next - curr
-    if (range <= 0) return 1
-    return Math.min(Math.max((s.balance - curr) / range, 0), 1)
+    // Progress from 0 to next threshold (not from curr to next).
+    // Levels are non-decreasing but balance can drop from spending,
+    // so using curr as base would show 0% whenever balance < curr.
+    return Math.min(Math.max(s.balance / next, 0), 1)
   })
 
 export const useBoosts            = () => useGameStore((s) => s.boosts.active)
