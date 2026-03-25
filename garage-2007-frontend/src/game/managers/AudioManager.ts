@@ -31,15 +31,33 @@ export class AudioManager {
     }
   }
 
-  /** Play a sound effect by key */
+  /** Play a sound effect by key. If not loaded yet, queue load and play when ready. */
   playSfx(key: string, volume = DEFAULT_VOLUME): void {
     if (!this.scene.sound) return
-    if (!this.scene.cache.audio.exists(key)) return
-    try {
-      this.scene.sound.play(key, { volume })
-    } catch {
-      // Silently ignore unsupported audio
+
+    // Sound already cached — play immediately
+    if (this.scene.cache.audio.exists(key)) {
+      try {
+        this.scene.sound.play(key, { volume })
+      } catch {
+        // Silently ignore unsupported audio
+      }
+      return
     }
+
+    // Sound not cached — queue load and play once ready
+    const url = AUDIO_ASSETS[key as keyof typeof AUDIO_ASSETS]
+    if (!url) return
+
+    this.scene.load.audio(key, url)
+    this.scene.load.once('complete', () => {
+      if (this.scene.cache.audio.exists(key)) {
+        try {
+          this.scene.sound.play(key, { volume })
+        } catch { /* ignore */ }
+      }
+    })
+    this.scene.load.start()
   }
 
   destroy(): void {
