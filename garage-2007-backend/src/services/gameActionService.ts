@@ -155,6 +155,7 @@ export async function processSync(
   criticalClicks: number,
   clientTimestamp?: number,
   syncNonce?: string,
+  clickBuckets?: Array<{ multiplier: number; normalClicks: number; criticalClicks: number }>,
 ): Promise<{ gameState: Record<string, unknown>; serverTime: number }> {
   // Anti-cheat: detect client timestamp anomaly (read-only, safe outside transaction)
   if (clientTimestamp) {
@@ -214,9 +215,32 @@ export async function processSync(
 
     // Click income (critical clicks get CRITICAL_CLICK_MULTIPLIER bonus)
     const baseClickIncome = calculateClickIncome(gs.clickPowerLevel)
-    const clickIncome = roundCurrency(
-      (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * boostClickMult * eventClickMult,
-    )
+    let clickIncome: number
+    if (clickBuckets && clickBuckets.length > 0) {
+      // Anti-cheat: verify bucket totals match top-level click counts
+      const bucketNormal = clickBuckets.reduce((s, b) => s + b.normalClicks, 0)
+      const bucketCritical = clickBuckets.reduce((s, b) => s + b.criticalClicks, 0)
+      if (bucketNormal !== normal || bucketCritical !== critical) {
+        logSuspiciousActivity({ userId, reason: 'bucket_count_mismatch', details: { normal, critical, bucketNormal, bucketCritical } })
+        // Mismatch — use server-side multipliers
+        clickIncome = roundCurrency(
+          (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * boostClickMult * eventClickMult,
+        )
+      } else {
+        // Valid buckets — use per-bucket multipliers
+        clickIncome = 0
+        for (const bucket of clickBuckets) {
+          const clampedMult = Math.max(0.1, Math.min(bucket.multiplier, 100))
+          clickIncome += (bucket.normalClicks * baseClickIncome + bucket.criticalClicks * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * clampedMult
+        }
+        clickIncome = roundCurrency(clickIncome)
+      }
+    } else {
+      // No buckets — server-side multipliers (backward compat)
+      clickIncome = roundCurrency(
+        (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * boostClickMult * eventClickMult,
+      )
+    }
 
     // Passive income
     const workers = {

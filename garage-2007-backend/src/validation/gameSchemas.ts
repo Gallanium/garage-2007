@@ -1,8 +1,15 @@
 import { z } from 'zod'
 
+const clickBucketSchema = z.object({
+  multiplier: z.number().positive().max(100),
+  normalClicks: z.number().int().min(0).max(1000),
+  criticalClicks: z.number().int().min(0).max(1000),
+})
+
 export const syncSchema = z.object({
   normalClicks: z.number().int().min(0).max(1000),
   criticalClicks: z.number().int().min(0).max(1000),
+  clickBuckets: z.array(clickBucketSchema).max(10).optional(),
   clientTimestamp: z.number().int().positive(),
   syncNonce: z.string().uuid(),
 }).strict()

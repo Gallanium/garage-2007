@@ -2,6 +2,7 @@
 // API client for server-authoritative backend.
 // All game state mutations go through the server.
 import { getInitData as getTelegramInitData } from './telegramService'
+import type { ClickBucket } from '@shared/types/game.ts'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
@@ -176,13 +177,31 @@ export async function sync(normalClicks: number, criticalClicks: number): Promis
   }, true)
 }
 
+// ── Sync with click buckets ────────────────────────────────────────────────
+
+export async function syncWithBuckets(clickBuckets: ClickBucket[]): Promise<GameStateResponse | null> {
+  const normalClicks = clickBuckets.reduce((sum, b) => sum + b.normalClicks, 0)
+  const criticalClicks = clickBuckets.reduce((sum, b) => sum + b.criticalClicks, 0)
+
+  return apiFetch<GameStateResponse>('/game/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      normalClicks,
+      criticalClicks,
+      clickBuckets,
+      clientTimestamp: Date.now(),
+      syncNonce: crypto.randomUUID(),
+    }),
+  }, true)
+}
+
 // ── Sync lock — prevents concurrent syncs (periodic + pre-action flush) ────
 let _syncInFlight: Promise<GameStateResponse | null> | null = null
 
 /** Sync with concurrency guard — if a sync is already in flight, return its result */
-export async function syncWithLock(normalClicks: number, criticalClicks: number): Promise<GameStateResponse | null> {
+export async function syncWithLock(buckets: ClickBucket[]): Promise<GameStateResponse | null> {
   if (_syncInFlight) return _syncInFlight
-  _syncInFlight = sync(normalClicks, criticalClicks).finally(() => { _syncInFlight = null })
+  _syncInFlight = syncWithBuckets(buckets).finally(() => { _syncInFlight = null })
   return _syncInFlight
 }
 
