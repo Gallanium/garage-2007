@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   useGameStore,
   useBalance,
@@ -21,6 +21,7 @@ import { Hexagon, HardHat, Settings, Wrench, Briefcase, Building2, MonitorPlay, 
 import UpgradeCard from './UpgradeCard'
 import WorkerCard from './WorkerCard'
 import { DecorationSection } from './DecorationSection'
+import { useAudio } from '../contexts/AudioContext'
 
 // ============================================
 // ОПРЕДЕЛЕНИЯ РАБОТНИКОВ ДЛЯ РЕНДЕРА
@@ -55,10 +56,16 @@ const UpgradesPanel: React.FC = () => {
   const purchaseClickUpgrade = useGameStore((s) => s.purchaseClickUpgrade)
   const purchaseWorkSpeedUpgrade = useGameStore((s) => s.purchaseWorkSpeedUpgrade)
   const hireWorker = useGameStore((s) => s.hireWorker)
+  const { playSound } = useAudio()
+
+  const handlePurchaseMilestone = useCallback(async (level: number) => {
+    const ok = await purchaseMilestone(level)
+    if (ok) playSound('purchase')
+  }, [purchaseMilestone, playSound])
 
   // --- Активное событие (Скидки) ---
   const activeEvent = useActiveEvent()
-  const discountPercent = activeEvent?.id === 'supplier_sale' ? 50 : 0
+  const discountPercent = activeEvent?.id === 'parts_discount' ? 20 : 0
 
   // --- Rewarded Video ---
   const rewardedVideo = useGameStore((s) => s.rewardedVideo)
@@ -170,7 +177,7 @@ const UpgradesPanel: React.FC = () => {
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                 }`}
               disabled={balance < milestoneInfo.upgrade.cost}
-              onClick={() => purchaseMilestone(milestoneInfo.level)}
+              onClick={() => handlePurchaseMilestone(milestoneInfo.level)}
             >
               Повысить {formatLargeNumber(milestoneInfo.upgrade.cost)} ₽
             </button>

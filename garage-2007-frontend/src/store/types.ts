@@ -55,7 +55,7 @@ export interface GameActions {
   handleClick: () => boolean
   purchaseClickUpgrade: () => Promise<boolean>
   purchaseWorkSpeedUpgrade: () => Promise<boolean>
-  hireWorker: (workerType: WorkerType) => Promise<void>
+  hireWorker: (workerType: WorkerType) => Promise<boolean>
   startPassiveIncome: () => () => void
   resetGame: () => void
   saveProgress: () => void

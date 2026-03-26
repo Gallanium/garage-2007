@@ -1,10 +1,11 @@
 import { useCallback } from 'react'
-import { 
-  Building, Wrench, Settings as SettingsIcon, Building2, Crown, 
-  Banknote, Coins, Gem, Pointer, MousePointer2, Zap, 
-  HardHat, Users, UsersRound, Trophy, Hexagon, Check, Gift 
+import {
+  Building, Wrench, Settings as SettingsIcon, Building2, Crown,
+  Banknote, Coins, Gem, Pointer, MousePointer2, Zap,
+  HardHat, Users, UsersRound, Trophy, Hexagon, Check, Gift
 } from 'lucide-react'
 import type { AchievementDefinition, PlayerAchievement, AchievementId } from '../store/gameStore'
+import { useAudio } from '../contexts/AudioContext'
 
 // ============================================
 // ТИПЫ
@@ -14,7 +15,7 @@ interface AchievementCardProps {
   definition: AchievementDefinition
   playerState: PlayerAchievement
   currentProgress: number
-  onClaim: (id: string) => void
+  onClaim: (id: string) => Promise<boolean> | boolean | void
 }
 
 // ============================================
@@ -53,10 +54,12 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
 
   const progress = Math.min(currentProgress / targetValue, 1)
   const progressPercent = Math.round(progress * 100)
+  const { playSound } = useAudio()
 
-  const handleClaim = useCallback(() => {
-    onClaim(id)
-  }, [id, onClaim])
+  const handleClaim = useCallback(async () => {
+    const ok = await onClaim(id)
+    if (ok) playSound('purchase')
+  }, [id, onClaim, playSound])
 
   // ═══ CLAIMED (забрано) ═══
   if (claimed) {

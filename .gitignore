@@ -63,6 +63,7 @@ playwright-report/
 
 # Документация и планы
 docs/
+plans/
 CLAUDE.md
 
 # Файлы Claude

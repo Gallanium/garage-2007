@@ -159,7 +159,7 @@ function App() {
     || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
 
   // --- Sound effects ---
-  useSoundEffects(playSoundRef.current)
+  useSoundEffects(playSoundRef)
 
   const handleOpenDailyRewards = useCallback(() => {
     playSoundRef.current?.('modal_open')
@@ -177,7 +177,6 @@ function App() {
   }, [handleWelcomeBackClose])
 
   const handleCloseMilestone = useCallback(() => {
-    playSoundRef.current?.('modal_close')
     closeMilestoneModal()
   }, [closeMilestoneModal])
 

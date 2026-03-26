@@ -1,4 +1,4 @@
-import { AUDIO_ASSETS } from '../config/audioAssets'
+import { AUDIO_ASSETS, VOLUME_OVERRIDES, type SfxKey } from '../config/audioAssets'
 
 const DEFAULT_VOLUME = 0.03
 
@@ -35,10 +35,12 @@ export class AudioManager {
   playSfx(key: string, volume = DEFAULT_VOLUME): void {
     if (!this.scene.sound) return
 
+    const effectiveVolume = volume * (VOLUME_OVERRIDES[key as SfxKey] ?? 1.0)
+
     // Sound already cached — play immediately
     if (this.scene.cache.audio.exists(key)) {
       try {
-        this.scene.sound.play(key, { volume })
+        this.scene.sound.play(key, { volume: effectiveVolume })
       } catch {
         // Silently ignore unsupported audio
       }
@@ -53,7 +55,7 @@ export class AudioManager {
     this.scene.load.once('complete', () => {
       if (this.scene.cache.audio.exists(key)) {
         try {
-          this.scene.sound.play(key, { volume })
+          this.scene.sound.play(key, { volume: effectiveVolume })
         } catch { /* ignore */ }
       }
     })

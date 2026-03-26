@@ -6,6 +6,7 @@ import { useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { formatLargeNumber, GARAGE_LEVEL_NAMES } from '../store/gameStore'
 import { Building, HardHat, Zap, Palette } from 'lucide-react'
+import { useAudio } from '../contexts/AudioContext'
 
 // ============================================
 // ТИПЫ
@@ -14,7 +15,7 @@ import { Building, HardHat, Zap, Palette } from 'lucide-react'
 interface MilestoneUpgradeModalProps {
   isOpen: boolean
   onClose: () => void
-  onPurchase: () => void
+  onPurchase: () => Promise<boolean>
   currentLevel: number
   nextLevel: number
   upgradeCost: number
@@ -39,14 +40,23 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
   upgradeCost,
   unlocks,
 }) => {
-  const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
+  const { playSound } = useAudio()
+
+  const handleClose = useCallback(() => { playSound('modal_close'); onClose() }, [onClose, playSound])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
-  const handlePurchase = useCallback(() => { onPurchase() }, [onPurchase])
+  const handlePurchase = useCallback(async () => {
+    const ok = await onPurchase()
+    if (ok) playSound('purchase')
+  }, [onPurchase, playSound])
+
+  useEffect(() => {
+    if (isOpen) playSound('modal_open')
+  }, [isOpen, playSound])
 
   useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') handleClose()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -60,7 +70,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-[fadeIn_300ms_ease-out]"
       style={{ paddingTop: 'var(--tg-safe-area-top)', paddingBottom: 'var(--tg-safe-area-bottom)' }}
-      onClick={handleOverlayClick}
+      onClick={handleClose}
       onPointerDown={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
@@ -76,7 +86,7 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
         {/* X-кнопка */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl leading-none p-1"
           aria-label="Закрыть"
         >

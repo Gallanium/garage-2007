@@ -14,7 +14,7 @@ const _hireWorkerPending = new Set<string>()
 
 export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   hireWorker: async (workerType: WorkerType) => {
-    if (_hireWorkerPending.has(workerType)) return
+    if (_hireWorkerPending.has(workerType)) return false
     _hireWorkerPending.add(workerType)
     try {
     const state = get()
@@ -23,7 +23,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
 
     if (worker.count >= limit) {
       if (import.meta.env.DEV) console.warn(`[Hire] Лимит для ${workerType}: ${worker.count}/${limit}`)
-      return
+      return false
     }
 
     const requiredMilestone: Record<WorkerType, number> = {
@@ -32,23 +32,23 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     const milestone = requiredMilestone[workerType]
     if (milestone > 0 && !state.milestonesPurchased.includes(milestone)) {
       if (import.meta.env.DEV) console.warn(`[Hire] ${workerType} не разблокирован (milestone ${milestone})`)
-      return
+      return false
     }
 
     const effectiveWorkerCost = Math.floor(worker.cost * get().getEventCostMultiplier())
     if (state.balance < effectiveWorkerCost) {
       if (import.meta.env.DEV) console.warn(`[Hire] Недостаточно средств для ${workerType}: нужно ${formatLargeNumber(effectiveWorkerCost)}₽`)
-      return
+      return false
     }
 
     if (!api.isOnline()) {
       console.warn(`[Hire] Cannot purchase (${workerType}): not connected to server`)
-      return
+      return false
     }
 
     if (api.isActionThrottled()) {
       if (import.meta.env.DEV) console.warn(`[Hire] Client-side rate limit reached (${workerType}), try again later`)
-      return
+      return false
     }
 
     // Flush pending clicks so backend has accurate balance
@@ -56,7 +56,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
       const flushOk = await get().flushPendingClicks()
       if (!flushOk) {
         get().showToast('Ошибка синхронизации, попробуйте снова', 'error')
-        return
+        return false
       }
     }
     // Re-read state after flush
@@ -65,7 +65,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     const effectiveCostAfterFlush = Math.floor(workerAfterFlush.cost * stateAfterFlush.getEventCostMultiplier())
     if (stateAfterFlush.balance < effectiveCostAfterFlush) {
       if (import.meta.env.DEV) console.warn(`[Hire] Insufficient balance for ${workerType} after sync`)
-      return
+      return false
     }
 
     // Optimistic + rollback: ruble action
@@ -92,6 +92,7 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     get().saveProgress()
     get().checkAchievements()
 
+    // Sound on optimistic success; rare server rollback is acceptable
     if (api.isOnline()) {
       const r = await api.performAction('hire_worker', { workerType })
       if (!r) {
@@ -104,6 +105,8 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
         get().applyServerState(r.gameState)
       }
     }
+
+    return true
     } finally { _hireWorkerPending.delete(workerType) }
   },
 })

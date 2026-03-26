@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { formatLargeNumber } from '../store/gameStore'
+import { useAudio } from '../contexts/AudioContext'
 
 interface WorkerCardProps {
   icon: React.ReactNode
@@ -10,7 +11,7 @@ interface WorkerCardProps {
   maxLevel: number
   cost: number
   canAfford: boolean
-  onPurchase: () => void
+  onPurchase: () => Promise<boolean> | boolean | void
   discountPercent?: number
 }
 
@@ -30,10 +31,14 @@ const WorkerCard: React.FC<WorkerCardProps> = ({
   // Вычисляем старую цену
   const originalCost = discountPercent > 0 ? (cost / (1 - discountPercent / 100)) : cost
   const formattedOriginalCost = formatLargeNumber(originalCost)
+  const { playSound } = useAudio()
 
-  const handleClick = useCallback(() => {
-    if (canAfford && !isMaxed) onPurchase()
-  }, [canAfford, isMaxed, onPurchase])
+  const handleClick = useCallback(async () => {
+    if (canAfford && !isMaxed) {
+      const ok = await onPurchase()
+      if (ok) playSound('purchase')
+    }
+  }, [canAfford, isMaxed, onPurchase, playSound])
 
   // Рендер сегментированного бара
   const renderSegments = () => {

@@ -11,7 +11,6 @@ import {
 import type { BoostType } from '../store/gameStore'
 import { Hexagon, Timer, Lock, Zap, Sparkles } from 'lucide-react'
 import NutsPromptModal from './NutsPromptModal'
-import ShopModal from './ShopModal'
 import { useAudio } from '../contexts/AudioContext'
 
 interface BoostModalProps {
@@ -68,7 +67,6 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
   const activateBoost = useGameStore(s => s.activateBoost)
   const replaceBoost = useGameStore(s => s.replaceBoost)
 
-  const showShop = useGameStore((s) => s.showShopModal)
   const [now, setNow] = useState(() => Date.now())
   const [confirmType, setConfirmType] = useState<BoostType | null>(null)  // pending replace
   const [nutsDeficit, setNutsDeficit] = useState<number | null>(null)
@@ -268,7 +266,6 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
         />
       )}
 
-      <ShopModal isOpen={showShop} onClose={() => useGameStore.setState({ showShopModal: false })} />
     </>,
     document.body
   )
