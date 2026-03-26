@@ -330,6 +330,17 @@ export class AudioManager {
   }
 
   private readonly handleGameVisible = (): void => {
+    // Explicitly resume AudioContext — Telegram WebView may not trigger
+    // Phaser's built-in resume via Page Visibility API reliably
+    const ctx = (this.scene.sound as unknown as { context?: AudioContext })?.context
+    if (ctx?.state === 'suspended') {
+      ctx.resume().then(() => {
+        this.flushPendingReadyPlays()
+      }).catch(() => {
+        // Resume failed — will retry on next user gesture or visibility event
+      })
+      return
+    }
     this.flushPendingReadyPlays()
   }
 }

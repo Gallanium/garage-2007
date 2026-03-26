@@ -14,10 +14,16 @@ function createFakeScene() {
     start: vi.fn(),
   })
 
+  const mockContext = {
+    state: 'running' as 'running' | 'suspended',
+    resume: vi.fn(() => Promise.resolve()),
+  }
+
   const sound = Object.assign(soundEmitter, {
     locked: false,
     play: vi.fn(() => true),
     stopAll: vi.fn(),
+    context: mockContext,
   })
 
   const scene = {
@@ -33,7 +39,7 @@ function createFakeScene() {
     },
   } as unknown as Phaser.Scene
 
-  return { scene, cachedKeys, load, sound }
+  return { scene, cachedKeys, load, sound, gameEmitter, mockContext }
 }
 
 describe('AudioManager', () => {
@@ -79,6 +85,20 @@ describe('AudioManager', () => {
     expect(sound.play).not.toHaveBeenCalled()
 
     vi.useRealTimers()
+  })
+
+  it('calls context.resume() when game becomes visible and context is suspended', async () => {
+    const { scene, gameEmitter, mockContext } = createFakeScene()
+    const manager = new AudioManager(scene)
+    manager.loadAndCreate()
+
+    // Simulate AudioContext going suspended (background)
+    mockContext.state = 'suspended'
+
+    // Simulate game visible event (return from background)
+    gameEmitter.emit('visible')
+
+    expect(mockContext.resume).toHaveBeenCalledTimes(1)
   })
 
   it('retries a failed file on the next play request and flushes pending plays after success', () => {
