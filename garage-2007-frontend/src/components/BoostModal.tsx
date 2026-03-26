@@ -2,7 +2,7 @@
 // Модалка «БУСТЫ» с тремя карточками. Открывается по BoostButton.
 // Состояния карточки: active (таймер), can_buy, locked, blocked (другой активен — с заменой), blocked_nuts.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   useGameStore, useNuts, useBoosts, useGarageLevel,
@@ -70,9 +70,13 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
   const [now, setNow] = useState(() => Date.now())
   const [confirmType, setConfirmType] = useState<BoostType | null>(null)  // pending replace
   const [nutsDeficit, setNutsDeficit] = useState<number | null>(null)
+  const prevIsOpenRef = useRef(false)
 
   useEffect(() => {
-    if (isOpen) playSound('modal_open')
+    if (isOpen && !prevIsOpenRef.current) {
+      playSound('modal_open', 'BoostModal.open')
+    }
+    prevIsOpenRef.current = isOpen
   }, [isOpen, playSound])
 
   useEffect(() => {
@@ -95,7 +99,7 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
     return 'can_buy' as const
   }, [activeBoosts, garageLevel, nuts, now])
 
-  const handleBuyClick = useCallback((type: BoostType) => {
+  const handleBuyClick = useCallback(async (type: BoostType) => {
     const status = getStatus(type)
     if (status === 'active' || status === 'locked') return
 
@@ -111,18 +115,18 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
     }
 
     if (status === 'can_buy') {
-      activateBoost(type)
+      await activateBoost(type)
     }
-  }, [getStatus, activateBoost, nuts])
+  }, [getStatus, activateBoost, nuts, onNutsPromptChange])
 
-  const handleConfirmReplace = useCallback(() => {
+  const handleConfirmReplace = useCallback(async () => {
     if (!confirmType) return
-    replaceBoost(confirmType)
-    setConfirmType(null)
+    const ok = await replaceBoost(confirmType)
+    if (ok) setConfirmType(null)
   }, [confirmType, replaceBoost])
 
   const handleClose = useCallback(() => {
-    playSound('modal_close')
+    playSound('modal_close', 'BoostModal.close')
     onNutsPromptChange?.(false)
     onClose()
   }, [onClose, onNutsPromptChange, playSound])
@@ -176,7 +180,7 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
                   Отмена
                 </button>
                 <button
-                  onClick={handleConfirmReplace}
+                  onClick={() => { void handleConfirmReplace() }}
                   className="flex-1 py-1.5 bg-orange-700 hover:bg-orange-600 text-white text-[9px] font-bold rounded"
                 >
                   Заменить
@@ -237,7 +241,7 @@ export default function BoostModal({ isOpen, onClose, onNutsPromptChange }: Boos
                     </div>
                   ) : (
                     <button
-                      onClick={() => handleBuyClick(type)}
+                      onClick={() => { void handleBuyClick(type) }}
                       className={`w-full py-2 rounded text-[10px] font-bold text-white bg-gradient-to-r transition-colors ${theme.btnGradient} ${
                         status === 'blocked_nuts' ? 'opacity-60' : ''
                       }`}

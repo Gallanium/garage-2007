@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useGameStore } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
@@ -15,21 +15,29 @@ export default function NutsPromptModal({ isOpen, deficit, onClose, onOpenShop }
   const { playSound } = useAudio()
   const watchRewardedVideo = useGameStore((s) => s.watchRewardedVideo)
   const canWatchVideo = useGameStore((s) => s.canWatchRewardedVideo())
+  const prevIsOpenRef = useRef(false)
+
+  useEffect(() => {
+    if (isOpen && !prevIsOpenRef.current) {
+      playSound('modal_open', 'NutsPromptModal.open')
+    }
+    prevIsOpenRef.current = isOpen
+  }, [isOpen, playSound])
 
   const handleClose = useCallback(() => {
-    playSound('modal_close')
+    playSound('modal_close', 'NutsPromptModal.close')
     onClose()
   }, [onClose, playSound])
 
   const handleWatchAd = useCallback(async () => {
     const success = await watchRewardedVideo()
-    if (success) onClose()
-  }, [watchRewardedVideo, onClose])
+    if (success) handleClose()
+  }, [handleClose, watchRewardedVideo])
 
   const handleBuyNuts = useCallback(() => {
-    onClose()
+    handleClose()
     onOpenShop?.()
-  }, [onClose, onOpenShop])
+  }, [handleClose, onOpenShop])
 
   if (!isOpen) return null
 

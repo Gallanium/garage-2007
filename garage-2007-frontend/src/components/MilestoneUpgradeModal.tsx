@@ -2,7 +2,7 @@
 // МОДАЛКА «ПОВЫШЕНИЕ КЛАССА ГАРАЖА»
 // ============================================
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { formatLargeNumber, GARAGE_LEVEL_NAMES } from '../store/gameStore'
 import { Building, HardHat, Zap, Palette } from 'lucide-react'
@@ -41,16 +41,20 @@ const MilestoneUpgradeModal: React.FC<MilestoneUpgradeModalProps> = ({
   unlocks,
 }) => {
   const { playSound } = useAudio()
+  const prevIsOpenRef = useRef(false)
 
-  const handleClose = useCallback(() => { playSound('modal_close'); onClose() }, [onClose, playSound])
+  const handleClose = useCallback(() => { playSound('modal_close', 'MilestoneUpgradeModal.close'); onClose() }, [onClose, playSound])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
   const handlePurchase = useCallback(async () => {
     const ok = await onPurchase()
-    if (ok) playSound('purchase')
+    if (ok) playSound('purchase', 'MilestoneUpgradeModal.purchase')
   }, [onPurchase, playSound])
 
   useEffect(() => {
-    if (isOpen) playSound('modal_open')
+    if (isOpen && !prevIsOpenRef.current) {
+      playSound('modal_open', 'MilestoneUpgradeModal.open')
+    }
+    prevIsOpenRef.current = isOpen
   }, [isOpen, playSound])
 
   useEffect(() => {

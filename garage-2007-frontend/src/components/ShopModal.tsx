@@ -25,11 +25,15 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
   const [purchasingPackId, setPurchasingPackId] = useState<NutsPackId | null>(null)
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResult | null>(null)
   const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevIsOpenRef = useRef(false)
   const applyServerState = useGameStore(s => s.applyServerState)
   const haptic = useTelegramHaptic()
 
   useEffect(() => {
-    if (isOpen) playSound('modal_open')
+    if (isOpen && !prevIsOpenRef.current) {
+      playSound('modal_open', 'ShopModal.open')
+    }
+    prevIsOpenRef.current = isOpen
   }, [isOpen, playSound])
 
   useEffect(() => {
@@ -72,7 +76,7 @@ export default function ShopModal({ isOpen, onClose }: ShopModalProps) {
   }, [applyServerState, haptic])
 
   const handleClose = useCallback(() => {
-    playSound('modal_close')
+    playSound('modal_close', 'ShopModal.close')
     onClose()
   }, [onClose, playSound])
 

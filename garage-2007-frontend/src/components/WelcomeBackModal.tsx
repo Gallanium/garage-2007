@@ -1,7 +1,8 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { formatLargeNumber } from '../store/gameStore'
 import { Wrench, Coins } from 'lucide-react'
+import { useAudio } from '../contexts/AudioContext'
 
 // ============================================
 // ТИПЫ
@@ -65,8 +66,21 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
   onClose,
   isOpen,
 }) => {
-  const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
+  const { playSound } = useAudio()
+  const prevIsOpenRef = useRef(false)
+  const handleClose = useCallback(() => {
+    playSound('modal_close', 'WelcomeBackModal.close')
+    onClose()
+  }, [onClose, playSound])
+  const handleOverlayClick = useCallback(() => { handleClose() }, [handleClose])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
+
+  useEffect(() => {
+    if (isOpen && !prevIsOpenRef.current) {
+      playSound('modal_open', 'WelcomeBackModal.open')
+    }
+    prevIsOpenRef.current = isOpen
+  }, [isOpen, playSound])
 
   if (!isOpen) return null
 
@@ -119,7 +133,7 @@ const WelcomeBackModal: React.FC<WelcomeBackModalProps> = ({
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="w-full py-2 rounded text-[10px] font-bold text-white
                      bg-gradient-to-r from-orange-600 to-amber-500
                      hover:from-orange-500 hover:to-amber-400

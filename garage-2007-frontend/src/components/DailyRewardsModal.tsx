@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DAILY_REWARDS, DAILY_STREAK_GRACE_PERIOD_MS, type DailyRewardsState } from '../store/gameStore'
 import { useAudio } from '../contexts/AudioContext'
@@ -120,6 +120,7 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
 }) => {
   const { playSound } = useAudio()
   const [, setTimerTick] = useState(0)
+  const prevIsOpenRef = useRef(false)
   const countdown = !isOpen ? null : getTimeUntilNextReward(dailyRewards.lastClaimTimestamp)
   const timerExpired = isOpen
     && !canClaim
@@ -127,20 +128,31 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
     && countdown === null
   const effectiveCanClaim = canClaim || timerExpired
 
-  const handleOverlayClick = useCallback(() => { onClose() }, [onClose])
+  const handleClose = useCallback(() => {
+    playSound('modal_close', 'DailyRewardsModal.close')
+    onClose()
+  }, [onClose, playSound])
+  const handleOverlayClick = useCallback(() => { handleClose() }, [handleClose])
   const handleCardClick = useCallback((e: React.MouseEvent) => { e.stopPropagation() }, [])
   const handleClaim = useCallback(async () => {
     const ok = await onClaim()
-    if (ok) playSound('daily_reward')
+    if (ok) playSound('daily_reward', 'DailyRewardsModal.claim')
   }, [onClaim, playSound])
+
+  useEffect(() => {
+    if (isOpen && !prevIsOpenRef.current) {
+      playSound('modal_open', 'DailyRewardsModal.open')
+    }
+    prevIsOpenRef.current = isOpen
+  }, [isOpen, playSound])
 
   // --- Escape ---
   useEffect(() => {
     if (!isOpen) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [isOpen, onClose])
+  }, [isOpen, handleClose])
 
   // --- Таймер ---
   useEffect(() => {
@@ -189,7 +201,7 @@ const DailyRewardsModal: React.FC<DailyRewardsModalProps> = ({
         {/* Крестик */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl leading-none p-1"
           aria-label="Закрыть"
         >
