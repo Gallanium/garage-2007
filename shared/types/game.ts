@@ -1,6 +1,8 @@
 // shared/types/game.ts
 // All shared game types. Frontend-only types (GameActions, GameStore) stay in frontend.
 
+import type { LeagueStatusResponse, LeaderboardResponse } from './leagues'
+
 // ── Workers ──────────────────────────────────────────────────────────────────
 
 export type WorkerType = 'apprentice' | 'mechanic' | 'master' | 'brigadier' | 'director'
@@ -233,6 +235,12 @@ export interface GameState {
   _lastServerTime: number
   /** UI-only toast notifications (not synced to server) */
   toasts: ToastItem[]
+  /** League status from server (not synced — fetched on demand) */
+  leagueStatus: LeagueStatusResponse | null
+  /** Leaderboard data from server (not synced — fetched on demand) */
+  leaderboard: LeaderboardResponse | null
+  /** Whether league data is currently being fetched */
+  leagueLoading: boolean
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────

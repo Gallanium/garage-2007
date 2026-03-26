@@ -63,4 +63,7 @@ export const initialState: GameState = {
   degradedMode: false,
   _lastServerTime: 0,
   toasts: [],
+  leagueStatus: null,
+  leaderboard: null,
+  leagueLoading: false,
 }

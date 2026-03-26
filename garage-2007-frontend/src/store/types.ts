@@ -41,6 +41,13 @@ export type {
   SaveData,
 } from '@shared/types/game.ts'
 
+export type {
+  LeagueTier,
+  LeagueStatusResponse,
+  LeaderboardEntry,
+  LeaderboardResponse,
+} from '@shared/types/leagues'
+
 import type {
   GameState,
   AchievementId,
@@ -89,6 +96,8 @@ export interface GameActions {
   flushPendingClicks: () => Promise<boolean>
   showToast: (message: string, type: ToastType) => void
   dismissToast: (id: string) => void
+  fetchLeagueStatus: () => Promise<void>
+  fetchLeaderboard: () => Promise<void>
 }
 
 export type GameStore = GameState & GameActions

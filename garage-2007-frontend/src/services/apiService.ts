@@ -3,6 +3,7 @@
 // All game state mutations go through the server.
 import { getInitData as getTelegramInitData } from './telegramService'
 import type { ClickBucket } from '@shared/types/game.ts'
+import type { LeagueStatusResponse, LeaderboardResponse } from '@shared/types/leagues'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
@@ -259,4 +260,14 @@ export async function createInvoice(packId: string): Promise<string | null> {
     body: JSON.stringify({ packId }),
   })
   return data?.invoiceUrl ?? null
+}
+
+// ── Leagues ──────────────────────────────────────────────────────────────────
+
+export async function getLeagueStatus(): Promise<LeagueStatusResponse | null> {
+  return apiFetch<LeagueStatusResponse>('/leagues/status')
+}
+
+export async function getLeaderboard(): Promise<LeaderboardResponse | null> {
+  return apiFetch<LeaderboardResponse>('/leagues/leaderboard')
 }
