@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { audioBridge } from '../audio/AudioBridgeService'
+import { EVENT_SFX_KEYS } from '../game/config/audioAssets'
 
 /**
  * Reactive sound effects — plays sounds when store state changes.
- * Accepts a ref (not value) so it always reads .current at call time,
- * even before Phaser is ready.
+ * Uses the bridge service so sounds are queued until Phaser is ready.
  */
-export function useSoundEffects(
-  playSoundRef: React.RefObject<((key: string) => void) | null>,
-) {
+export function useSoundEffects() {
   // Track previous values to detect changes
   const prevBoostActivatedAt = useRef<number>(0)
   const prevEventId = useRef<string | null>(null)
@@ -27,10 +26,10 @@ export function useSoundEffects(
       return
     }
     if (boostActivatedAt > 0 && boostActivatedAt !== prevBoostActivatedAt.current) {
-      playSoundRef.current?.('boost_activate')
+      audioBridge.play('boost_activate', 'useSoundEffects.boostActivate')
     }
     prevBoostActivatedAt.current = boostActivatedAt
-  }, [boostActivatedAt, playSoundRef])
+  }, [boostActivatedAt])
 
   // Event started — each event has its own sound key
   useEffect(() => {
@@ -43,18 +42,21 @@ export function useSoundEffects(
       // Skip sound for stale events on page reload (matches AmbientEventSystem 5s guard)
       const eventAge = Date.now() - (activeEvent?.activatedAt ?? 0)
       if (eventAge <= 5000) {
-        playSoundRef.current?.(`event_${newId}`)
+        const eventSoundKey = EVENT_SFX_KEYS[newId as keyof typeof EVENT_SFX_KEYS]
+        if (eventSoundKey) {
+          audioBridge.play(eventSoundKey, 'useSoundEffects.eventStart')
+        }
       }
     }
     prevEventId.current = newId
-  }, [activeEvent, playSoundRef])
+  }, [activeEvent])
 
   // New achievement unlocked
   useEffect(() => {
     if (!prevHasNewAchievements.current && hasNewAchievements) {
-      playSoundRef.current?.('achievement')
-      clearNewAchievementsFlag() // consume immediately — guard prevents double-play
+      audioBridge.play('achievement', 'useSoundEffects.achievementUnlock')
+      clearNewAchievementsFlag()
     }
     prevHasNewAchievements.current = hasNewAchievements
-  }, [hasNewAchievements, playSoundRef, clearNewAchievementsFlag])
+  }, [hasNewAchievements, clearNewAchievementsFlag])
 }
