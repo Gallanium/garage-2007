@@ -64,16 +64,20 @@ export class AudioManager {
 
   /** Queue audio assets, start non-blocking load, retry after unlock if needed */
   loadAndCreate(): void {
+    if (this.scene.sound.locked) {
+      // Defer loading until AudioContext is unlocked.
+      // On iOS WebView, decodeAudioData() fails with a suspended context
+      // and Phaser silently rejects re-queuing the same keys (keyExists check),
+      // making the retry in handleUnlocked a permanent no-op.
+      this.scene.sound.once('unlocked', this.handleUnlocked, this)
+      return
+    }
+
     const queuedCount = this.queueMissing('initial_preload')
     if (queuedCount > 0) {
       this.scene.load.start()
     }
-
-    if (this.scene.sound.locked) {
-      this.scene.sound.once('unlocked', this.handleUnlocked, this)
-    } else {
-      this.flushPendingReadyPlays()
-    }
+    this.flushPendingReadyPlays()
   }
 
   /** Play a sound effect by key. If not loaded yet, queue load and play when ready. */
