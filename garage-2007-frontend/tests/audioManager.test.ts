@@ -43,7 +43,7 @@ function createFakeScene() {
 
   const sound = Object.assign(soundEmitter, {
     locked: false,
-    add: vi.fn((_key: string, _config?: unknown) => {
+    add: vi.fn(() => {
       const instance = createFakeSoundInstance()
       soundInstances.push(instance)
       return instance
