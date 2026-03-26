@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AudioBridgeService } from '../src/audio/AudioBridgeService'
 
 describe('AudioBridgeService', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('queues sounds before sink is ready and drains them in FIFO order', () => {
     const bridge = new AudioBridgeService()
     const played: string[] = []
@@ -77,5 +81,29 @@ describe('AudioBridgeService', () => {
     bridge.play('click_normal', 'test.click3')  // outside window — should play
 
     expect(played).toEqual(['click_normal', 'click_normal'])
+  })
+
+  it('drains stuck queue items on next successful play', () => {
+    const bridge = new AudioBridgeService()
+    const played: string[] = []
+    let rejectAll = true
+
+    bridge.setSink((key) => {
+      if (rejectAll) return false
+      played.push(key)
+      return true
+    })
+
+    // First play rejected — goes to queue
+    bridge.play('modal_open', 'test.rejected')
+    expect(bridge.getState().queue).toHaveLength(1)
+
+    // Sink starts accepting
+    rejectAll = false
+    bridge.play('purchase', 'test.accepted')
+
+    // Both the stuck item and the new item should have played
+    expect(played).toEqual(['modal_open', 'purchase'])
+    expect(bridge.getState().queue).toHaveLength(0)
   })
 })

@@ -42,6 +42,11 @@ export class AudioBridgeService {
       this.lastDirectPlayTs.set(key, now)
     }
 
+    // Drain any stuck items before playing new sound
+    if (this.queue.length > 0) {
+      this.drainQueue()
+    }
+
     const accepted = this.sink(key)
     if (accepted === false) {
       this.enqueue(item, 'sink_rejected')
