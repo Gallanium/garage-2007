@@ -10,6 +10,7 @@ import healthRoutes from './routes/healthRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import gameRoutes from './routes/gameRoutes.js'
 import purchaseRoutes from './routes/purchaseRoutes.js'
+import leagueRoutes from './routes/leagueRoutes.js'
 
 const app = express()
 
@@ -66,6 +67,7 @@ app.use('/api', healthRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/game', gameRoutes)
 app.use('/api/purchase', purchaseRoutes)
+app.use('/api/leagues', leagueRoutes)
 
 // Error handler (must be last)
 app.use(errorHandler)

@@ -5,6 +5,7 @@ import { checkAutoLevel } from '@shared/formulas/progression.js'
 import { roundCurrency } from '@shared/utils/math.js'
 import { BASE_COSTS } from '@shared/constants/economy.js'
 import { logBalanceChange, detectBalanceJump } from './auditService.js'
+import { checkAndClaimTierRewards } from './leagueService.js'
 import { AppError } from '../middleware/errorHandler.js'
 import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logger } from '../utils/logger.js'
@@ -76,6 +77,7 @@ export function buildGameState(gs: GameSave): Record<string, unknown> {
       owned: gs.decorationsOwned,
       active: gs.decorationsActive,
     },
+    claimedLeagueTiers: gs.claimedLeagueTiers,
   }
 }
 
@@ -144,6 +146,9 @@ export async function loadState(userId: number): Promise<{
           },
         })
       }
+
+      // Auto-claim league tier rewards
+      await checkAndClaimTierRewards(userId, result, tx)
 
       return {
         updated: result,
