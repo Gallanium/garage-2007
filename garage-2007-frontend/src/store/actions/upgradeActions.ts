@@ -83,8 +83,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       get().saveProgress()
 
       const r = await api.performAction('purchase_upgrade', { upgradeType: 'clickPower' })
-      if (!r) {
-        // Rollback on network failure (server unreachable)
+      if (!r?.gameState) {
         _set(snapshot)
         get().saveProgress()
         console.warn('[ClickUpgrade] Server rejected purchase_upgrade — rolled back')
@@ -92,9 +91,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         return false
       }
 
-      if (r.gameState) {
-        get().applyServerState(r.gameState)
-      }
+      get().applyServerState(r.gameState)
       return true
     } finally { _clickUpgradePending = false }
   },
@@ -168,8 +165,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
       get().saveProgress()
 
       const r = await api.performAction('purchase_upgrade', { upgradeType: 'workSpeed' })
-      if (!r) {
-        // Rollback on network failure (server unreachable)
+      if (!r?.gameState) {
         _set(snapshot)
         get().saveProgress()
         console.warn('[WorkSpeedUpgrade] Server rejected purchase_upgrade — rolled back')
@@ -177,9 +173,7 @@ export const createUpgradeSlice: StateCreator<GameStore, [], [], Slice> = (_set,
         return false
       }
 
-      if (r.gameState) {
-        get().applyServerState(r.gameState)
-      }
+      get().applyServerState(r.gameState)
       return true
     } finally { _workSpeedUpgradePending = false }
   },

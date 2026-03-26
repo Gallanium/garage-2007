@@ -84,6 +84,15 @@ export class GarageVisualManager {
     this.levelText.setText(`Ур. ${level}`)
   }
 
+  /** Перецентровывает объекты после resize сцены. */
+  resize(): void {
+    const cx = this.scene.scale.width / 2
+    const cy = this.scene.scale.height / 2
+
+    this.sprite.setPosition(cx, cy)
+    this.levelText.setPosition(cx, cy)
+  }
+
   /** Анимация "нажатия" спрайта при клике. */
   playClickBounce(): void {
     this.scene.tweens.add({

@@ -52,28 +52,35 @@ describe('purchaseDecoration', () => {
     useGameStore.setState({ ...initialState })
   })
 
-  // Ruble decorations: optimistic + rollback (state changes immediately)
   it('purchases a rubles decoration and adds to owned+active', async () => {
     useGameStore.setState({ balance: 10000, garageLevel: 1 })
 
-    // Mock server success for optimistic action
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 5000,
+        decorations: {
+          owned: ['tools_workbench'],
+          active: ['tools_workbench'],
+        },
+      }),
+    })
+
     const result = await useGameStore.getState().purchaseDecoration('tools_workbench')
 
     expect(result).toBe(true)
-    expect(useGameStore.getState().balance).toBe(5000) // 10000 - 5000
+    expect(useGameStore.getState().balance).toBe(5000)
     expect(useGameStore.getState().decorations.owned).toContain('tools_workbench')
     expect(useGameStore.getState().decorations.active).toContain('tools_workbench')
   })
 
-  // Nuts decorations: server-first (needs mock server response)
   it('purchases a nuts decoration and deducts nuts', async () => {
     useGameStore.setState({ nuts: 30, garageLevel: 10 })
 
     mockPerformAction.mockResolvedValueOnce({
       success: true,
       gameState: buildMockServerState({
-        nuts: 5, // 30 - 25
+        nuts: 5,
         decorations: { owned: ['tools_welding'], active: ['tools_welding'] },
       }),
     })
@@ -81,7 +88,7 @@ describe('purchaseDecoration', () => {
     const result = await useGameStore.getState().purchaseDecoration('tools_welding')
 
     expect(result).toBe(true)
-    expect(useGameStore.getState().nuts).toBe(5) // 30 - 25
+    expect(useGameStore.getState().nuts).toBe(5)
     expect(useGameStore.getState().decorations.owned).toContain('tools_welding')
   })
 
@@ -98,7 +105,7 @@ describe('purchaseDecoration', () => {
   it('returns false when nuts are insufficient', async () => {
     useGameStore.setState({ nuts: 10, garageLevel: 10 })
 
-    const result = await useGameStore.getState().purchaseDecoration('tools_welding') // costs 25
+    const result = await useGameStore.getState().purchaseDecoration('tools_welding')
 
     expect(result).toBe(false)
     expect(useGameStore.getState().decorations.owned).not.toContain('tools_welding')
@@ -107,7 +114,7 @@ describe('purchaseDecoration', () => {
   it('returns false when garageLevel is below unlockLevel', async () => {
     useGameStore.setState({ balance: 500000, garageLevel: 1 })
 
-    const result = await useGameStore.getState().purchaseDecoration('tools_compressor') // unlockLevel: 8
+    const result = await useGameStore.getState().purchaseDecoration('tools_compressor')
 
     expect(result).toBe(false)
     expect(useGameStore.getState().decorations.owned).not.toContain('tools_compressor')
@@ -115,9 +122,19 @@ describe('purchaseDecoration', () => {
 
   it('returns false on double-purchase', async () => {
     useGameStore.setState({ balance: 20000, garageLevel: 1 })
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
-    await useGameStore.getState().purchaseDecoration('tools_workbench')
 
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 15000,
+        decorations: {
+          owned: ['tools_workbench'],
+          active: ['tools_workbench'],
+        },
+      }),
+    })
+
+    await useGameStore.getState().purchaseDecoration('tools_workbench')
     const result = await useGameStore.getState().purchaseDecoration('tools_workbench')
 
     expect(result).toBe(false)
@@ -126,29 +143,70 @@ describe('purchaseDecoration', () => {
 
   it('displaces active item in same slot when purchasing a second car', async () => {
     useGameStore.setState({ balance: 1_000_000, garageLevel: 8 })
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
-    await useGameStore.getState().purchaseDecoration('car_zaporozhets') // floor_main, costs 100k
+
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 900_000,
+        decorations: {
+          owned: ['car_zaporozhets'],
+          active: ['car_zaporozhets'],
+        },
+      }),
+    })
+    await useGameStore.getState().purchaseDecoration('car_zaporozhets')
     expect(useGameStore.getState().decorations.active).toContain('car_zaporozhets')
 
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
-    const result = await useGameStore.getState().purchaseDecoration('car_moskvich') // floor_main, costs 500k
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 400_000,
+        decorations: {
+          owned: ['car_zaporozhets', 'car_moskvich'],
+          active: ['car_moskvich'],
+        },
+      }),
+    })
+
+    const result = await useGameStore.getState().purchaseDecoration('car_moskvich')
+
     expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).not.toContain('car_zaporozhets')
     expect(useGameStore.getState().decorations.active).toContain('car_moskvich')
-    // both remain owned
     expect(useGameStore.getState().decorations.owned).toContain('car_zaporozhets')
     expect(useGameStore.getState().decorations.owned).toContain('car_moskvich')
   })
 
   it('displaces cross-category conflict (wall_decor vs lighting on same slot)', async () => {
     useGameStore.setState({ balance: 10_000, garageLevel: 1 })
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
-    await useGameStore.getState().purchaseDecoration('decor_calendar')   // back_wall_center, costs 2000
+
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 8_000,
+        decorations: {
+          owned: ['decor_calendar'],
+          active: ['decor_calendar'],
+        },
+      }),
+    })
+    await useGameStore.getState().purchaseDecoration('decor_calendar')
     expect(useGameStore.getState().decorations.active).toContain('decor_calendar')
 
     useGameStore.setState({ balance: 5_000 })
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
-    const result = await useGameStore.getState().purchaseDecoration('light_bulb') // back_wall_center, costs 3000
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 2_000,
+        decorations: {
+          owned: ['decor_calendar', 'light_bulb'],
+          active: ['light_bulb'],
+        },
+      }),
+    })
+
+    const result = await useGameStore.getState().purchaseDecoration('light_bulb')
+
     expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).not.toContain('decor_calendar')
     expect(useGameStore.getState().decorations.active).toContain('light_bulb')
@@ -160,40 +218,48 @@ describe('toggleDecoration', () => {
     useGameStore.setState({ ...initialState })
   })
 
-  it('deactivates an active owned decoration', () => {
+  it('deactivates an active owned decoration offline', async () => {
+    vi.spyOn(api, 'isOnline').mockReturnValue(false)
     useGameStore.setState({
-      balance: 10000, garageLevel: 1,
+      balance: 10000,
+      garageLevel: 1,
       decorations: { owned: ['tools_workbench'], active: ['tools_workbench'] },
     })
 
-    useGameStore.getState().toggleDecoration('tools_workbench')
+    const result = await useGameStore.getState().toggleDecoration('tools_workbench')
 
+    expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).not.toContain('tools_workbench')
     expect(useGameStore.getState().decorations.owned).toContain('tools_workbench')
   })
 
-  it('activates a hidden owned decoration', () => {
+  it('activates a hidden owned decoration offline', async () => {
+    vi.spyOn(api, 'isOnline').mockReturnValue(false)
     useGameStore.setState({
       decorations: { owned: ['tools_workbench'], active: [] },
     })
 
-    useGameStore.getState().toggleDecoration('tools_workbench')
+    const result = await useGameStore.getState().toggleDecoration('tools_workbench')
 
+    expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).toContain('tools_workbench')
   })
 
-  it('is a no-op when item is not owned', () => {
+  it('is a no-op when item is not owned', async () => {
+    vi.spyOn(api, 'isOnline').mockReturnValue(false)
     useGameStore.setState({
       decorations: { owned: [], active: [] },
     })
 
-    useGameStore.getState().toggleDecoration('tools_workbench')
+    const result = await useGameStore.getState().toggleDecoration('tools_workbench')
 
+    expect(result).toBe(false)
     expect(useGameStore.getState().decorations.active).not.toContain('tools_workbench')
     expect(useGameStore.getState().decorations.owned).not.toContain('tools_workbench')
   })
 
-  it('displaces slot conflict when activating a hidden decoration', () => {
+  it('displaces slot conflict when activating a hidden decoration offline', async () => {
+    vi.spyOn(api, 'isOnline').mockReturnValue(false)
     useGameStore.setState({
       decorations: {
         owned: ['car_zaporozhets', 'car_moskvich'],
@@ -201,13 +267,15 @@ describe('toggleDecoration', () => {
       },
     })
 
-    useGameStore.getState().toggleDecoration('car_moskvich')
+    const result = await useGameStore.getState().toggleDecoration('car_moskvich')
 
+    expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).not.toContain('car_zaporozhets')
     expect(useGameStore.getState().decorations.active).toContain('car_moskvich')
   })
 
-  it('does not displace when simply deactivating', () => {
+  it('does not displace when simply deactivating offline', async () => {
+    vi.spyOn(api, 'isOnline').mockReturnValue(false)
     useGameStore.setState({
       decorations: {
         owned: ['car_zaporozhets', 'car_moskvich'],
@@ -215,9 +283,49 @@ describe('toggleDecoration', () => {
       },
     })
 
-    useGameStore.getState().toggleDecoration('car_zaporozhets')
+    const result = await useGameStore.getState().toggleDecoration('car_zaporozhets')
 
+    expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).toHaveLength(0)
     expect(useGameStore.getState().decorations.owned).toHaveLength(2)
+  })
+
+  it('returns false and rolls back on server reject', async () => {
+    useGameStore.setState({
+      decorations: {
+        owned: ['decor_calendar'],
+        active: [],
+      },
+    })
+
+    mockPerformAction.mockResolvedValueOnce(null)
+    const result = await useGameStore.getState().toggleDecoration('decor_calendar')
+
+    expect(result).toBe(false)
+    expect(useGameStore.getState().decorations.active).toEqual([])
+  })
+
+  it('returns true when server confirms the new active state', async () => {
+    useGameStore.setState({
+      decorations: {
+        owned: ['decor_calendar'],
+        active: [],
+      },
+    })
+
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        decorations: {
+          owned: ['decor_calendar'],
+          active: ['decor_calendar'],
+        },
+      }),
+    })
+
+    const result = await useGameStore.getState().toggleDecoration('decor_calendar')
+
+    expect(result).toBe(true)
+    expect(useGameStore.getState().decorations.active).toEqual(['decor_calendar'])
   })
 })

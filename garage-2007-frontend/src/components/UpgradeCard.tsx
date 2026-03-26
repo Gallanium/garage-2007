@@ -89,7 +89,7 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
   const handleClick = useCallback(async () => {
     if (canAfford && !isMaxed) {
       const ok = await onPurchase()
-      if (ok) playSound('purchase')
+      if (ok) playSound('purchase', 'UpgradeCard.purchase')
     }
   }, [canAfford, isMaxed, onPurchase, playSound])
 

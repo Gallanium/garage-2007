@@ -92,18 +92,16 @@ export const createWorkerSlice: StateCreator<GameStore, [], [], Slice> = (_set, 
     get().saveProgress()
     get().checkAchievements()
 
-    // Sound on optimistic success; rare server rollback is acceptable
     if (api.isOnline()) {
       const r = await api.performAction('hire_worker', { workerType })
-      if (!r) {
-        // Rollback on network failure (server unreachable)
+      if (!r?.gameState) {
         _set(snapshot)
         get().saveProgress()
         console.warn(`[Hire] Server rejected hire_worker (${workerType}) — rolled back`)
         get().showToast('Ошибка найма работника', 'error')
-      } else if (r.gameState) {
-        get().applyServerState(r.gameState)
+        return false
       }
+      get().applyServerState(r.gameState)
     }
 
     return true

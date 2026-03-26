@@ -51,6 +51,24 @@ export const AUDIO_ASSETS = {
 } as const
 
 export type SfxKey = keyof typeof AUDIO_ASSETS
+export type EventSfxKey = Extract<SfxKey, `event_${string}`>
+
+export const EVENT_SFX_KEYS = {
+  client_rush: 'event_client_rush',
+  parts_discount: 'event_parts_discount',
+  lucky_find: 'event_lucky_find',
+  vip_client: 'event_vip_client',
+  equipment_break: 'event_equipment_break',
+  tax_inspection: 'event_tax_inspection',
+  power_outage: 'event_power_outage',
+  neighbor_visit: 'event_neighbor_visit',
+  radio_plays: 'event_radio_plays',
+  stray_cat: 'event_stray_cat',
+} as const satisfies Record<string, EventSfxKey>
+
+export function isSfxKey(value: string): value is SfxKey {
+  return Object.prototype.hasOwnProperty.call(AUDIO_ASSETS, value)
+}
 
 /**
  * Per-key volume multipliers to balance perceived loudness

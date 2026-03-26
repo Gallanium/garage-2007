@@ -8,6 +8,7 @@ import { LevelUpEffectManager } from './managers/LevelUpEffectManager'
 import { DecorationManager } from './managers/DecorationManager'
 import { AudioManager } from './managers/AudioManager'
 import { DECORATION_CATALOG } from '../store/constants/decorations'
+import type { SfxKey } from './config/audioAssets'
 
 /**
  * Главная игровая сцена «Гараж 2007».
@@ -23,6 +24,10 @@ export default class MainScene extends Phaser.Scene {
   private levelUpEffect!: LevelUpEffectManager
   private decorationManager!: DecorationManager
   private audioManager!: AudioManager
+  private readonly handleResize = (): void => {
+    if (!this.sys?.displayList) return
+    this.garageVisual.resize()
+  }
 
   constructor() {
     super({ key: 'MainScene' })
@@ -60,9 +65,12 @@ export default class MainScene extends Phaser.Scene {
       // TODO: Обработка специальных эффектов (Stage 8)
     })
 
+    this.scale.on('resize', this.handleResize, this)
+
     this.events.once('shutdown', () => {
       this.events.off('garageClicked')
       this.events.off('playSpecialEffect')
+      this.scale.off('resize', this.handleResize, this)
       this.garageVisual.destroy()
       this.clickEffect.destroy()
       this.levelUpEffect.destroy()
@@ -99,8 +107,8 @@ export default class MainScene extends Phaser.Scene {
   }
 
   /** Play a sound effect by key — callable from React via PhaserGame bridge */
-  public playSound(key: string): void {
-    this.audioManager.playSfx(key)
+  public playSound(key: SfxKey): boolean {
+    return this.audioManager.playSfx(key)
   }
 
   /**

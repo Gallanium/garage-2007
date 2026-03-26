@@ -88,26 +88,23 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
 
     get().saveProgress()
     const r = await api.performAction('purchase_decoration', { decorationId: id })
-    if (!r) {
-      // Rollback on network failure (server unreachable)
+    if (!r?.gameState) {
       _set(snapshot)
       get().saveProgress()
       console.warn('[Decoration] Server rejected purchase_decoration (rubles) — rolled back')
       get().showToast('Ошибка покупки декорации', 'error')
       return false
     }
-    if (r.gameState) {
-      get().applyServerState(r.gameState)
-    }
+    get().applyServerState(r.gameState)
     return true
     } finally { _decorationPending = false }
   },
 
-  toggleDecoration: (id: string): void => {
+  toggleDecoration: async (id: string): Promise<boolean> => {
     const state = get()
-    if (!state.decorations.owned.includes(id)) return
+    if (!state.decorations.owned.includes(id)) return false
     const def = DECORATION_CATALOG[id]
-    if (!def) return
+    if (!def) return false
 
     // Snapshot for rollback
     const snapshot = {
@@ -140,20 +137,26 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
     }
 
     get().saveProgress()
-    if (api.isOnline()) {
-      api.performAction('toggle_decoration', { decorationId: id }).then(r => {
-        if (r?.gameState) {
-          get().applyServerState(r.gameState)
-        } else {
-          _set({ decorations: snapshot.decorations })
-          get().saveProgress()
-          get().showToast('Ошибка переключения декорации', 'error')
-        }
-      }).catch(() => {
+    if (!api.isOnline()) {
+      return true
+    }
+
+    try {
+      const response = await api.performAction('toggle_decoration', { decorationId: id })
+      if (response?.gameState) {
+        get().applyServerState(response.gameState)
+        return true
+      }
+
+      _set({ decorations: snapshot.decorations })
+      get().saveProgress()
+      get().showToast('Ошибка переключения декорации', 'error')
+      return false
+    } catch {
         _set({ decorations: snapshot.decorations })
         get().saveProgress()
         get().showToast('Ошибка сети', 'error')
-      })
+      return false
     }
   },
 })

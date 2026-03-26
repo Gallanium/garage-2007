@@ -31,7 +31,17 @@ describe('game store actions', () => {
   it('purchases a click upgrade and recalculates click value', async () => {
     useGameStore.setState({ balance: 1_000 })
 
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 900,
+        clickValue: 2,
+        upgrades: {
+          clickPower: { level: 1, cost: 114, baseCost: 100 },
+          workSpeed: { ...initialState.upgrades.workSpeed },
+        },
+      }),
+    })
     const success = await useGameStore.getState().purchaseClickUpgrade()
     const state = useGameStore.getState()
 
@@ -45,7 +55,17 @@ describe('game store actions', () => {
   it('hires a worker and recalculates passive income', async () => {
     useGameStore.setState({ balance: 1_000 })
 
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 500,
+        passiveIncomePerSecond: 2,
+        workers: {
+          ...initialState.workers,
+          apprentice: { count: 1, cost: 575 },
+        },
+      }),
+    })
     await useGameStore.getState().hireWorker('apprentice')
     const state = useGameStore.getState()
 
@@ -62,7 +82,16 @@ describe('game store actions', () => {
     expect(useGameStore.getState().pendingMilestoneLevel).toBe(5)
     expect(useGameStore.getState().showMilestoneModal).toBe(true)
 
-    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    mockPerformAction.mockResolvedValueOnce({
+      success: true,
+      gameState: buildMockServerState({
+        balance: 500_000,
+        garageLevel: 5,
+        milestonesPurchased: [5],
+        showMilestoneModal: false,
+        pendingMilestoneLevel: null,
+      }),
+    })
     const purchased = await useGameStore.getState().purchaseMilestone(5)
     const state = useGameStore.getState()
 
@@ -169,5 +198,17 @@ describe('game store actions', () => {
     expect(state.getEventMultiplier('income')).toBe(GAME_EVENTS.client_rush.effect.multiplier)
     expect(state.getEventMultiplier('click')).toBe(1)
     expect(state.events.cooldownEnd).toBeGreaterThan(now)
+  })
+
+  it('hireWorker returns false and rolls back when server confirmation is missing', async () => {
+    useGameStore.setState({ balance: 1_000 })
+
+    mockPerformAction.mockResolvedValueOnce({ success: true, gameState: null })
+    const result = await useGameStore.getState().hireWorker('apprentice')
+
+    expect(result).toBe(false)
+    expect(useGameStore.getState().balance).toBe(1_000)
+    expect(useGameStore.getState().workers.apprentice.count).toBe(0)
+    expect(useGameStore.getState().passiveIncomePerSecond).toBe(0)
   })
 })

@@ -36,7 +36,7 @@ const WorkerCard: React.FC<WorkerCardProps> = ({
   const handleClick = useCallback(async () => {
     if (canAfford && !isMaxed) {
       const ok = await onPurchase()
-      if (ok) playSound('purchase')
+      if (ok) playSound('purchase', 'WorkerCard.purchase')
     }
   }, [canAfford, isMaxed, onPurchase, playSound])
 

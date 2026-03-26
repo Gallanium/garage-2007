@@ -60,7 +60,7 @@ const UpgradesPanel: React.FC = () => {
 
   const handlePurchaseMilestone = useCallback(async (level: number) => {
     const ok = await purchaseMilestone(level)
-    if (ok) playSound('purchase')
+    if (ok) playSound('purchase', 'UpgradesPanel.purchaseMilestone')
   }, [purchaseMilestone, playSound])
 
   // --- Активное событие (Скидки) ---

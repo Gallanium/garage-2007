@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, vi } from 'vitest'
+import { audioBridge } from '../src/audio/AudioBridgeService'
+import { resetAudioDebug } from '../src/audio/audioDebug'
 import { useGameStore } from '../src/store/gameStore'
 import { initialState } from '../src/store/initialState'
 
@@ -107,6 +109,8 @@ Object.defineProperty(globalThis, 'localStorage', {
 })
 
 beforeEach(() => {
+  audioBridge.resetForTests()
+  resetAudioDebug()
   localStorage.clear()
   useGameStore.setState({ ...initialState })
   vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -115,6 +119,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  audioBridge.resetForTests()
+  resetAudioDebug()
   vi.restoreAllMocks()
   vi.useRealTimers()
   localStorage.clear()

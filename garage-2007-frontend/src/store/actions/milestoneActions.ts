@@ -77,17 +77,14 @@ export const createMilestoneSlice: StateCreator<GameStore, [], [], Slice> = (_se
     get().checkAchievements()
 
     const r = await api.performAction('purchase_milestone', { level })
-    if (!r) {
-      // Rollback on network failure (server unreachable)
+    if (!r?.gameState) {
       _set(snapshot)
       get().saveProgress()
       console.warn(`[Milestone] Server rejected purchase_milestone (level ${level}) — rolled back`)
       get().showToast('Ошибка покупки улучшения гаража', 'error')
       return false
     }
-    if (r.gameState) {
-      get().applyServerState(r.gameState)
-    }
+    get().applyServerState(r.gameState)
     return true
     } finally { _milestonePending = false }
   },

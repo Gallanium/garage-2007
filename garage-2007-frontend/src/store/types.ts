@@ -84,7 +84,7 @@ export interface GameActions {
   getEventMultiplier: (scope: 'income' | 'click') => number
   getEventCostMultiplier: () => number
   purchaseDecoration: (id: string) => Promise<boolean>
-  toggleDecoration: (id: string) => void
+  toggleDecoration: (id: string) => Promise<boolean>
   applyServerState: (serverState: Record<string, unknown>) => void
   flushPendingClicks: () => Promise<boolean>
   showToast: (message: string, type: ToastType) => void

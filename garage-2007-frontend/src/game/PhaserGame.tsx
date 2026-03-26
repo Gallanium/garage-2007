@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
-import { createGameConfig } from './gameConfig'
+import { createGameConfig, resolveGameHeight } from './gameConfig'
 import MainScene from './MainScene'
+import { audioBridge } from '../audio/AudioBridgeService'
+import { GAME_DIMENSIONS } from './types'
 
 /** Проверяет что Phaser сцена жива (не уничтожена и не остановлена) */
 function isSceneAlive(scene: MainScene): boolean {
@@ -24,9 +26,6 @@ interface PhaserGameProps {
   /** Активные декорации для отображения в сцене */
   activeDecorations: string[]
 
-  /** Ref for React → Phaser sound bridge */
-  playSoundRef?: React.MutableRefObject<((key: string) => void) | null>
-
   /** Ref for React → Phaser critical click effect bridge */
   critEffectRef?: React.MutableRefObject<((x: number, y: number) => void) | null>
 
@@ -44,7 +43,7 @@ interface PhaserGameProps {
  *
  * @param props - свойства компонента
  */
-const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, isModalOpen, activeDecorations, playSoundRef, critEffectRef }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isActive, isModalOpen, activeDecorations, critEffectRef }) => {
   // Ref для хранения инстанса Phaser.Game
   const gameRef = useRef<Phaser.Game | null>(null)
 
@@ -170,13 +169,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       mainScene.isModalOpen = isModalOpenRef.current
 
       // Wire up React → Phaser sound bridge
-      if (playSoundRef) {
-        playSoundRef.current = (key: string) => {
-          if (sceneRef.current && isSceneAlive(sceneRef.current)) {
-            sceneRef.current.playSound(key)
-          }
+      audioBridge.setSink((key) => {
+        if (sceneRef.current && isSceneAlive(sceneRef.current)) {
+          return sceneRef.current.playSound(key)
         }
-      }
+        return false
+      })
 
       // Wire up React → Phaser critical click effect bridge
       if (critEffectRef) {
@@ -226,9 +224,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       setIsGameReady(false)
 
       // Clear sound bridge
-      if (playSoundRef) {
-        playSoundRef.current = null
-      }
+      audioBridge.clearSink()
 
       // Clear critical effect bridge
       if (critEffectRef) {
@@ -250,6 +246,32 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportGameError]) // Инициализация Phaser при монтировании
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let lastHeight = resolveGameHeight(container.getBoundingClientRect().height)
+    const resizeGame = () => {
+      if (!gameRef.current) return
+
+      const nextHeight = resolveGameHeight(container.getBoundingClientRect().height)
+      if (nextHeight === lastHeight) return
+
+      lastHeight = nextHeight
+      gameRef.current.scale.resize(GAME_DIMENSIONS.width, nextHeight)
+    }
+
+    const observer = new ResizeObserver(() => {
+      resizeGame()
+    })
+
+    observer.observe(container)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   /**
    * Эффект блокировки ввода Phaser при открытых модалках / неактивном табе.

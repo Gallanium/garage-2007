@@ -58,7 +58,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
 
   const handleClaim = useCallback(async () => {
     const ok = await onClaim(id)
-    if (ok) playSound('purchase')
+    if (ok) playSound('purchase', 'AchievementCard.claim')
   }, [id, onClaim, playSound])
 
   // ═══ CLAIMED (забрано) ═══

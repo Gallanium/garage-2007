@@ -1,21 +1,24 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from 'react'
+import { audioBridge } from '../audio/AudioBridgeService'
+import type { SfxKey } from '../game/config/audioAssets'
 
 interface AudioContextValue {
-  playSound: (key: string) => void
+  playSound: (key: SfxKey, source?: string) => boolean
 }
 
-const AudioCtx = createContext<AudioContextValue>({ playSound: () => {} })
+const AudioCtx = createContext<AudioContextValue>({
+  playSound: (key, source) => audioBridge.play(key, source),
+})
 
 interface AudioProviderProps {
   children: React.ReactNode
-  playSoundRef: React.MutableRefObject<((key: string) => void) | null>
 }
 
-export function AudioProvider({ children, playSoundRef }: AudioProviderProps) {
+export function AudioProvider({ children }: AudioProviderProps) {
   const value = useMemo<AudioContextValue>(() => ({
-    playSound: (key: string) => playSoundRef.current?.(key),
-  }), [playSoundRef])
+    playSound: (key, source) => audioBridge.play(key, source),
+  }), [])
 
   return <AudioCtx.Provider value={value}>{children}</AudioCtx.Provider>
 }

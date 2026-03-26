@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   useGameStore,
@@ -35,6 +35,7 @@ import { useTelegramBackButton } from './hooks/useTelegram'
 import { useSwipeTabs } from './hooks/useSwipeTabs'
 import { useSoundEffects } from './hooks/useSoundEffects'
 import { AudioProvider } from './contexts/AudioContext'
+import { audioBridge } from './audio/AudioBridgeService'
 import { Home, ArrowUpCircle, Trophy, BarChart2 } from 'lucide-react'
 
 // ============================================
@@ -104,9 +105,6 @@ function App() {
   const { retryAuth } = useGameLifecycle()
   const { showWelcomeBack, offlineEarnings, offlineTime, handleWelcomeBackClose } = useOfflineEarnings()
 
-  // --- Sound bridge ---
-  const playSoundRef = useRef<((key: string) => void) | null>(null)
-
   // --- Локальное состояние ---
   const [activeTab, setActiveTab] = useState<string>('game')
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set(['game']))
@@ -119,7 +117,7 @@ function App() {
       next.add(tab)
       return next
     })
-    playSoundRef.current?.('tab_switch')
+    audioBridge.play('tab_switch', 'App.tabChange')
   }, [])
 
   // --- Telegram Back Button: показываем когда не на табе «Игра» ---
@@ -159,20 +157,17 @@ function App() {
     || (Date.now() - dailyRewards.lastClaimTimestamp) >= DAILY_STREAK_GRACE_PERIOD_MS
 
   // --- Sound effects ---
-  useSoundEffects(playSoundRef)
+  useSoundEffects()
 
   const handleOpenDailyRewards = useCallback(() => {
-    playSoundRef.current?.('modal_open')
     openDailyRewardsModal()
   }, [openDailyRewardsModal])
 
   const handleCloseDailyRewards = useCallback(() => {
-    playSoundRef.current?.('modal_close')
     closeDailyRewardsModal()
   }, [closeDailyRewardsModal])
 
   const handleCloseWelcomeBack = useCallback(() => {
-    playSoundRef.current?.('modal_close')
     handleWelcomeBackClose()
   }, [handleWelcomeBackClose])
 
@@ -234,7 +229,7 @@ function App() {
   const isGameTabActive = activeTab === 'game' && !showWelcomeBack && !showMilestoneModal && !showDailyRewardsModal
 
   return (
-    <AudioProvider playSoundRef={playSoundRef}>
+    <AudioProvider>
     <div
       className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden relative"
       style={{ paddingTop: 'var(--tg-safe-area-top)' }}
@@ -286,7 +281,6 @@ function App() {
             canClaimDaily={canClaimToday}
             onOpenDailyRewards={handleOpenDailyRewards}
             activeDecorations={activeDecorations}
-            playSoundRef={playSoundRef}
           />
           <GameFooter />
         </div>

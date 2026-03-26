@@ -119,7 +119,10 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
           </div>
         </div>
         <button
-          onClick={() => { toggleDecoration(id); playSound('tab_switch') }}
+          onClick={async () => {
+            const ok = await toggleDecoration(id)
+            if (ok) playSound('tab_switch', 'DecorationCard.hide')
+          }}
           className="w-full py-2 rounded text-[10px] font-bold text-gray-300 bg-black/30 transition-colors"
         >
           Скрыть
@@ -147,7 +150,10 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
           </div>
         </div>
         <button
-          onClick={() => { toggleDecoration(id); playSound('tab_switch') }}
+          onClick={async () => {
+            const ok = await toggleDecoration(id)
+            if (ok) playSound('tab_switch', 'DecorationCard.show')
+          }}
           className="w-full py-2 rounded text-[10px] font-bold text-white
                      bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500
                      transition-colors"
@@ -201,7 +207,10 @@ export const DecorationCard: React.FC<DecorationCardProps> = ({ id }) => {
         </div>
       </div>
       <button
-        onClick={async () => { const ok = await purchaseDecoration(id); if (ok) playSound('purchase') }}
+        onClick={async () => {
+          const ok = await purchaseDecoration(id)
+          if (ok) playSound('purchase', 'DecorationCard.purchase')
+        }}
         className="w-full py-2 rounded text-[10px] font-bold text-white
                    bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400
                    transition-colors flex items-center justify-center gap-1"

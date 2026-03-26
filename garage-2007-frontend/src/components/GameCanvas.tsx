@@ -9,6 +9,7 @@ import { useTelegramHaptic } from '../hooks/useTelegram'
 import { Pointer } from 'lucide-react'
 import { useClickValue, useActiveBoostType, useActiveEvent, useGameStore, useIsModalOpen } from '../store/gameStore'
 import { CRITICAL_CLICK_MULTIPLIER } from '../store/constants/economy'
+import { audioBridge } from '../audio/AudioBridgeService'
 
 interface FloatingTextData {
   id: number
@@ -27,7 +28,6 @@ interface GameCanvasProps {
   canClaimDaily: boolean
   onOpenDailyRewards: () => void
   activeDecorations: string[]
-  playSoundRef: React.MutableRefObject<((key: string) => void) | null>
 }
 
 /**
@@ -41,13 +41,10 @@ export function GameCanvas({
   canClaimDaily,
   onOpenDailyRewards,
   activeDecorations,
-  playSoundRef,
 }: GameCanvasProps) {
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showNutsPrompt, setShowNutsPrompt] = useState(false)
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([])
-  const [phaserKey, setPhaserKey] = useState(0)
-  const mainRef = useRef<HTMLElement | null>(null)
   const critEffectRef = useRef<((x: number, y: number) => void) | null>(null)
   const floatingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const haptic = useTelegramHaptic()
@@ -67,27 +64,6 @@ export function GameCanvas({
     }
   }, [])
 
-  useEffect(() => {
-    const main = mainRef.current
-    if (!main) return
-    let initHeight = main.getBoundingClientRect().height
-    let timer: ReturnType<typeof setTimeout> | null = null
-
-    const observer = new ResizeObserver((entries) => {
-      const h = entries[0]?.contentRect.height
-      if (h && Math.abs(h - initHeight) > 50) {
-        initHeight = h
-        if (timer) clearTimeout(timer)
-        timer = setTimeout(() => setPhaserKey(k => k + 1), 500)
-      }
-    })
-    observer.observe(main)
-    return () => {
-      observer.disconnect()
-      if (timer) clearTimeout(timer)
-    }
-  }, [])
-
   const clickMultiplier =
     (activeBoostType ? getActiveMultiplier('click') : 1) *
     (activeEvent ? getEventMultiplier('click') : 1)
@@ -103,13 +79,13 @@ export function GameCanvas({
     const isCritical = onGarageClick()
     if (isCritical) {
       haptic.impactMedium()
-      playSoundRef.current?.('click_critical')
+      audioBridge.play('click_critical', 'GameCanvas.clickCritical')
       if (event && typeof event.x === 'number' && typeof event.y === 'number') {
         critEffectRef.current?.(event.x, event.y)
       }
     } else {
       haptic.impactLight()
-      playSoundRef.current?.('click_normal')
+      audioBridge.play('click_normal', 'GameCanvas.clickNormal')
     }
 
     if (event && typeof event.x === 'number' && typeof event.y === 'number') {
@@ -132,18 +108,16 @@ export function GameCanvas({
   }
 
   return (
-    <main ref={mainRef} className="flex-1 min-h-0 relative bg-gray-900">
+    <main className="flex-1 min-h-0 relative bg-gray-900">
 
       <div className="w-full h-full flex items-center justify-center">
         <ErrorBoundary fallback="Игровой движок недоступен. Попробуй перезагрузить страницу.">
           <PhaserGame
-            key={phaserKey}
             onGarageClick={handleGarageClick}
             garageLevel={garageLevel}
             isActive={isActive && !showBoostModal}
             isModalOpen={isAnyModalOpen}
             activeDecorations={activeDecorations}
-            playSoundRef={playSoundRef}
             critEffectRef={critEffectRef}
           />
         </ErrorBoundary>
