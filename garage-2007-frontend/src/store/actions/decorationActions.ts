@@ -8,6 +8,7 @@ type Slice = Pick<GameStore, 'purchaseDecoration' | 'toggleDecoration'>
 
 // Concurrency guard — prevent double-fire from mobile tap events
 let _decorationPending = false
+const _toggleDecorationPending = new Set<string>()
 
 export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_set, get) => ({
   purchaseDecoration: async (id: string): Promise<boolean> => {
@@ -101,47 +102,51 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
   },
 
   toggleDecoration: async (id: string): Promise<boolean> => {
-    const state = get()
-    if (!state.decorations.owned.includes(id)) return false
-    const def = DECORATION_CATALOG[id]
-    if (!def) return false
-
-    // Snapshot for rollback
-    const snapshot = {
-      decorations: {
-        owned: [...state.decorations.owned],
-        active: [...state.decorations.active],
-      },
-    }
-
-    if (state.decorations.active.includes(id)) {
-      // Deactivate
-      _set(s => ({
-        decorations: {
-          ...s.decorations,
-          active: s.decorations.active.filter(a => a !== id),
-        },
-      }))
-    } else {
-      // Activate, displace slot conflict
-      const displaced = state.decorations.active.filter(activeId => {
-        const activeDef = DECORATION_CATALOG[activeId]
-        return activeDef && activeDef.slot === def.slot
-      })
-      _set(s => ({
-        decorations: {
-          ...s.decorations,
-          active: [...s.decorations.active.filter(a => !displaced.includes(a)), id],
-        },
-      }))
-    }
-
-    get().saveProgress()
-    if (!api.isOnline()) {
-      return true
-    }
-
+    if (_toggleDecorationPending.has(id)) return false
+    _toggleDecorationPending.add(id)
+    let rollbackDecorations: { owned: string[]; active: string[] } | null = null
     try {
+      const state = get()
+      if (!state.decorations.owned.includes(id)) return false
+      const def = DECORATION_CATALOG[id]
+      if (!def) return false
+
+      // Snapshot for rollback
+      const snapshot = {
+        decorations: {
+          owned: [...state.decorations.owned],
+          active: [...state.decorations.active],
+        },
+      }
+      rollbackDecorations = snapshot.decorations
+
+      if (state.decorations.active.includes(id)) {
+        // Deactivate
+        _set(s => ({
+          decorations: {
+            ...s.decorations,
+            active: s.decorations.active.filter(a => a !== id),
+          },
+        }))
+      } else {
+        // Activate, displace slot conflict
+        const displaced = state.decorations.active.filter(activeId => {
+          const activeDef = DECORATION_CATALOG[activeId]
+          return activeDef && activeDef.slot === def.slot
+        })
+        _set(s => ({
+          decorations: {
+            ...s.decorations,
+            active: [...s.decorations.active.filter(a => !displaced.includes(a)), id],
+          },
+        }))
+      }
+
+      get().saveProgress()
+      if (!api.isOnline()) {
+        return true
+      }
+
       const response = await api.performAction('toggle_decoration', { decorationId: id })
       if (response?.gameState) {
         get().applyServerState(response.gameState)
@@ -153,10 +158,14 @@ export const createDecorationSlice: StateCreator<GameStore, [], [], Slice> = (_s
       get().showToast('Ошибка переключения декорации', 'error')
       return false
     } catch {
-        _set({ decorations: snapshot.decorations })
+      if (rollbackDecorations) {
+        _set({ decorations: rollbackDecorations })
         get().saveProgress()
-        get().showToast('Ошибка сети', 'error')
+      }
+      get().showToast('Ошибка сети', 'error')
       return false
+    } finally {
+      _toggleDecorationPending.delete(id)
     }
   },
 })

@@ -10,14 +10,13 @@ describe('AudioBridgeService', () => {
     const bridge = new AudioBridgeService()
     const played: string[] = []
 
-    bridge.play('purchase', 'test.purchase')
-    bridge.play('modal_open', 'test.modalOpen')
-
+    expect(bridge.play('purchase', 'test.purchase')).toBe('queued')
+    expect(bridge.play('modal_open', 'test.modalOpen')).toBe('queued')
     expect(bridge.getState().queue.map(item => item.key)).toEqual(['purchase', 'modal_open'])
 
     bridge.setSink((key) => {
       played.push(key)
-      return true
+      return 'played'
     })
 
     expect(played).toEqual(['purchase', 'modal_open'])
@@ -30,7 +29,7 @@ describe('AudioBridgeService', () => {
 
     bridge.setSink((key) => {
       played.push(key)
-      return true
+      return 'played'
     })
 
     bridge.play('purchase', 'test.immediate')
@@ -40,7 +39,7 @@ describe('AudioBridgeService', () => {
 
     bridge.setSink((key) => {
       played.push(key)
-      return true
+      return 'played'
     })
 
     expect(played).toEqual(['purchase', 'achievement', 'event_client_rush'])
@@ -62,7 +61,7 @@ describe('AudioBridgeService', () => {
     expect(bridge.getState().queue.map(item => item.key)).toEqual(['click_normal', 'purchase'])
   })
 
-  it('coalesces burst click sounds when sink IS ready (direct play path)', () => {
+  it('coalesces burst click sounds when sink is ready', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-26T15:00:00.000Z'))
 
@@ -71,39 +70,38 @@ describe('AudioBridgeService', () => {
 
     bridge.setSink((key) => {
       played.push(key)
-      return true
+      return 'played'
     })
 
-    bridge.play('click_normal', 'test.click1')
+    expect(bridge.play('click_normal', 'test.click1')).toBe('played')
     vi.advanceTimersByTime(25)
-    bridge.play('click_normal', 'test.click2')  // within 50ms — should be coalesced
+    expect(bridge.play('click_normal', 'test.click2')).toBe('queued')
     vi.advanceTimersByTime(60)
-    bridge.play('click_normal', 'test.click3')  // outside window — should play
+    expect(bridge.play('click_normal', 'test.click3')).toBe('played')
 
     expect(played).toEqual(['click_normal', 'click_normal'])
   })
 
-  it('drains stuck queue items on next successful play', () => {
+  it('does not requeue sounds when sink rejects after bridge is ready', () => {
     const bridge = new AudioBridgeService()
-    const played: string[] = []
-    let rejectAll = true
+
+    bridge.setSink(() => 'rejected')
+
+    expect(bridge.play('modal_open', 'test.rejected')).toBe('rejected')
+    expect(bridge.getState().queue).toHaveLength(0)
+  })
+
+  it('treats queued sink results as accepted and does not duplicate bridge queue entries', () => {
+    const bridge = new AudioBridgeService()
+    const accepted: string[] = []
 
     bridge.setSink((key) => {
-      if (rejectAll) return false
-      played.push(key)
-      return true
+      accepted.push(key)
+      return 'queued'
     })
 
-    // First play rejected — goes to queue
-    bridge.play('modal_open', 'test.rejected')
-    expect(bridge.getState().queue).toHaveLength(1)
-
-    // Sink starts accepting
-    rejectAll = false
-    bridge.play('purchase', 'test.accepted')
-
-    // Both the stuck item and the new item should have played
-    expect(played).toEqual(['modal_open', 'purchase'])
+    expect(bridge.play('modal_open', 'test.queued')).toBe('queued')
     expect(bridge.getState().queue).toHaveLength(0)
+    expect(accepted).toEqual(['modal_open'])
   })
 })

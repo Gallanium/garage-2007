@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from 'react'
 import { audioBridge } from '../audio/AudioBridgeService'
+import type { AudioPlaybackResult } from '../audio/types'
 import type { SfxKey } from '../game/config/audioAssets'
 
 interface AudioContextValue {
-  playSound: (key: SfxKey, source?: string) => boolean
+  playSound: (key: SfxKey, source?: string) => AudioPlaybackResult
 }
 
 const AudioCtx = createContext<AudioContextValue>({

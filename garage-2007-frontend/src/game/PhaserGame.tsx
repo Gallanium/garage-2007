@@ -169,11 +169,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ onGarageClick, garageLevel, isA
       mainScene.isModalOpen = isModalOpenRef.current
 
       // Wire up React → Phaser sound bridge
-      audioBridge.setSink((key) => {
+      audioBridge.setSink((key, source) => {
         if (sceneRef.current && isSceneAlive(sceneRef.current)) {
-          return sceneRef.current.playSound(key)
+          return sceneRef.current.playSound(key, source)
         }
-        return false
+        return 'rejected'
       })
 
       // Wire up React → Phaser critical click effect bridge

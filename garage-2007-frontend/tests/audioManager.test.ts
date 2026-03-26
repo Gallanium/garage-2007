@@ -3,11 +3,33 @@ import { describe, expect, it, vi } from 'vitest'
 import type Phaser from 'phaser'
 import { AudioManager } from '../src/game/managers/AudioManager'
 
+type FakeSoundInstance = EventEmitter & {
+  play: ReturnType<typeof vi.fn>
+  stop: ReturnType<typeof vi.fn>
+  destroy: ReturnType<typeof vi.fn>
+}
+
+function createFakeSoundInstance(playResult = true): FakeSoundInstance {
+  const emitter = new EventEmitter()
+  const instance = Object.assign(emitter, {
+    play: vi.fn(() => playResult),
+    stop: vi.fn(() => {
+      emitter.emit('stop')
+    }),
+    destroy: vi.fn(() => {
+      emitter.emit('destroy')
+    }),
+  })
+
+  return instance
+}
+
 function createFakeScene() {
   const cachedKeys = new Set<string>()
   const loadEmitter = new EventEmitter()
   const soundEmitter = new EventEmitter()
   const gameEmitter = new EventEmitter()
+  const soundInstances: FakeSoundInstance[] = []
 
   const load = Object.assign(loadEmitter, {
     audio: vi.fn(),
@@ -21,7 +43,11 @@ function createFakeScene() {
 
   const sound = Object.assign(soundEmitter, {
     locked: false,
-    play: vi.fn(() => true),
+    add: vi.fn((_key: string, _config?: unknown) => {
+      const instance = createFakeSoundInstance()
+      soundInstances.push(instance)
+      return instance
+    }),
     stopAll: vi.fn(),
     context: mockContext,
   })
@@ -39,16 +65,16 @@ function createFakeScene() {
     },
   } as unknown as Phaser.Scene
 
-  return { scene, cachedKeys, load, sound, gameEmitter, mockContext }
+  return { scene, cachedKeys, load, sound, soundInstances, gameEmitter, mockContext }
 }
 
 describe('AudioManager', () => {
   it('does not enqueue duplicate loads while the same key is already loading', () => {
-    const { scene, cachedKeys, load, sound } = createFakeScene()
+    const { scene, cachedKeys, load, soundInstances } = createFakeScene()
     const manager = new AudioManager(scene)
 
-    manager.playSfx('purchase')
-    manager.playSfx('purchase')
+    expect(manager.playSfx('purchase')).toBe('queued')
+    expect(manager.playSfx('purchase')).toBe('queued')
 
     expect(load.audio).toHaveBeenCalledTimes(1)
     expect(load.start).toHaveBeenCalledTimes(1)
@@ -56,85 +82,102 @@ describe('AudioManager', () => {
     cachedKeys.add('purchase')
     load.emit('filecomplete', 'purchase', 'audio')
 
-    expect(sound.play).toHaveBeenCalledTimes(1)
+    expect(soundInstances).toHaveLength(1)
+    expect(soundInstances[0].play).toHaveBeenCalledTimes(1)
   })
 
-  it('drops stale pending plays older than PENDING_TTL_MS', () => {
+  it('keeps modal sounds pending past the short click window', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-26T15:00:00.000Z'))
 
-    const { scene, cachedKeys, load, sound } = createFakeScene()
-    // Lock audio initially
-    ;(sound as { locked: boolean }).locked = true
+    const { scene, cachedKeys, load, soundInstances } = createFakeScene()
     const manager = new AudioManager(scene)
 
-    // Play a sound while loading — goes to pending
-    manager.playSfx('modal_open')
-    expect(load.audio).toHaveBeenCalledTimes(1)
-
-    // 600ms pass — beyond TTL
+    expect(manager.playSfx('modal_open')).toBe('queued')
     vi.advanceTimersByTime(600)
 
-    // Audio loads and unlocks
     cachedKeys.add('modal_open')
     load.emit('filecomplete', 'modal_open', 'audio')
-    ;(sound as { locked: boolean }).locked = false
-    sound.emit('unlocked')
 
-    // Stale pending should NOT play
-    expect(sound.play).not.toHaveBeenCalled()
+    expect(soundInstances).toHaveLength(1)
+    expect(soundInstances[0].play).toHaveBeenCalledTimes(1)
 
     vi.useRealTimers()
   })
 
-  it('calls context.resume() when game becomes visible and context is suspended', async () => {
+  it('drops stale click sounds after the short-lived pending window', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-26T15:00:00.000Z'))
+
+    const { scene, cachedKeys, load, soundInstances } = createFakeScene()
+    const manager = new AudioManager(scene)
+
+    expect(manager.playSfx('click_normal')).toBe('queued')
+    vi.advanceTimersByTime(400)
+
+    cachedKeys.add('click_normal')
+    load.emit('filecomplete', 'click_normal', 'audio')
+
+    expect(soundInstances).toHaveLength(0)
+
+    vi.useRealTimers()
+  })
+
+  it('calls context.resume() when game becomes visible and context is suspended', () => {
     const { scene, gameEmitter, mockContext } = createFakeScene()
     const manager = new AudioManager(scene)
     manager.loadAndCreate()
 
-    // Simulate AudioContext going suspended (background)
     mockContext.state = 'suspended'
-
-    // Simulate game visible event (return from background)
     gameEmitter.emit('visible')
 
     expect(mockContext.resume).toHaveBeenCalledTimes(1)
   })
 
-  it('drops sounds when concurrent limit is reached', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-03-26T15:00:00.000Z'))
-
-    const { scene, cachedKeys, sound } = createFakeScene()
+  it('rejects click sounds when concurrent limit is reached', () => {
+    const { scene, cachedKeys, soundInstances } = createFakeScene()
     const manager = new AudioManager(scene)
 
-    // Pre-load a key so it's ready immediately
     cachedKeys.add('click_normal')
     manager.loadAndCreate()
 
-    // Play MAX_CONCURRENT_SOUNDS (4) sounds
     for (let i = 0; i < 4; i++) {
-      manager.playSfx('click_normal')
+      expect(manager.playSfx('click_normal')).toBe('played')
     }
 
-    expect(sound.play).toHaveBeenCalledTimes(4)
+    expect(soundInstances).toHaveLength(4)
+    expect(manager.playSfx('click_normal')).toBe('rejected')
+    expect(soundInstances).toHaveLength(4)
+  })
 
-    // 5th sound should be dropped (returns false)
-    const result = manager.playSfx('click_normal')
-    expect(result).toBe(false)
-    expect(sound.play).toHaveBeenCalledTimes(4)
+  it('queues non-click sounds on concurrent limit and replays them after completion', () => {
+    const { scene, cachedKeys, soundInstances } = createFakeScene()
+    const manager = new AudioManager(scene)
 
-    vi.useRealTimers()
+    cachedKeys.add('modal_open')
+    manager.loadAndCreate()
+
+    for (let i = 0; i < 4; i++) {
+      expect(manager.playSfx('modal_open')).toBe('played')
+    }
+
+    expect(manager.playSfx('modal_open')).toBe('queued')
+    expect(soundInstances).toHaveLength(4)
+
+    soundInstances[0].emit('complete')
+
+    expect(soundInstances).toHaveLength(5)
+    expect(soundInstances[4].play).toHaveBeenCalledTimes(1)
   })
 
   it('retries a failed file on the next play request and flushes pending plays after success', () => {
-    const { scene, cachedKeys, load, sound } = createFakeScene()
+    const { scene, cachedKeys, load, soundInstances } = createFakeScene()
     const manager = new AudioManager(scene)
 
-    manager.playSfx('modal_open')
+    expect(manager.playSfx('modal_open')).toBe('queued')
     load.emit('loaderror', { key: 'modal_open', src: '/broken/modal_open.mp3' })
 
-    manager.playSfx('modal_open')
+    expect(manager.playSfx('modal_open')).toBe('queued')
 
     expect(load.audio).toHaveBeenCalledTimes(2)
     expect(load.start).toHaveBeenCalledTimes(2)
@@ -142,6 +185,7 @@ describe('AudioManager', () => {
     cachedKeys.add('modal_open')
     load.emit('filecomplete', 'modal_open', 'audio')
 
-    expect(sound.play).toHaveBeenCalledTimes(1)
+    expect(soundInstances).toHaveLength(1)
+    expect(soundInstances[0].play).toHaveBeenCalledTimes(1)
   })
 })

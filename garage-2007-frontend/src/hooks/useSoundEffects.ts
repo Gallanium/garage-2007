@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { audioBridge } from '../audio/AudioBridgeService'
+import { isAcceptedAudioPlaybackResult } from '../audio/types'
 import { EVENT_SFX_KEYS } from '../game/config/audioAssets'
 
 /**
@@ -54,8 +55,10 @@ export function useSoundEffects() {
   // New achievement unlocked
   useEffect(() => {
     if (!prevHasNewAchievements.current && hasNewAchievements) {
-      audioBridge.play('achievement', 'useSoundEffects.achievementUnlock')
-      clearNewAchievementsFlag()
+      const result = audioBridge.play('achievement', 'useSoundEffects.achievementUnlock')
+      if (isAcceptedAudioPlaybackResult(result)) {
+        clearNewAchievementsFlag()
+      }
     }
     prevHasNewAchievements.current = hasNewAchievements
   }, [hasNewAchievements, clearNewAchievementsFlag])

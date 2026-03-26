@@ -328,4 +328,35 @@ describe('toggleDecoration', () => {
     expect(result).toBe(true)
     expect(useGameStore.getState().decorations.active).toEqual(['decor_calendar'])
   })
+
+  it('returns false when the same decoration toggle is already pending', async () => {
+    useGameStore.setState({
+      decorations: {
+        owned: ['decor_calendar'],
+        active: [],
+      },
+    })
+
+    let resolveToggle: ((value: unknown) => void) | undefined
+    mockPerformAction.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveToggle = resolve
+    }) as ReturnType<typeof api.performAction>)
+
+    const firstToggle = useGameStore.getState().toggleDecoration('decor_calendar')
+    const secondToggle = await useGameStore.getState().toggleDecoration('decor_calendar')
+
+    expect(secondToggle).toBe(false)
+
+    resolveToggle?.({
+      success: true,
+      gameState: buildMockServerState({
+        decorations: {
+          owned: ['decor_calendar'],
+          active: ['decor_calendar'],
+        },
+      }),
+    })
+
+    await expect(firstToggle).resolves.toBe(true)
+  })
 })

@@ -7,6 +7,7 @@ import { ClickEffectManager } from './managers/ClickEffectManager'
 import { LevelUpEffectManager } from './managers/LevelUpEffectManager'
 import { DecorationManager } from './managers/DecorationManager'
 import { AudioManager } from './managers/AudioManager'
+import type { AudioPlaybackResult } from '../audio/types'
 import { DECORATION_CATALOG } from '../store/constants/decorations'
 import type { SfxKey } from './config/audioAssets'
 
@@ -90,7 +91,7 @@ export default class MainScene extends Phaser.Scene {
   public updateGarageLevel(level: number): void {
     this.garageVisual.setLevel(level)
     this.levelUpEffect.play(this, this.garageVisual.center)
-    this.audioManager.playSfx('level_up')
+    this.audioManager.playSfx('level_up', { source: 'MainScene.levelUp' })
   }
 
   /**
@@ -107,8 +108,8 @@ export default class MainScene extends Phaser.Scene {
   }
 
   /** Play a sound effect by key — callable from React via PhaserGame bridge */
-  public playSound(key: SfxKey): boolean {
-    return this.audioManager.playSfx(key)
+  public playSound(key: SfxKey, source?: string): AudioPlaybackResult {
+    return this.audioManager.playSfx(key, { source })
   }
 
   /**
