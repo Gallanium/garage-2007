@@ -101,6 +101,32 @@ describe('AudioManager', () => {
     expect(mockContext.resume).toHaveBeenCalledTimes(1)
   })
 
+  it('drops sounds when concurrent limit is reached', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-26T15:00:00.000Z'))
+
+    const { scene, cachedKeys, sound } = createFakeScene()
+    const manager = new AudioManager(scene)
+
+    // Pre-load a key so it's ready immediately
+    cachedKeys.add('click_normal')
+    manager.loadAndCreate()
+
+    // Play MAX_CONCURRENT_SOUNDS (4) sounds
+    for (let i = 0; i < 4; i++) {
+      manager.playSfx('click_normal')
+    }
+
+    expect(sound.play).toHaveBeenCalledTimes(4)
+
+    // 5th sound should be dropped (returns false)
+    const result = manager.playSfx('click_normal')
+    expect(result).toBe(false)
+    expect(sound.play).toHaveBeenCalledTimes(4)
+
+    vi.useRealTimers()
+  })
+
   it('retries a failed file on the next play request and flushes pending plays after success', () => {
     const { scene, cachedKeys, load, sound } = createFakeScene()
     const manager = new AudioManager(scene)

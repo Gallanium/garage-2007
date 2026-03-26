@@ -5,6 +5,8 @@ import { AUDIO_ASSETS, VOLUME_OVERRIDES, type SfxKey, isSfxKey } from '../config
 const DEFAULT_VOLUME = 0.03
 const PENDING_TTL_MS = 500
 const GAME_VISIBLE_EVENT = 'visible'
+const MAX_CONCURRENT_SOUNDS = 4
+const SOUND_DURATION_ESTIMATE_MS = 300
 
 type AudioLoadState = 'idle' | 'loading' | 'ready' | 'failed'
 
@@ -21,6 +23,8 @@ export class AudioManager {
   private readonly pendingPlays = new Map<SfxKey, { count: number; queuedAt: number }>()
   private readonly failedKeys = new Map<SfxKey, string>()
   private destroyed = false
+  private activeSoundCount = 0
+  private activeSoundTimers: ReturnType<typeof setTimeout>[] = []
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
@@ -63,8 +67,7 @@ export class AudioManager {
     const state = this.getKeyState(key)
 
     if (state === 'ready') {
-      this.tryPlay(key, effectiveVolume, 'play_request')
-      return true
+      return this.tryPlay(key, effectiveVolume, 'play_request')
     }
 
     this.incrementPending(key)
@@ -92,6 +95,10 @@ export class AudioManager {
     this.scene.load.off('loaderror', this.handleLoadError, this)
     this.scene.game.events.off(GAME_VISIBLE_EVENT, this.handleGameVisible, this)
     this.scene.sound.off('unlocked', this.handleUnlocked, this)
+
+    for (const timer of this.activeSoundTimers) clearTimeout(timer)
+    this.activeSoundTimers = []
+    this.activeSoundCount = 0
 
     this.loadingKeys.clear()
     this.pendingPlays.clear()
@@ -173,10 +180,29 @@ export class AudioManager {
       return false
     }
 
+    // Enforce concurrent sounds limit
+    if (this.activeSoundCount >= MAX_CONCURRENT_SOUNDS) {
+      this.pushDebug(key, 'play_returned_false', {
+        loaderState: this.getKeyState(key),
+        audioState: this.getAudioState(),
+        source,
+        reason: 'concurrent_limit_reached',
+      })
+      return false
+    }
+
     try {
       const started = this.scene.sound.play(key, { volume })
 
       if (started) {
+        this.activeSoundCount++
+        const timer = setTimeout(() => {
+          this.activeSoundCount = Math.max(0, this.activeSoundCount - 1)
+          const idx = this.activeSoundTimers.indexOf(timer)
+          if (idx !== -1) this.activeSoundTimers.splice(idx, 1)
+        }, SOUND_DURATION_ESTIMATE_MS)
+        this.activeSoundTimers.push(timer)
+
         this.pushDebug(key, 'played', {
           loaderState: 'ready',
           audioState: this.getAudioState(),
