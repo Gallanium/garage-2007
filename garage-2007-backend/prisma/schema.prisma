@@ -72,6 +72,9 @@ model GameSave {
   decorationsOwned      String[]  @default([]) @map("decorations_owned")
   decorationsActive     String[]  @default([]) @map("decorations_active")
 
+  // === League tiers (claimed one-time rewards) ===
+  claimedLeagueTiers    Int[]     @default([]) @map("claimed_league_tiers")
+
   // === Client snapshot (write-only cache) ===
   gameDataSnapshot      Json?     @map("game_data_snapshot")
 
