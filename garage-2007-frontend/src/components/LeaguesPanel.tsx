@@ -33,35 +33,37 @@ export default function LeaguesPanel() {
   const claimedTiers = leagueStatus?.claimedTiers ?? []
 
   return (
-    <div className="flex flex-col gap-3 p-3 font-mono">
+    <div className="flex flex-col gap-3 p-3" style={{ paddingBottom: 'calc(12px + var(--tg-safe-area-bottom, 0px))' }}>
       {/* Banner */}
       <div className="bg-gradient-to-br from-amber-950/80 to-orange-950/60 border-2 border-orange-700/70 rounded-xl p-4 text-center shadow-2xl shadow-orange-900/30">
-        <div className="text-[6px] text-amber-400/70 uppercase tracking-widest mb-2">Текущая лига</div>
-        <TierIcon icon={progress.current.icon} className="w-6 h-6 mx-auto text-amber-400 mb-1" />
-        <div className="text-amber-400 text-sm font-bold">{progress.current.name}</div>
+        <div className="text-game-xs text-amber-400/70 uppercase tracking-widest mb-2 font-mono">Текущая лига</div>
+        <div className="w-10 h-10 rounded-lg bg-orange-800/60 flex items-center justify-center mx-auto mb-2">
+          <TierIcon icon={progress.current.icon} className="w-5 h-5 text-amber-400" />
+        </div>
+        <div className="text-amber-400 text-sm font-bold font-mono">{progress.current.name}</div>
         {leagueStatus && (
-          <div className="text-gray-300 text-[8px] mt-2">
+          <div className="text-gray-300 text-[9px] mt-2 font-mono">
             Позиция: <span className="text-orange-400 font-bold">#{leagueStatus.rank}</span> из {leagueStatus.totalInTier}
           </div>
         )}
       </div>
 
       {/* Progress bar */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-        <div className="flex justify-between text-[6px] text-gray-500 mb-1">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700/50 p-3">
+        <div className="flex justify-between text-game-xs text-gray-500 mb-1.5 font-mono">
           <span>{progress.current.name}</span>
           <span>{progress.next?.name ?? 'MAX'}</span>
         </div>
-        <div className="bg-gray-800 rounded h-2.5 overflow-hidden border border-gray-700">
+        <div className="bg-gray-800 rounded-full h-2 overflow-hidden">
           <div
-            className="bg-gradient-to-r from-amber-500 to-orange-600 h-full rounded transition-all duration-500"
+            className="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-500"
             style={{ width: `${progress.percent}%` }}
           />
         </div>
-        <div className="flex justify-between mt-1">
-          <span className="text-amber-400 text-[8px] font-bold">{formatLargeNumber(totalEarned)} ₽</span>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-amber-400 text-[9px] font-bold font-mono">{formatLargeNumber(totalEarned)} ₽</span>
           {progress.next && (
-            <span className="text-gray-500 text-[6px]">
+            <span className="text-gray-500 text-game-xs font-mono">
               до перехода: <span className="text-orange-400">{formatLargeNumber(progress.remaining)} ₽</span>
             </span>
           )}
@@ -74,10 +76,10 @@ export default function LeaguesPanel() {
           <button
             key={tab}
             onClick={() => handleSubTab(tab)}
-            className={`flex-1 py-1.5 rounded text-[7px] font-bold transition-all active:scale-95
+            className={`flex-1 py-1.5 rounded text-game-xs font-mono font-bold transition-all active:scale-95
               ${subTab === tab
                 ? 'bg-gradient-to-r from-orange-700 to-amber-600 text-white'
-                : 'bg-gray-900 text-gray-500 border border-gray-800'
+                : 'bg-gray-900 text-gray-500 border border-gray-700/50'
               }`}
           >
             {tab === 'rating' ? 'Рейтинг' : tab === 'tiers' ? 'Все лиги' : 'Награды'}
@@ -107,14 +109,14 @@ function RatingSubTab() {
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       {leaderboard.top100.map(entry => (
         <LeaderboardRow key={`top-${entry.rank}`} entry={entry} />
       ))}
 
       {leaderboard.neighbors.length > 0 && (
         <>
-          <div className="text-center text-gray-600 text-[8px] py-1 font-mono">• • •</div>
+          <div className="text-center text-gray-600 text-[9px] py-1 font-mono">• • •</div>
           {leaderboard.neighbors.map(entry => (
             <LeaderboardRow key={`nb-${entry.rank}`} entry={entry} />
           ))}
@@ -130,9 +132,9 @@ function TiersSubTab({ totalEarned }: { totalEarned: number }) {
   const currentTier = getCurrentTier(totalEarned)
 
   return (
-    <div className="flex flex-col gap-1 font-mono">
-      <div className="text-center text-gray-600 text-[5px] tracking-widest mb-1">
-        ЛИГИ НЕ СБРАСЫВАЮТСЯ • ПРОГРЕСС НАВСЕГДА
+    <div className="flex flex-col gap-2">
+      <div className="text-center text-gray-500 text-game-xs tracking-widest mb-1 font-mono uppercase">
+        Лиги не сбрасываются • Прогресс навсегда
       </div>
 
       {LEAGUE_TIERS.map(tier => {
@@ -159,43 +161,49 @@ function TiersSubTab({ totalEarned }: { totalEarned: number }) {
 function TierRow({ tier, isPast, isCurrent, isNext, opacity }: {
   tier: LeagueTier; isPast: boolean; isCurrent: boolean; isNext: boolean; opacity: number
 }) {
-  let borderClass = 'border-l-[3px] border-l-gray-700 bg-gray-950'
+  let containerClass = 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50'
   let badge = ''
   let badgeClass = ''
+  let iconBg = 'bg-gray-700/60'
 
   if (isPast) {
-    borderClass = 'border-l-[3px] border-l-green-500 bg-gray-900'
+    containerClass = 'bg-gradient-to-br from-gray-800 to-gray-900 border-l-[3px] border-l-green-500 border-y border-r border-gray-700/50'
     badge = 'пройдено'
     badgeClass = 'bg-green-500/20 text-green-400'
+    iconBg = 'bg-green-900/40'
   } else if (isCurrent) {
-    borderClass = 'border-2 border-orange-700 bg-gradient-to-r from-orange-950/20 to-gray-900 shadow-lg shadow-orange-900/25'
+    containerClass = 'bg-gradient-to-br from-orange-950/30 to-gray-900 border-2 border-orange-700 shadow-lg shadow-orange-900/25'
     badge = 'текущая'
     badgeClass = 'bg-orange-500/20 text-orange-400'
+    iconBg = 'bg-orange-800/50'
   } else if (isNext) {
-    borderClass = 'border-l-[3px] border-l-amber-400 border border-amber-400/30 bg-gray-900'
+    containerClass = 'bg-gradient-to-br from-gray-800 to-gray-900 border-l-[3px] border-l-amber-400 border-y border-r border-amber-400/30'
     badge = 'следующая'
     badgeClass = 'bg-amber-400/20 text-amber-400'
+    iconBg = 'bg-amber-900/30'
   }
 
   return (
-    <div className={`flex items-center rounded-lg p-2.5 font-mono ${borderClass}`} style={{ opacity }}>
-      <TierIcon icon={tier.icon} className={`w-4 h-4 ${isCurrent ? 'text-orange-400' : isPast ? 'text-green-400' : 'text-gray-400'}`} />
-      <div className="flex-1 ml-2">
-        <div className="flex items-center gap-1.5">
-          <span className={`text-[8px] ${isCurrent ? 'text-orange-400 font-bold' : isPast ? 'text-gray-500' : isNext ? 'text-white' : 'text-gray-500'}`}>
+    <div className={`flex items-center rounded-lg p-3 ${containerClass}`} style={{ opacity }}>
+      <div className={`w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
+        <TierIcon icon={tier.icon} className={`w-5 h-5 ${isCurrent ? 'text-orange-400' : isPast ? 'text-green-400' : isNext ? 'text-amber-400' : 'text-gray-400'}`} />
+      </div>
+      <div className="flex-1 ml-3">
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-bold font-mono ${isCurrent ? 'text-orange-400' : isPast ? 'text-gray-400' : isNext ? 'text-white' : 'text-gray-400'}`}>
             {tier.name}
           </span>
           {badge && (
-            <span className={`text-[5px] px-1 py-0.5 rounded ${badgeClass}`}>{badge}</span>
+            <span className={`text-[7px] px-1.5 py-0.5 rounded font-mono ${badgeClass}`}>{badge}</span>
           )}
         </div>
-        <div className={`text-[6px] ${isNext ? 'text-amber-400 font-bold' : 'text-gray-600'}`}>
+        <div className={`text-game-xs font-mono mt-0.5 ${isNext ? 'text-amber-400 font-bold' : 'text-gray-500'}`}>
           от {formatLargeNumber(tier.threshold)} ₽
         </div>
       </div>
-      <div className={`text-[7px] font-bold flex items-center gap-0.5 ${isPast ? 'text-green-400' : isNext ? 'text-amber-400' : isCurrent ? 'text-green-400' : 'text-gray-600'}`}>
+      <div className={`text-[9px] font-bold font-mono flex items-center gap-1 ${isPast ? 'text-green-400' : isNext ? 'text-amber-400' : isCurrent ? 'text-green-400' : 'text-gray-500'}`}>
         {tier.reward > 0 ? (
-          <>+{tier.reward} <Hexagon className="w-2.5 h-2.5" /></>
+          <>+{tier.reward} <Hexagon className="w-3.5 h-3.5" /></>
         ) : '—'}
       </div>
     </div>
@@ -214,27 +222,27 @@ function RewardsSubTab({ totalEarned, claimedTiers }: { totalEarned: number; cla
     ?? rewardTiers.find(t => !claimedTiers.includes(t.id))
 
   return (
-    <div className="flex flex-col gap-0 font-mono">
+    <div className="flex flex-col gap-0">
       {/* Summary */}
       <div className="flex justify-between px-1 mb-3">
         <div>
-          <div className="text-gray-600 text-[5px] tracking-widest">ПОЛУЧЕНО</div>
-          <div className="text-green-400 text-sm font-bold flex items-center gap-0.5">{totalClaimed} <Hexagon className="w-3 h-3" /></div>
+          <div className="text-gray-500 text-game-xs tracking-widest font-mono uppercase">Получено</div>
+          <div className="text-green-400 text-base font-bold font-mono flex items-center gap-1 tabular-nums">{totalClaimed} <Hexagon className="w-4 h-4" /></div>
         </div>
         <div className="text-center">
-          <div className="text-gray-600 text-[5px] tracking-widest">СЛЕДУЮЩАЯ</div>
-          <div className="text-amber-400 text-sm font-bold flex items-center gap-0.5">{nextRewardTier?.reward ?? '—'} <Hexagon className="w-3 h-3" /></div>
+          <div className="text-gray-500 text-game-xs tracking-widest font-mono uppercase">Следующая</div>
+          <div className="text-amber-400 text-base font-bold font-mono flex items-center gap-1 tabular-nums">{nextRewardTier?.reward ?? '—'} <Hexagon className="w-4 h-4" /></div>
         </div>
         <div className="text-right">
-          <div className="text-gray-600 text-[5px] tracking-widest">ВСЕГО</div>
-          <div className="text-gray-500 text-sm font-bold flex items-center gap-0.5">{totalAll} <Hexagon className="w-3 h-3" /></div>
+          <div className="text-gray-500 text-game-xs tracking-widest font-mono uppercase">Всего</div>
+          <div className="text-gray-400 text-base font-bold font-mono flex items-center gap-1 tabular-nums">{totalAll} <Hexagon className="w-4 h-4" /></div>
         </div>
       </div>
 
-      <div className="h-px bg-gray-800 mb-3" />
+      <div className="h-px bg-gray-700/50 mb-3" />
 
       {/* Timeline */}
-      <div className="pl-0.5">
+      <div className="pl-1">
         {rewardTiers.map((tier, i) => {
           const isClaimed = claimedTiers.includes(tier.id)
           const isNext = tier.id === nextRewardTier?.id
@@ -242,38 +250,38 @@ function RewardsSubTab({ totalEarned, claimedTiers }: { totalEarned: number; cla
 
           return (
             <div key={tier.id}>
-              <div className={`flex items-center ${isFuture ? 'opacity-40' : ''}`}>
-                <div className="w-7 flex flex-col items-center">
+              <div className={`flex items-center py-1 ${isFuture ? 'opacity-40' : ''}`}>
+                <div className="w-8 flex flex-col items-center">
                   {isClaimed ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
                   ) : isNext ? (
-                    <div className="w-[18px] h-[18px] rounded-full border-2 border-amber-400 bg-amber-400/10 flex items-center justify-center">
-                      <TierIcon icon={tier.icon} className="w-2.5 h-2.5 text-amber-400" />
+                    <div className="w-6 h-6 rounded-full border-2 border-amber-400 bg-amber-400/10 flex items-center justify-center">
+                      <TierIcon icon={tier.icon} className="w-3 h-3 text-amber-400" />
                     </div>
                   ) : (
-                    <div className="w-4 h-4 rounded-full border border-gray-700 flex items-center justify-center">
-                      <TierIcon icon={tier.icon} className="w-2.5 h-2.5 text-gray-600" />
+                    <div className="w-5 h-5 rounded-full border border-gray-600 flex items-center justify-center">
+                      <TierIcon icon={tier.icon} className="w-3 h-3 text-gray-500" />
                     </div>
                   )}
                 </div>
-                <div className="flex-1 ml-2.5">
+                <div className="flex-1 ml-3">
                   <div className="flex justify-between items-center">
-                    <span className={`text-[7px] ${isNext ? 'text-amber-400 font-bold' : isClaimed ? 'text-gray-500' : 'text-gray-600'}`}>
+                    <span className={`text-[9px] font-mono ${isNext ? 'text-amber-400 font-bold' : isClaimed ? 'text-gray-400' : 'text-gray-500'}`}>
                       {tier.name}
-                      {isClaimed && tier.id === currentTier.id && <span className="text-gray-600 text-[5px] ml-1">&larr; ты здесь</span>}
+                      {isClaimed && tier.id === currentTier.id && <span className="text-gray-500 text-game-xs ml-1.5 font-mono">&larr; ты здесь</span>}
                     </span>
-                    <span className={`text-[7px] font-bold flex items-center gap-0.5 ${isClaimed ? 'text-green-400' : isNext ? 'text-amber-400' : 'text-gray-600'}`}>
-                      +{tier.reward} <Hexagon className="w-2 h-2" />
+                    <span className={`text-[9px] font-bold font-mono flex items-center gap-0.5 ${isClaimed ? 'text-green-400' : isNext ? 'text-amber-400' : 'text-gray-500'}`}>
+                      +{tier.reward} <Hexagon className="w-3 h-3" />
                     </span>
                   </div>
                   {isNext && progress.next && (
-                    <div className="text-gray-500 text-[5px] mt-0.5">осталось {formatLargeNumber(progress.remaining)} ₽</div>
+                    <div className="text-gray-500 text-game-xs mt-0.5 font-mono">осталось {formatLargeNumber(progress.remaining)} ₽</div>
                   )}
                 </div>
               </div>
               {/* Connector line */}
               {i < rewardTiers.length - 1 && (
-                <div className={`w-px h-3.5 ml-[13px] ${isClaimed ? 'bg-green-500' : 'bg-gray-700'}`}
+                <div className={`w-px h-4 ml-[15px] ${isClaimed ? 'bg-green-500' : 'bg-gray-700'}`}
                   style={{ opacity: isFuture ? 0.4 : 1 }}
                 />
               )}
@@ -283,8 +291,8 @@ function RewardsSubTab({ totalEarned, claimedTiers }: { totalEarned: number; cla
       </div>
 
       {/* Info note */}
-      <div className="text-center mt-4 py-1.5 px-3 border border-orange-700/30 bg-orange-700/5 rounded-lg">
-        <span className="text-orange-700 text-[5px]">награда выдаётся один раз при переходе в лигу</span>
+      <div className="text-center mt-4 py-2 px-3 border border-orange-700/30 bg-orange-700/5 rounded-lg">
+        <span className="text-orange-700 text-[8px] font-mono">Награда выдаётся один раз при переходе в лигу</span>
       </div>
     </div>
   )

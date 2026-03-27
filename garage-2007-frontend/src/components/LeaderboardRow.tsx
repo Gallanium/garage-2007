@@ -17,20 +17,20 @@ export function LeaderboardRow({ entry }: LeaderboardRowProps) {
 
   return (
     <div
-      className={`flex items-center rounded-lg p-2 font-mono transition-all
+      className={`flex items-center rounded-lg p-3 font-mono transition-all
         ${isMe
-          ? 'border-2 border-orange-700 bg-orange-950/20'
-          : 'border border-gray-800 bg-gray-900'
+          ? 'bg-gradient-to-br from-orange-950/30 to-gray-900 border-2 border-orange-700'
+          : 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50'
         }`}
     >
-      <span className={`w-8 text-[9px] font-bold ${isMe ? 'text-orange-400' : rankColor}`}>
+      <span className={`w-8 text-[10px] font-bold ${isMe ? 'text-orange-400' : rankColor}`}>
         #{entry.rank}
       </span>
       <span className={`flex-1 text-[9px] truncate ${isMe ? 'text-orange-400' : 'text-white'}`}>
         {isMe && '\u2B50 '}{entry.name}
       </span>
-      <span className="text-cyan-400 text-[8px] tabular-nums">
-        {formatLargeNumber(entry.totalEarned)} \u20BD
+      <span className="text-cyan-400 text-[9px] font-bold tabular-nums">
+        {formatLargeNumber(entry.totalEarned)} ₽
       </span>
     </div>
   )

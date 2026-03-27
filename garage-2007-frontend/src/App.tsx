@@ -37,7 +37,7 @@ import { useSwipeTabs } from './hooks/useSwipeTabs'
 import { useSoundEffects } from './hooks/useSoundEffects'
 import { AudioProvider } from './contexts/AudioContext'
 import { audioBridge } from './audio/AudioBridgeService'
-import { Home, ArrowUpCircle, Trophy, BarChart2, Users } from 'lucide-react'
+import { Home, ArrowUpCircle, Trophy, UserCircle, Users } from 'lucide-react'
 
 // ============================================
 // КОНСТАНТЫ
@@ -46,10 +46,10 @@ import { Home, ArrowUpCircle, Trophy, BarChart2, Users } from 'lucide-react'
 /** Конфигурация табов навигации без бейджей (вычисляются динамически) */
 const baseTabs = [
   { id: 'game', label: 'Игра', icon: <Home className="w-4 h-4" /> },
-  { id: 'upgrades', label: 'Улучшения', icon: <ArrowUpCircle className="w-4 h-4" /> },
+  { id: 'upgrades', label: 'Прокачка', icon: <ArrowUpCircle className="w-4 h-4" /> },
   { id: 'achievements', label: 'Ачивки', icon: <Trophy className="w-4 h-4" /> },
-  { id: 'stats', label: 'Статистика', icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'leagues', label: 'Лиги', icon: <Users className="w-4 h-4" /> },
+  { id: 'stats', label: 'Профиль', icon: <UserCircle className="w-4 h-4" /> },
 ]
 
 // ============================================
@@ -310,23 +310,23 @@ function App() {
         </div>
 
         <div
-          aria-hidden={activeTab !== 'stats'}
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[10] ${activeTab === 'stats' ? 'opacity-100 translate-x-0' : activeTab === 'leagues' ? 'opacity-0 -translate-x-12 pointer-events-none' : 'opacity-0 translate-x-12 pointer-events-none'}`}
+          aria-hidden={activeTab !== 'leagues'}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[10] ${activeTab === 'leagues' ? 'opacity-100 translate-x-0' : activeTab === 'game' || activeTab === 'upgrades' || activeTab === 'achievements' ? 'opacity-0 translate-x-12 pointer-events-none' : 'opacity-0 -translate-x-12 pointer-events-none'}`}
         >
-          {mountedTabs.has('stats') && (
+          {mountedTabs.has('leagues') && (
             <Suspense fallback={<div className="flex items-center justify-center h-full"><span className="text-gray-500 font-mono text-xs">Загрузка...</span></div>}>
-              <StatsPanel />
+              <LeaguesPanel />
             </Suspense>
           )}
         </div>
 
         <div
-          aria-hidden={activeTab !== 'leagues'}
-          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[5] ${activeTab === 'leagues' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 pointer-events-none'}`}
+          aria-hidden={activeTab !== 'stats'}
+          className={`absolute inset-0 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out z-[5] ${activeTab === 'stats' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 pointer-events-none'}`}
         >
-          {mountedTabs.has('leagues') && (
+          {mountedTabs.has('stats') && (
             <Suspense fallback={<div className="flex items-center justify-center h-full"><span className="text-gray-500 font-mono text-xs">Загрузка...</span></div>}>
-              <LeaguesPanel />
+              <StatsPanel />
             </Suspense>
           )}
         </div>
