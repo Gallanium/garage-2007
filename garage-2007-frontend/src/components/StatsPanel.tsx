@@ -14,6 +14,7 @@ import {
 import { useTelegramUser } from '../hooks/useTelegram'
 import { useState, useEffect } from 'react'
 import { User, Building, MousePointer2, Trophy, Timer, Coins, RotateCcw, Flame, AudioWaveform } from 'lucide-react'
+import { ReferralSection } from './ReferralSection'
 
 // ============================================
 // УТИЛИТЫ
@@ -246,6 +247,9 @@ const StatsPanel: React.FC = () => {
 
         </div>
       </section>
+
+      {/* ======== Реферальная секция ======== */}
+      <ReferralSection />
     </div>
   )
 }

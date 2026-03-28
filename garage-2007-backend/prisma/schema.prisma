@@ -16,6 +16,10 @@ model User {
   isPremium       Boolean       @default(false) @map("is_premium")
   languageCode    String?       @map("language_code")
   photoUrl        String?       @map("photo_url")
+  referralCode    String?       @unique @map("referral_code")
+  referredBy      Int?          @map("referred_by")
+  referredByUser  User?         @relation("Referrals", fields: [referredBy], references: [id])
+  referrals       User[]        @relation("Referrals")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -75,6 +79,9 @@ model GameSave {
 
   // === League tiers (claimed one-time rewards) ===
   claimedLeagueTiers    Int[]     @default([]) @map("claimed_league_tiers")
+
+  // === Referral milestones (claimed one-time rewards) ===
+  claimedReferralMilestones  Int[]  @default([]) @map("claimed_referral_milestones")
 
   // === Client snapshot (write-only cache) ===
   gameDataSnapshot      Json?     @map("game_data_snapshot")

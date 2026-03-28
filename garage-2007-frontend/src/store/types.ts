@@ -48,6 +48,8 @@ export type {
   LeaderboardResponse,
 } from '@shared/types/leagues'
 
+export type { ReferralMilestone, ReferralStatusResponse } from '@shared/types/referrals'
+
 import type {
   GameState,
   AchievementId,
@@ -98,6 +100,8 @@ export interface GameActions {
   dismissToast: (id: string) => void
   fetchLeagueStatus: () => Promise<void>
   fetchLeaderboard: () => Promise<void>
+  fetchReferralStatus: () => Promise<void>
+  generateReferralCode: () => Promise<string | null>
 }
 
 export type GameStore = GameState & GameActions

@@ -6,6 +6,7 @@ import { roundCurrency } from '@shared/utils/math.js'
 import { BASE_COSTS } from '@shared/constants/economy.js'
 import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { checkAndClaimTierRewards } from './leagueService.js'
+import { checkAndClaimReferralRewards } from './referralService.js'
 import { AppError } from '../middleware/errorHandler.js'
 import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logger } from '../utils/logger.js'
@@ -79,6 +80,7 @@ export function buildGameState(gs: GameSave): Record<string, unknown> {
       active: gs.decorationsActive,
     },
     claimedLeagueTiers: gs.claimedLeagueTiers,
+    claimedReferralMilestones: gs.claimedReferralMilestones,
   }
 }
 
@@ -164,6 +166,9 @@ export async function loadState(userId: number): Promise<{
       const claimResult = await checkAndClaimTierRewards(userId, result, tx)
 
       const finalResult = claimResult.claimedTiers.length > 0 ? claimResult.updatedGs : result
+
+      // Auto-claim referral rewards (inviter bonus + milestones)
+      await checkAndClaimReferralRewards(userId, result, tx)
 
       return {
         updated: finalResult,
