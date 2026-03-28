@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.js'
 import { calculateClickIncome, calculateTotalPassiveIncome } from '@shared/formulas/income.js'
+import { calculateOfflineEarnings } from '@shared/formulas/offlineEarnings.js'
 import { calculateUpgradeCost, calculateWorkerCost } from '@shared/formulas/costs.js'
 import { checkAutoLevel, isWorkerUnlocked } from '@shared/formulas/progression.js'
 import { roundCurrency } from '@shared/utils/math.js'
@@ -14,6 +15,7 @@ import {
 } from '@shared/constants/dailyRewards.js'
 import { GAME_EVENTS, EVENT_CATEGORY_WEIGHTS, EVENT_COOLDOWN_MS, EVENT_RANDOM_DELAY_MS } from '@shared/constants/events.js'
 import { DECORATION_CATALOG } from '@shared/constants/decorations.js'
+import { env } from '../config/env.js'
 import { AppError } from '../middleware/errorHandler.js'
 import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logBalanceChange, logSuspiciousActivity, detectBalanceJump, detectRapidSync, detectTimingAnomaly } from './auditService.js'
@@ -24,9 +26,11 @@ import {
   purchaseDecorationPayload, toggleDecorationPayload,
   activateBoostPayload, replaceBoostPayload, claimAchievementPayload,
 } from '../validation/gameSchemas.js'
+import { parsedBoostsSchema, parsedEventsSchema, dailyRewardsSchema, rewardedVideoSchema, achievementsSchema } from '../validation/jsonSchemas.js'
 import { Prisma, type GameSave } from '@prisma/client'
 import type { BoostType, AchievementId, AchievementProgressField, WorkerType, EventCategory } from '@shared/types/game.js'
 import { logger } from '../utils/logger.js'
+import { gsToNumbers } from '../utils/decimal.js'
 
 // ── Internal Types ──────────────────────────────────────────────────────────
 
@@ -61,19 +65,17 @@ type ActionResult = {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function parseBoosts(boosts: unknown): ParsedBoosts {
-  const b = boosts as { active?: ActiveBoostData[] } | null
-  if (!b?.active) return { active: [] }
+  const parsed = parsedBoostsSchema.parse(boosts)
   const now = Date.now()
-  return { active: b.active.filter(x => x.expiresAt > now) }
+  return { active: parsed.active.filter(x => x.expiresAt > now) }
 }
 
 function parseEvents(events: unknown): ParsedEvents {
-  const e = events as ParsedEvents | null
-  if (!e) return { activeEvent: null, cooldownEnd: 0 }
+  const parsed = parsedEventsSchema.parse(events)
   const now = Date.now()
   return {
-    activeEvent: e.activeEvent && e.activeEvent.expiresAt > now ? e.activeEvent : null,
-    cooldownEnd: e.cooldownEnd ?? 0,
+    activeEvent: parsed.activeEvent && parsed.activeEvent.expiresAt > now ? parsed.activeEvent : null,
+    cooldownEnd: parsed.cooldownEnd,
   }
 }
 
@@ -165,7 +167,7 @@ export async function processSync(
   }
 
   return withOccRetry(() => prisma.$transaction(async (tx) => {
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
     // Idempotency: if this syncNonce was already processed, return current state
@@ -237,15 +239,20 @@ export async function processSync(
         // Valid buckets — use SERVER-SIDE multiplier (client multiplier is untrusted)
         clickIncome = 0
         for (const bucket of clickBuckets) {
+          // Pragmatic fix: use LOWER of client/server multiplier
+          // - Prevents retroactive boost gain (client=1, server=5 → uses 1)
+          // - Caps fabricated multipliers (client=100 → capped to server value)
+          const safeMult = Math.min(Math.max(bucket.multiplier, 1), expectedClickMult)
+
           if (Math.abs(bucket.multiplier - expectedClickMult) > 0.001) {
             logSuspiciousActivity({
               userId,
               reason: 'bucket_multiplier_mismatch',
-              details: { clientMult: bucket.multiplier, serverMult: expectedClickMult },
+              details: { clientMult: bucket.multiplier, serverMult: expectedClickMult, usedMult: safeMult },
             })
           }
           clickIncome += (bucket.normalClicks * baseClickIncome
-            + bucket.criticalClicks * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * expectedClickMult
+            + bucket.criticalClicks * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * safeMult
         }
         clickIncome = roundCurrency(clickIncome)
       }
@@ -270,9 +277,15 @@ export async function processSync(
       logSuspiciousActivity({ userId, reason: 'invalid_server_multiplier', details: { boostIncomeMult, eventIncomeMult } })
       expectedIncomeMult = 1
     }
-    const passiveIncome = roundCurrency(
-      secondsSinceLastSync * passivePerSec * expectedIncomeMult,
-    )
+    let passiveIncome: number
+    if (secondsSinceLastSync < 60) {
+      // Short interval (active play) — raw calculation, no cap needed
+      passiveIncome = roundCurrency(secondsSinceLastSync * passivePerSec * expectedIncomeMult)
+    } else {
+      // Long interval — capped offline earnings (24h max, 8h full + 50% efficiency)
+      const basePassiveIncome = calculateOfflineEarnings(passivePerSec, secondsSinceLastSync)
+      passiveIncome = roundCurrency(basePassiveIncome * expectedIncomeMult)
+    }
 
     const totalIncome = roundCurrency(clickIncome + passiveIncome)
     const newBalance = roundCurrency(gs.balance + totalIncome)
@@ -280,11 +293,7 @@ export async function processSync(
     const newTotalClicks = gs.totalClicks + clicks
     const newPlayTime = gs.totalPlayTimeSeconds + Math.floor(secondsSinceLastSync)
     const serverComputedPeak = calculateClickIncome(gs.clickPowerLevel) * boostClickMult * eventClickMult
-    const newPeakClickIncome = Math.max(
-      gs.peakClickIncome,
-      serverComputedPeak,
-      clientPeakClickIncome ?? 0,
-    )
+    const newPeakClickIncome = Math.max(gs.peakClickIncome, serverComputedPeak)
 
     // Anti-cheat checks (logging only, safe inside transaction)
     detectBalanceJump(userId, gs.balance, newBalance)
@@ -363,7 +372,7 @@ export async function processSync(
 
     let finalState = updated
     if (claimResult.claimedTiers.length > 0) {
-      const fresh = await tx.gameSave.findUnique({ where: { userId } })
+      const fresh = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
       if (fresh) finalState = fresh
     }
 
@@ -379,13 +388,17 @@ export async function processAction(
   payload: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
-  // Idempotency check
+  // Idempotency check: return 200 with current state for duplicate requests
   if (idempotencyKey) {
     const existing = await prisma.balanceLog.findFirst({ where: { idempotencyKey } })
     if (existing) {
-      const gs = await prisma.gameSave.findUnique({ where: { userId } })
+      const gs = gsToNumbers(await prisma.gameSave.findUnique({ where: { userId } }))
       if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
-      throw new AppError(409, 'IDEMPOTENT_REQUEST', 'This action has already been processed')
+      return {
+        success: true,
+        gameState: buildGameState(gs),
+        actionResult: { alreadyProcessed: true },
+      }
     }
   }
 
@@ -394,13 +407,13 @@ export async function processAction(
     case 'hire_worker': return handleHireWorker(userId, payload, idempotencyKey)
     case 'purchase_milestone': return handlePurchaseMilestone(userId, payload, idempotencyKey)
     case 'purchase_decoration': return handlePurchaseDecoration(userId, payload, idempotencyKey)
-    case 'toggle_decoration': return handleToggleDecoration(userId, payload)
+    case 'toggle_decoration': return handleToggleDecoration(userId, payload, idempotencyKey)
     case 'activate_boost': return handleActivateBoost(userId, payload, idempotencyKey)
     case 'replace_boost': return handleReplaceBoost(userId, payload, idempotencyKey)
     case 'claim_achievement': return handleClaimAchievement(userId, payload, idempotencyKey)
     case 'claim_daily_reward': return handleClaimDailyReward(userId, idempotencyKey)
     case 'watch_rewarded_video': return handleWatchRewardedVideo(userId, idempotencyKey)
-    case 'trigger_event': return handleTriggerEvent(userId)
+    case 'trigger_event': return handleTriggerEvent(userId, idempotencyKey)
     default: throw new AppError(400, 'UNKNOWN_ACTION', `Unknown action type: ${type}`)
   }
 }
@@ -414,7 +427,7 @@ async function handlePurchaseUpgrade(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { upgradeType } = purchaseUpgradePayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
     await checkIdempotencyInTx(tx, idempotencyKey)
 
@@ -472,7 +485,7 @@ async function handleHireWorker(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { workerType } = hireWorkerPayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
     await checkIdempotencyInTx(tx, idempotencyKey)
 
@@ -534,7 +547,7 @@ async function handlePurchaseMilestone(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { level } = purchaseMilestonePayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
     await checkIdempotencyInTx(tx, idempotencyKey)
 
@@ -543,6 +556,17 @@ async function handlePurchaseMilestone(
     }
     if (gs.milestonesPurchased.includes(level)) {
       throw new AppError(400, 'MILESTONE_ALREADY_PURCHASED', 'Milestone already purchased')
+    }
+
+    // Progression gate: garage level must reach milestone level
+    if (gs.garageLevel < level) {
+      throw new AppError(400, 'LEVEL_TOO_LOW', 'Garage level too low for this milestone')
+    }
+
+    // Sequential order: all lower milestones must be purchased first
+    const lowerMilestones = (MILESTONE_LEVELS as readonly number[]).filter(m => m < level)
+    if (lowerMilestones.some(m => !gs.milestonesPurchased.includes(m))) {
+      throw new AppError(400, 'PREREQUISITE_MISSING', 'Must purchase previous milestones first')
     }
 
     const milestoneData = MILESTONE_UPGRADES[level as MilestoneLevel]
@@ -586,7 +610,7 @@ async function handlePurchaseDecoration(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { decorationId } = purchaseDecorationPayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
     await checkIdempotencyInTx(tx, idempotencyKey)
 
@@ -674,11 +698,13 @@ async function handlePurchaseDecoration(
 async function handleToggleDecoration(
   userId: number,
   payload: Record<string, unknown>,
+  idempotencyKey?: string,
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { decorationId } = toggleDecorationPayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+    await checkIdempotencyInTx(tx, idempotencyKey)
 
     if (!gs.decorationsOwned.includes(decorationId)) {
       throw new AppError(400, 'DECORATION_NOT_FOUND', 'Decoration not owned')
@@ -704,6 +730,16 @@ async function handleToggleDecoration(
       decorationsActive: newActive,
     })
 
+    if (idempotencyKey) {
+      await tx.balanceLog.create({
+        data: {
+          userId, actionType: 'toggle_decoration', currency: 'rubles',
+          amount: 0, balanceBefore: gs.balance, balanceAfter: gs.balance,
+          metadata: { decorationId, active: !isActive }, idempotencyKey,
+        },
+      })
+    }
+
     return {
       success: true,
       gameState: buildGameState(updated),
@@ -721,7 +757,7 @@ async function handleActivateBoost(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { boostType } = activateBoostPayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
     await checkIdempotencyInTx(tx, idempotencyKey)
 
@@ -785,7 +821,7 @@ async function handleReplaceBoost(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { boostType } = replaceBoostPayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
     await checkIdempotencyInTx(tx, idempotencyKey)
 
@@ -843,7 +879,7 @@ async function handleClaimAchievement(
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
     const { achievementId } = claimAchievementPayload.parse(payload)
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
     await checkIdempotencyInTx(tx, idempotencyKey)
@@ -851,7 +887,7 @@ async function handleClaimAchievement(
     const def = ACHIEVEMENTS[achievementId as AchievementId]
     if (!def) throw new AppError(400, 'ACHIEVEMENT_NOT_FOUND', 'Achievement not found')
 
-    const achievements = gs.achievements as Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }>
+    const achievements = achievementsSchema.parse(gs.achievements)
     const playerAch = achievements[achievementId]
 
     // Check if achievement is unlocked (compute from current state)
@@ -903,14 +939,14 @@ async function handleClaimDailyReward(
   idempotencyKey?: string,
 ): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
     await checkIdempotencyInTx(tx, idempotencyKey)
 
-    const daily = gs.dailyRewards as { lastClaimTimestamp: number; currentStreak: number } | null
-    const lastClaim = daily?.lastClaimTimestamp ?? 0
-    const currentStreak = daily?.currentStreak ?? 0
+    const daily = dailyRewardsSchema.parse(gs.dailyRewards)
+    const lastClaim = daily.lastClaimTimestamp
+    const currentStreak = daily.currentStreak
     const now = Date.now()
 
     // Check 24h cooldown from last claim
@@ -968,15 +1004,19 @@ async function handleWatchRewardedVideo(
   userId: number,
   idempotencyKey?: string,
 ): Promise<ActionResult> {
+  if (env.REWARDED_VIDEO_ENABLED !== 'true') {
+    throw new AppError(403, 'VIDEO_DISABLED', 'Rewarded video is currently disabled')
+  }
+
   return withOccRetry(() => prisma.$transaction(async (tx) => {
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
     await checkIdempotencyInTx(tx, idempotencyKey)
 
-    const video = gs.rewardedVideo as { lastWatchedTimestamp: number; totalWatches: number } | null
-    const totalWatches = video?.totalWatches ?? 0
-    const lastWatchedTimestamp = video?.lastWatchedTimestamp ?? 0
+    const video = rewardedVideoSchema.parse(gs.rewardedVideo)
+    const totalWatches = video.totalWatches
+    const lastWatchedTimestamp = video.lastWatchedTimestamp
     const now = Date.now()
 
     if (lastWatchedTimestamp > 0 && now - lastWatchedTimestamp < REWARDED_VIDEO_COOLDOWN_MS) {
@@ -1027,10 +1067,17 @@ async function handleWatchRewardedVideo(
 
 // ── 11. trigger_event ───────────────────────────────────────────────────────
 
-async function handleTriggerEvent(userId: number): Promise<ActionResult> {
+async function handleTriggerEvent(userId: number, idempotencyKey?: string): Promise<ActionResult> {
   return withOccRetry(() => prisma.$transaction(async (tx) => {
-    const gs = await tx.gameSave.findUnique({ where: { userId } })
+    const gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
     if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
+
+    if (idempotencyKey) {
+      const existing = await tx.balanceLog.findFirst({ where: { idempotencyKey } })
+      if (existing) {
+        return { success: true, gameState: buildGameState(gs), actionResult: { alreadyProcessed: true } }
+      }
+    }
 
     const events = parseEvents(gs.events)
     const now = Date.now()
@@ -1071,6 +1118,16 @@ async function handleTriggerEvent(userId: number): Promise<ActionResult> {
     const updated = await updateGameSaveWithLock(tx, userId, gs, {
       events: newEvents as object,
     })
+
+    if (idempotencyKey) {
+      await tx.balanceLog.create({
+        data: {
+          userId, actionType: 'trigger_event', currency: 'rubles',
+          amount: 0, balanceBefore: gs.balance, balanceAfter: gs.balance,
+          metadata: { eventId: selectedEvent.id }, idempotencyKey,
+        },
+      })
+    }
 
     return {
       success: true,

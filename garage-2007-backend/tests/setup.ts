@@ -21,6 +21,7 @@ vi.mock('../src/config/env.js', () => ({
     NODE_ENV: 'test' as const,
     FRONTEND_URL: 'http://localhost:5173',
     LOG_LEVEL: 'silent' as const,
+    REWARDED_VIDEO_ENABLED: 'true' as const,
   },
 }))
 
@@ -105,7 +106,15 @@ vi.mock('@prisma/client', () => {
 
   return {
     PrismaClient: MockPrismaClient,
-    Prisma: { DbNull: Symbol('DbNull') },
+    Prisma: {
+      DbNull: Symbol('DbNull'),
+      Decimal: class Decimal {
+        private val: number
+        constructor(val: number | string) { this.val = typeof val === 'string' ? parseFloat(val) : val }
+        toNumber() { return this.val }
+        toString() { return String(this.val) }
+      },
+    },
     __mockClient: mockPrismaClient,
   }
 })
@@ -118,7 +127,7 @@ beforeEach(async () => {
 
   // Clear initData replay cache between tests
   const { _resetReplayCache } = await import('../src/services/telegramAuthService.js')
-  _resetReplayCache()
+  await _resetReplayCache()
 })
 
 afterEach(() => {

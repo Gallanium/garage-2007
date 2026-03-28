@@ -53,7 +53,7 @@ describe('GET /api/game/state', () => {
       balance: 0,
       nuts: 0,
     })
-    prisma.gameSave.create.mockResolvedValue(newSave)
+    prisma.gameSave.upsert.mockResolvedValue(newSave)
 
     const res = await request(app)
       .get('/api/game/state')

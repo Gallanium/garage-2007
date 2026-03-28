@@ -128,5 +128,44 @@ describe('purchaseService', () => {
       expect(prisma.transaction.findUnique).not.toHaveBeenCalled()
       expect(prisma.$transaction).not.toHaveBeenCalled()
     })
+
+    it('rejects payment with non-XTR currency', async () => {
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
+
+      prisma.transaction.findUnique.mockResolvedValue(null)
+
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId, 50, 'USD')
+
+      // Should not proceed to user lookup or transaction
+      expect(prisma.user.findUnique).not.toHaveBeenCalled()
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
+
+    it('rejects payment with mismatched amount', async () => {
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
+
+      prisma.transaction.findUnique.mockResolvedValue(null)
+
+      // nuts_100 pack costs 50 stars, sending 999
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId, 999, 'XTR')
+
+      expect(prisma.user.findUnique).not.toHaveBeenCalled()
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
+
+    it('accepts payment when currency and amount are undefined (Telegram omits them)', async () => {
+      const gameSave = createTestGameSave({ userId, nuts: 10 })
+      const user = createTestDbUser()
+      const invoicePayload = JSON.stringify({ packId: 'nuts_100', idempotencyKey: 'test-uuid-1', userId })
+
+      prisma.transaction.findUnique.mockResolvedValue(null)
+      prisma.user.findUnique.mockResolvedValue(user)
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+
+      // undefined currency and amount — should pass validation
+      await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId, undefined, undefined)
+
+      expect(prisma.$transaction).toHaveBeenCalled()
+    })
   })
 })

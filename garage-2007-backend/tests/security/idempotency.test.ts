@@ -53,8 +53,9 @@ describe('Idempotency (spec requirement #7)', () => {
         idempotencyKey,
       })
 
-    // The service returns 409 IDEMPOTENT_REQUEST for duplicate keys
-    expect(res2.status).toBe(409)
+    // Idempotent retry returns 200 with current state + alreadyProcessed flag
+    expect(res2.status).toBe(200)
+    expect(res2.body.actionResult.alreadyProcessed).toBe(true)
   })
 
   it('different idempotencyKey for the same action -- both processed', async () => {
@@ -162,7 +163,7 @@ describe('Idempotency (spec requirement #7)', () => {
         idempotencyKey,
       })
 
-    // Subsequent requests return 409 (idempotent)
+    // Subsequent requests return 200 with alreadyProcessed (idempotent)
     for (let i = 0; i < 2; i++) {
       prisma.balanceLog.findFirst.mockResolvedValueOnce({ id: 1, idempotencyKey })
       prisma.gameSave.findUnique.mockResolvedValueOnce(updatedSave)
@@ -177,7 +178,8 @@ describe('Idempotency (spec requirement #7)', () => {
           idempotencyKey,
         })
 
-      expect(res.status).toBe(409)
+      expect(res.status).toBe(200)
+      expect(res.body.actionResult.alreadyProcessed).toBe(true)
     }
 
     // BalanceLog.create should only have been called once (for the first request)

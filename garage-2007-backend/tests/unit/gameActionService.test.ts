@@ -259,6 +259,42 @@ describe('gameActionService — processAction', () => {
         expect((e as AppError).code).toBe('INSUFFICIENT_BALANCE')
       }
     })
+
+    it('garage level too low throws LEVEL_TOO_LOW error', async () => {
+      const gameSave = createTestGameSave({
+        userId,
+        balance: 2_000_000,
+        garageLevel: 3, // too low for milestone 5
+        milestonesPurchased: [],
+      })
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+
+      try {
+        await processAction(userId, 'purchase_milestone', { level: 5 })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('LEVEL_TOO_LOW')
+      }
+    })
+
+    it('missing prerequisite milestone throws PREREQUISITE_MISSING error', async () => {
+      const gameSave = createTestGameSave({
+        userId,
+        balance: 50_000_000,
+        garageLevel: 10, // high enough for milestone 10
+        milestonesPurchased: [], // but milestone 5 not purchased
+      })
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+
+      try {
+        await processAction(userId, 'purchase_milestone', { level: 10 })
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).code).toBe('PREREQUISITE_MISSING')
+      }
+    })
   })
 
   // ── purchase_decoration ─────────────────────────────────────────────────────
@@ -389,6 +425,46 @@ describe('gameActionService — processAction', () => {
         expect(e).toBeInstanceOf(AppError)
         expect((e as AppError).code).toBe('DECORATION_NOT_FOUND')
       }
+    })
+
+    it('with idempotencyKey: creates BalanceLog entry with amount=0', async () => {
+      const gameSave = createTestGameSave({
+        userId,
+        decorationsOwned: ['decor_poster_car'],
+        decorationsActive: [],
+      })
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+
+      const result = await processAction(userId, 'toggle_decoration', {
+        decorationId: 'decor_poster_car',
+      }, 'toggle-idemp-key-1')
+
+      expect(result.success).toBe(true)
+      expect(prisma.balanceLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId,
+          actionType: 'toggle_decoration',
+          amount: 0,
+          idempotencyKey: 'toggle-idemp-key-1',
+        }),
+      })
+    })
+
+    it('without idempotencyKey: no BalanceLog entry created', async () => {
+      const gameSave = createTestGameSave({
+        userId,
+        decorationsOwned: ['decor_poster_car'],
+        decorationsActive: [],
+      })
+      prisma.gameSave.findUnique.mockResolvedValue(gameSave)
+
+      const result = await processAction(userId, 'toggle_decoration', {
+        decorationId: 'decor_poster_car',
+      })
+
+      expect(result.success).toBe(true)
+      // No balanceLog.create for toggle without idempotency key
+      expect(prisma.balanceLog.create).not.toHaveBeenCalled()
     })
   })
 
@@ -599,6 +675,23 @@ describe('gameActionService — processAction', () => {
   // ── watch_rewarded_video ────────────────────────────────────────────────────
 
   describe('watch_rewarded_video', () => {
+    it('disabled by env flag throws VIDEO_DISABLED error', async () => {
+      const { env } = await import('../../src/config/env')
+      const originalValue = env.REWARDED_VIDEO_ENABLED
+      ;(env as any).REWARDED_VIDEO_ENABLED = 'false'
+
+      try {
+        await processAction(userId, 'watch_rewarded_video', {})
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).toBeInstanceOf(AppError)
+        expect((e as AppError).statusCode).toBe(403)
+        expect((e as AppError).code).toBe('VIDEO_DISABLED')
+      } finally {
+        ;(env as any).REWARDED_VIDEO_ENABLED = originalValue
+      }
+    })
+
     it('success: 5 nuts awarded', async () => {
       const gameSave = createTestGameSave({
         userId,

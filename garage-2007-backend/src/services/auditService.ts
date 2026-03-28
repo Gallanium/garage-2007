@@ -1,5 +1,6 @@
 import { auditLogger } from '../utils/logger.js'
 import { getRequestId } from '../utils/requestContext.js'
+import { AppError } from '../middleware/errorHandler.js'
 
 // ── Core audit functions ────────────────────────────────────────────────────
 
@@ -33,20 +34,32 @@ export function logSuspiciousActivity(params: {
 
 // ── Anti-cheat detection ────────────────────────────────────────────────────
 
-/** Alert if balance increases > 10x in a single operation */
+/** Alert or block if balance increases suspiciously in a single operation */
 export function detectBalanceJump(
   userId: number,
   balanceBefore: number,
   balanceAfter: number,
 ): void {
-  // Only check meaningful balances (avoid division by zero / tiny values)
-  if (balanceBefore <= 0 || balanceAfter <= balanceBefore) return
+  // Ignore small starting balances (new players) and zero/decreasing
+  if (balanceBefore < 100 || balanceAfter <= balanceBefore) return
 
   const ratio = balanceAfter / balanceBefore
+
+  // Hard block: 100x+ jump = exploitation
+  if (ratio > 100) {
+    logSuspiciousActivity({
+      userId,
+      reason: 'balance_jump_blocked',
+      details: { balanceBefore, balanceAfter, ratio: Math.round(ratio * 100) / 100 },
+    })
+    throw new AppError(400, 'SUSPICIOUS_ACTIVITY', 'Suspicious balance change detected')
+  }
+
+  // Soft warning: 10x+ logged for review
   if (ratio > 10) {
     logSuspiciousActivity({
       userId,
-      reason: 'balance_jump_10x',
+      reason: 'balance_jump_warning',
       details: { balanceBefore, balanceAfter, ratio: Math.round(ratio * 100) / 100 },
     })
   }

@@ -32,35 +32,35 @@ model GameSave {
   user                  User      @relation(fields: [userId], references: [id])
 
   // === Core state (authoritative) ===
-  balance               Float     @default(0)
+  balance               Decimal   @default(0) @db.Decimal(22, 2)
   nuts                  Int       @default(0)
   garageLevel           Int       @default(1) @map("garage_level")
   totalClicks           Int       @default(0) @map("total_clicks")
-  totalEarned           Float     @default(0) @map("total_earned")
+  totalEarned           Decimal   @default(0) @map("total_earned") @db.Decimal(22, 2)
   milestonesPurchased   Int[]     @default([]) @map("milestones_purchased")
 
   // === Upgrades (authoritative) ===
   clickPowerLevel       Int       @default(0) @map("click_power_level")
-  clickPowerCost        Float     @default(100) @map("click_power_cost")
+  clickPowerCost        Decimal   @default(100) @map("click_power_cost") @db.Decimal(22, 2)
   workSpeedLevel        Int       @default(0) @map("work_speed_level")
-  workSpeedCost         Float     @default(500) @map("work_speed_cost")
+  workSpeedCost         Decimal   @default(500) @map("work_speed_cost") @db.Decimal(22, 2)
 
   // === Workers (authoritative) ===
   apprenticeCount       Int       @default(0) @map("apprentice_count")
-  apprenticeCost        Float     @default(500) @map("apprentice_cost")
+  apprenticeCost        Decimal   @default(500) @map("apprentice_cost") @db.Decimal(22, 2)
   mechanicCount         Int       @default(0) @map("mechanic_count")
-  mechanicCost          Float     @default(5000) @map("mechanic_cost")
+  mechanicCost          Decimal   @default(5000) @map("mechanic_cost") @db.Decimal(22, 2)
   masterCount           Int       @default(0) @map("master_count")
-  masterCost            Float     @default(50000) @map("master_cost")
+  masterCost            Decimal   @default(50000) @map("master_cost") @db.Decimal(22, 2)
   brigadierCount        Int       @default(0) @map("brigadier_count")
-  brigadierCost         Float     @default(500000) @map("brigadier_cost")
+  brigadierCost         Decimal   @default(500000) @map("brigadier_cost") @db.Decimal(22, 2)
   directorCount         Int       @default(0) @map("director_count")
-  directorCost          Float     @default(5000000) @map("director_cost")
+  directorCost          Decimal   @default(5000000) @map("director_cost") @db.Decimal(22, 2)
 
   // === Stats ===
   sessionCount          Int       @default(0) @map("session_count")
   lastSessionDate       String    @default("") @map("last_session_date")
-  peakClickIncome       Float     @default(0) @map("peak_click_income")
+  peakClickIncome       Decimal   @default(0) @map("peak_click_income") @db.Decimal(22, 2)
   totalPlayTimeSeconds  Int       @default(0) @map("total_play_time_seconds")
   bestStreak            Int       @default(0) @map("best_streak")
 
@@ -112,13 +112,14 @@ model BalanceLog {
 
   actionType      String    @map("action_type")
   currency        String    // 'rubles' | 'nuts'
-  amount          Float     // positive = credit, negative = debit
-  balanceBefore   Float     @map("balance_before")
-  balanceAfter    Float     @map("balance_after")
+  amount          Decimal   @db.Decimal(22, 2) // positive = credit, negative = debit
+  balanceBefore   Decimal   @map("balance_before") @db.Decimal(22, 2)
+  balanceAfter    Decimal   @map("balance_after") @db.Decimal(22, 2)
   metadata        Json?     // action-specific details
   idempotencyKey  String?   @unique @map("idempotency_key")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@index([userId, createdAt])
+  @@index([userId, actionType, createdAt])
   @@map("balance_logs")
 }

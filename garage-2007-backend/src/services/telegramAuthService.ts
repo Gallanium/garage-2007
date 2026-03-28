@@ -1,4 +1,6 @@
 import crypto from 'node:crypto'
+import type { ReplayCache } from '../utils/replayCache.js'
+import { createReplayCache, _resetReplayCacheInstance } from '../utils/replayCache.js'
 
 export interface TelegramUser {
   id: number
@@ -11,26 +13,20 @@ export interface TelegramUser {
 }
 
 // ── initData replay protection ──────────────────────────────────────────────
-// In-memory set of recently-used initData hashes. TTL = 120 seconds.
-// Prevents the same initData from being accepted twice within the window.
+// TTL matches auth freshness window (1 hour) to close the replay gap.
 
-const REPLAY_TTL_MS = 120_000
-const usedInitDataHashes = new Map<string, number>()
+const REPLAY_TTL_MS = 3_600_000
 
-// Periodic cleanup: remove expired entries every 60 seconds
-setInterval(() => {
-  const now = Date.now()
-  for (const [hash, expiry] of usedInitDataHashes) {
-    if (expiry <= now) usedInitDataHashes.delete(hash)
-  }
-}, 60_000).unref()
+let replayCache: ReplayCache | null = null
 
 /** Clear the replay cache (for testing only) */
-export function _resetReplayCache(): void {
-  usedInitDataHashes.clear()
+export async function _resetReplayCache(): Promise<void> {
+  await replayCache?.clear()
+  replayCache = null
+  _resetReplayCacheInstance()
 }
 
-export function validateInitData(initData: string, botToken: string): TelegramUser | null {
+export async function validateInitData(initData: string, botToken: string): Promise<TelegramUser | null> {
   const params = new URLSearchParams(initData)
   const hash = params.get('hash')
   if (!hash) return null
@@ -58,19 +54,22 @@ export function validateInitData(initData: string, botToken: string): TelegramUs
 
   // Timing-safe comparison
   try {
-    // Dev-only bypass: accept mock initData when explicitly enabled.
-    // Must run BEFORE timingSafeEqual because mock hashes (non-hex, wrong length)
-    // cause timingSafeEqual to throw TypeError, bypassing any code after it.
-    if (process.env.NODE_ENV === 'development' && process.env.DEV_BYPASS_AUTH === 'true') {
-      const userParam = params.get('user')
-      if (userParam) {
-        try {
-          const user = JSON.parse(userParam) as TelegramUser
-          if (user.id && user.first_name) {
-            console.warn('[AUTH] DEV BYPASS: accepting unverified initData for user', user.id)
-            return user
-          }
-        } catch { /* fall through to normal validation */ }
+    // SAFETY: never allow dev bypass in production, regardless of env vars
+    if (process.env.NODE_ENV !== 'production') {
+      // Dev-only bypass: accept mock initData when explicitly enabled.
+      // Must run BEFORE timingSafeEqual because mock hashes (non-hex, wrong length)
+      // cause timingSafeEqual to throw TypeError, bypassing any code after it.
+      if (process.env.NODE_ENV === 'development' && process.env.DEV_BYPASS_AUTH === 'true') {
+        const userParam = params.get('user')
+        if (userParam) {
+          try {
+            const user = JSON.parse(userParam) as TelegramUser
+            if (user.id && user.first_name) {
+              console.warn('[AUTH] DEV BYPASS: accepting unverified initData for user', user.id)
+              return user
+            }
+          } catch { /* fall through to normal validation */ }
+        }
       }
     }
 
@@ -82,12 +81,13 @@ export function validateInitData(initData: string, botToken: string): TelegramUs
   }
 
   // Replay protection: reject if the same initData was already used within TTL
+  if (!replayCache) replayCache = await createReplayCache()
+
   const initDataHash = crypto.createHash('sha256').update(initData).digest('hex')
-  const now = Date.now()
-  if (usedInitDataHashes.has(initDataHash)) {
+  const isNew = await replayCache.setIfAbsent(initDataHash, REPLAY_TTL_MS)
+  if (!isNew) {
     return null
   }
-  usedInitDataHashes.set(initDataHash, now + REPLAY_TTL_MS)
 
   const userJson = params.get('user')
   if (!userJson) return null

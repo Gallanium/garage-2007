@@ -7,12 +7,12 @@ export interface JwtPayload {
 }
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: '2h' })
+  return jwt.sign(payload, env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '2h' })
 }
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as jwt.JwtPayload & JwtPayload
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as jwt.JwtPayload & JwtPayload
     if (typeof decoded.sub !== 'number' || typeof decoded.tgId !== 'number') {
       return null
     }

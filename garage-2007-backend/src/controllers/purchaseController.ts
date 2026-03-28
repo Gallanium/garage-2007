@@ -60,6 +60,8 @@ export async function handleWebhook(req: Request, res: Response): Promise<void> 
       const chargeId = payment.telegram_payment_charge_id
       const invoicePayload = payment.invoice_payload
       const senderId = from?.id
+      const totalAmount = payment.total_amount
+      const currency = payment.currency
 
       if (typeof chargeId !== 'string' || typeof invoicePayload !== 'string' || typeof senderId !== 'number') {
         logger.warn({ update: 'successful_payment' }, 'Malformed successful_payment — missing required fields')
@@ -67,7 +69,11 @@ export async function handleWebhook(req: Request, res: Response): Promise<void> 
         return
       }
 
-      await processSuccessfulPayment(chargeId, invoicePayload, senderId)
+      await processSuccessfulPayment(
+        chargeId, invoicePayload, senderId,
+        typeof totalAmount === 'number' ? totalAmount : undefined,
+        typeof currency === 'string' ? currency : undefined,
+      )
       res.status(200).send()
       return
     }

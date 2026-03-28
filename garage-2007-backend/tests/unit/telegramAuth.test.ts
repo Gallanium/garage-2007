@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { validateInitData } from '../../src/services/telegramAuthService'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { validateInitData, _resetReplayCache } from '../../src/services/telegramAuthService'
 import {
   createValidInitData,
   createExpiredInitData,
@@ -9,41 +9,45 @@ import {
 } from '../helpers'
 
 describe('telegramAuthService — validateInitData', () => {
-  it('valid initData returns TelegramUser with correct id and first_name', () => {
+  beforeEach(async () => {
+    await _resetReplayCache()
+  })
+
+  it('valid initData returns TelegramUser with correct id and first_name', async () => {
     const initData = createValidInitData(DEFAULT_TELEGRAM_USER)
-    const result = validateInitData(initData, TEST_BOT_TOKEN)
+    const result = await validateInitData(initData, TEST_BOT_TOKEN)
 
     expect(result).not.toBeNull()
     expect(result!.id).toBe(DEFAULT_TELEGRAM_USER.id)
     expect(result!.first_name).toBe(DEFAULT_TELEGRAM_USER.first_name)
   })
 
-  it('invalid hash returns null', () => {
+  it('invalid hash returns null', async () => {
     const initData = createInvalidInitData(DEFAULT_TELEGRAM_USER)
-    const result = validateInitData(initData, TEST_BOT_TOKEN)
+    const result = await validateInitData(initData, TEST_BOT_TOKEN)
 
     expect(result).toBeNull()
   })
 
-  it('expired auth_date (>1 hour) returns null', () => {
+  it('expired auth_date (>1 hour) returns null', async () => {
     const initData = createExpiredInitData(DEFAULT_TELEGRAM_USER)
-    const result = validateInitData(initData, TEST_BOT_TOKEN)
+    const result = await validateInitData(initData, TEST_BOT_TOKEN)
 
     expect(result).toBeNull()
   })
 
-  it('missing hash returns null', () => {
+  it('missing hash returns null', async () => {
     const params = new URLSearchParams()
     params.set('query_id', 'test_query_id_123')
     params.set('user', JSON.stringify(DEFAULT_TELEGRAM_USER))
     params.set('auth_date', String(Math.floor(Date.now() / 1000)))
     // intentionally no hash
 
-    const result = validateInitData(params.toString(), TEST_BOT_TOKEN)
+    const result = await validateInitData(params.toString(), TEST_BOT_TOKEN)
     expect(result).toBeNull()
   })
 
-  it('missing user field returns null', () => {
+  it('missing user field returns null', async () => {
     // Build initData with valid hash but no user field
     const params = new URLSearchParams()
     params.set('query_id', 'test_query_id_123')
@@ -53,37 +57,48 @@ describe('telegramAuthService — validateInitData', () => {
 
     const crypto = require('node:crypto')
     const dataCheckString = [...params.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}=${v}`)
+      .sort(([a]: [string, string], [b]: [string, string]) => a.localeCompare(b))
+      .map(([k, v]: [string, string]) => `${k}=${v}`)
       .join('\n')
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(TEST_BOT_TOKEN).digest()
     const hash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
     params.set('hash', hash)
 
-    const result = validateInitData(params.toString(), TEST_BOT_TOKEN)
+    const result = await validateInitData(params.toString(), TEST_BOT_TOKEN)
     expect(result).toBeNull()
   })
 
-  it('tampered data (modified field after signing) returns null', () => {
+  it('tampered data (modified field after signing) returns null', async () => {
     const initData = createValidInitData(DEFAULT_TELEGRAM_USER, TEST_BOT_TOKEN, {
       queryId: 'fixed_query_id_for_tamper_test',
     })
     // Replace the query_id value to simulate tampering
     const tampered = initData.replace('fixed_query_id_for_tamper_test', 'tampered_query_id')
 
-    const result = validateInitData(tampered, TEST_BOT_TOKEN)
+    const result = await validateInitData(tampered, TEST_BOT_TOKEN)
     expect(result).toBeNull()
   })
 
-  it('wrong bot token returns null', () => {
+  it('wrong bot token returns null', async () => {
     const initData = createValidInitData(DEFAULT_TELEGRAM_USER)
-    const result = validateInitData(initData, 'wrong_bot_token_9999999:ZZZZZ')
+    const result = await validateInitData(initData, 'wrong_bot_token_9999999:ZZZZZ')
 
     expect(result).toBeNull()
   })
 
-  it('empty string returns null', () => {
-    const result = validateInitData('', TEST_BOT_TOKEN)
+  it('empty string returns null', async () => {
+    const result = await validateInitData('', TEST_BOT_TOKEN)
     expect(result).toBeNull()
+  })
+
+  it('same initData used twice returns null on second call (replay protection)', async () => {
+    const initData = createValidInitData(DEFAULT_TELEGRAM_USER)
+
+    const first = await validateInitData(initData, TEST_BOT_TOKEN)
+    expect(first).not.toBeNull()
+    expect(first!.id).toBe(DEFAULT_TELEGRAM_USER.id)
+
+    const second = await validateInitData(initData, TEST_BOT_TOKEN)
+    expect(second).toBeNull()
   })
 })

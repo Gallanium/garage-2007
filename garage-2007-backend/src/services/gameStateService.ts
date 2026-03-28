@@ -4,12 +4,15 @@ import { calculateOfflineEarnings } from '@shared/formulas/offlineEarnings.js'
 import { checkAutoLevel } from '@shared/formulas/progression.js'
 import { roundCurrency } from '@shared/utils/math.js'
 import { BASE_COSTS } from '@shared/constants/economy.js'
-import { logBalanceChange, detectBalanceJump } from './auditService.js'
+import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { checkAndClaimTierRewards } from './leagueService.js'
 import { AppError } from '../middleware/errorHandler.js'
 import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logger } from '../utils/logger.js'
 import type { GameSave, Prisma } from '@prisma/client'
+import { gsToNumbers } from '../utils/decimal.js'
+import { isPrismaUniqueConstraintError } from '../utils/prismaErrors.js'
+import { parsedBoostsSchema, parsedEventsSchema } from '../validation/jsonSchemas.js'
 
 interface WorkersMap {
   [key: string]: { count: number; cost: number }
@@ -31,18 +34,16 @@ function extractWorkers(gs: GameSave): WorkersMap {
 }
 
 function tickBoosts(boosts: unknown): { active: Array<{ type: string; activatedAt: number; expiresAt: number }> } {
-  const b = boosts as { active?: Array<{ type: string; activatedAt: number; expiresAt: number }> } | null
-  if (!b?.active) return { active: [] }
+  const parsed = parsedBoostsSchema.parse(boosts)
   const now = Date.now()
-  return { active: b.active.filter(boost => boost.expiresAt > now) }
+  return { active: parsed.active.filter(boost => boost.expiresAt > now) }
 }
 
 function tickEvents(events: unknown): { activeEvent: { id: string; activatedAt: number; expiresAt: number; eventSeed: number } | null; cooldownEnd: number } {
-  const e = events as { activeEvent?: { id: string; activatedAt: number; expiresAt: number; eventSeed: number } | null; cooldownEnd?: number } | null
-  if (!e) return { activeEvent: null, cooldownEnd: 0 }
+  const parsed = parsedEventsSchema.parse(events)
   const now = Date.now()
-  const activeEvent = e.activeEvent && e.activeEvent.expiresAt > now ? e.activeEvent : null
-  return { activeEvent, cooldownEnd: e.cooldownEnd ?? 0 }
+  const activeEvent = parsed.activeEvent && parsed.activeEvent.expiresAt > now ? parsed.activeEvent : null
+  return { activeEvent, cooldownEnd: parsed.cooldownEnd }
 }
 
 export function buildGameState(gs: GameSave): Record<string, unknown> {
@@ -97,7 +98,7 @@ export async function loadState(userId: number): Promise<{
   // conflict the retry re-reads the FRESH row instead of using stale data.
   const { updated, offlineAmount, elapsedSeconds, passiveIncome, balanceBefore } =
     await withOccRetry(() => prisma.$transaction(async (tx) => {
-      const gameSave = await tx.gameSave.findUnique({ where: { userId } })
+      const gameSave = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
       if (!gameSave) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
       // Compute offline earnings (base passive income only — boosts intentionally excluded)
@@ -113,7 +114,19 @@ export async function loadState(userId: number): Promise<{
         updatedBalance = roundCurrency(updatedBalance + offline)
         updatedTotalEarned = roundCurrency(updatedTotalEarned + offline)
 
-        detectBalanceJump(userId, gameSave.balance, updatedBalance)
+        // Log-only for offline income (don't throw — legitimate multi-day accumulation can produce large jumps)
+        if (gameSave.balance >= 100 && updatedBalance / gameSave.balance > 10) {
+          logSuspiciousActivity({
+            userId,
+            reason: 'large_offline_jump',
+            details: {
+              balanceBefore: gameSave.balance,
+              balanceAfter: updatedBalance,
+              ratio: Math.round((updatedBalance / gameSave.balance) * 100) / 100,
+              elapsedSeconds: Math.floor(elapsed),
+            },
+          })
+        }
       }
 
       // Tick boosts and events
@@ -153,7 +166,7 @@ export async function loadState(userId: number): Promise<{
       let finalResult = result
       if (claimResult.claimedTiers.length > 0) {
         const fresh = await tx.gameSave.findUnique({ where: { userId } })
-        if (fresh) finalResult = fresh
+        if (fresh) finalResult = gsToNumbers(fresh)
       }
 
       return {
@@ -188,12 +201,22 @@ export async function loadState(userId: number): Promise<{
 }
 
 export async function createInitialState(userId: number): Promise<Record<string, unknown>> {
-  const gameSave = await prisma.gameSave.create({
-    data: buildInitialGameSaveData(userId),
-  })
-
-  logger.info({ userId }, 'Created initial game state')
-  return buildGameState(gameSave)
+  try {
+    const gameSave = await prisma.gameSave.upsert({
+      where: { userId },
+      update: {},  // no-op if already exists
+      create: buildInitialGameSaveData(userId),
+    })
+    logger.info({ userId }, 'Created initial game state')
+    return buildGameState(gsToNumbers(gameSave))
+  } catch (err) {
+    // Prisma docs: even upsert can race under concurrent access
+    if (isPrismaUniqueConstraintError(err, ['user_id'])) {
+      const existing = await prisma.gameSave.findUnique({ where: { userId } })
+      if (existing) return buildGameState(gsToNumbers(existing))
+    }
+    throw err
+  }
 }
 
 export function buildInitialGameSaveData(userId: number): Prisma.GameSaveUncheckedCreateInput {

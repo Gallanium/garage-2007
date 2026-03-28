@@ -7,6 +7,7 @@ import { logBalanceChange, logSuspiciousActivity } from './auditService.js'
 import { logger } from '../utils/logger.js'
 import { buildInitialGameSaveData } from './gameStateService.js'
 import { isPrismaUniqueConstraintError } from '../utils/prismaErrors.js'
+import { gsToNumbers } from '../utils/decimal.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 import { NUTS_PACKS } from '@shared/constants/purchase.js'
 
@@ -97,6 +98,8 @@ export async function processSuccessfulPayment(
   telegramPaymentChargeId: string,
   invoicePayload: string,
   senderTgId: number,
+  totalAmount?: number,
+  currency?: string,
 ): Promise<void> {
   const payload = parsePayload(invoicePayload)
   if (!payload) {
@@ -107,6 +110,18 @@ export async function processSuccessfulPayment(
   const pack = NUTS_PACKS[payload.packId]
   if (!pack) {
     logger.error({ packId: payload.packId }, 'Unknown pack in successful_payment')
+    return
+  }
+
+  // Validate currency is Telegram Stars
+  if (currency !== undefined && currency !== 'XTR') {
+    logger.error({ telegramPaymentChargeId, currency }, 'Payment: unexpected currency')
+    return
+  }
+
+  // Validate amount matches expected pack price
+  if (totalAmount !== undefined && totalAmount !== pack.stars) {
+    logger.error({ telegramPaymentChargeId, totalAmount, expected: pack.stars }, 'Payment: amount mismatch')
     return
   }
 
@@ -161,7 +176,7 @@ export async function processSuccessfulPayment(
   try {
     // Interactive transaction with OCC: read fresh gameSave, version-check the update
     const paymentResult = await withOccRetry(() => prisma.$transaction(async (tx) => {
-      let gs = await tx.gameSave.findUnique({ where: { userId } })
+      let gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
       if (!gs) {
         gs = await tx.gameSave.create({
           data: buildInitialGameSaveData(userId),

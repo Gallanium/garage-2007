@@ -57,6 +57,7 @@ export async function withOccRetry<T>(fn: () => Promise<T>): Promise<T> {
     } catch (err) {
       if (err instanceof AppError && err.code === 'VERSION_CONFLICT' && attempt < OCC_MAX_RETRIES - 1) {
         logger.warn({ attempt: attempt + 1 }, 'OCC version conflict, retrying')
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 50 * (attempt + 1)))
         continue
       }
       throw err

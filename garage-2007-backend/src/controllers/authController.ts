@@ -9,7 +9,7 @@ import { AppError } from '../middleware/errorHandler.js'
 export async function telegramAuth(req: Request, res: Response): Promise<void> {
   const { initData } = req.body as { initData: string }
 
-  const tgUser = validateInitData(initData, env.BOT_TOKEN)
+  const tgUser = await validateInitData(initData, env.BOT_TOKEN)
   if (!tgUser) {
     throw new AppError(401, 'INVALID_INIT_DATA', 'Invalid or expired Telegram init data')
   }

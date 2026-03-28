@@ -1,5 +1,6 @@
 import { AppError } from '../middleware/errorHandler.js'
 import { prisma } from '../utils/prisma.js'
+import { gsToNumbers } from '../utils/decimal.js'
 import { getCurrentTier, getNextTier, getTierProgress, getUnclaimedTierRewards } from '@shared/constants/leagues.js'
 import { logBalanceChange } from './auditService.js'
 import { logger } from '../utils/logger.js'
@@ -7,7 +8,7 @@ import type { LeagueStatusResponse, LeaderboardEntry, LeaderboardResponse } from
 import type { GameSave, Prisma } from '@prisma/client'
 
 export async function getLeagueStatus(userId: number): Promise<LeagueStatusResponse> {
-  const gs = await prisma.gameSave.findUnique({ where: { userId } })
+  const gs = gsToNumbers(await prisma.gameSave.findUnique({ where: { userId } }))
   if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
   const progress = getTierProgress(gs.totalEarned)
@@ -40,7 +41,7 @@ export async function getLeagueStatus(userId: number): Promise<LeagueStatusRespo
 }
 
 export async function getLeaderboard(userId: number): Promise<LeaderboardResponse> {
-  const gs = await prisma.gameSave.findUnique({ where: { userId } })
+  const gs = gsToNumbers(await prisma.gameSave.findUnique({ where: { userId } }))
   if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
   const tier = getCurrentTier(gs.totalEarned)
@@ -75,24 +76,39 @@ export async function getLeaderboard(userId: number): Promise<LeaderboardRespons
 
   let neighborsRaw: typeof top100Raw = []
   if (playerRank > 100) {
-    // Offset-based approach: skip to player's vicinity without materializing full RANK() CTE.
-    // Uses RANK() (not ROW_NUMBER) for consistency with top100 query — ties get equal ranks.
-    const offset = Math.max(0, playerRank - 6) // 5 above the player (0-indexed offset)
     neighborsRaw = await prisma.$queryRaw`
-      SELECT sub.id, sub.first_name, sub.username, sub.photo_url, sub.total_earned,
-             (${offset} + sub.rn)::int as rank
-      FROM (
-        SELECT u.id, u.first_name, u.username, u.photo_url, gs.total_earned,
-               RANK() OVER (ORDER BY gs.total_earned DESC)::int as rn
+      WITH above AS (
+        SELECT u.id, u.first_name, u.username, u.photo_url, gs.total_earned
         FROM game_saves gs
         JOIN users u ON u.id = gs.user_id
-        WHERE gs.total_earned >= ${tier.threshold}
+        WHERE gs.total_earned > ${gs.totalEarned}
+          AND gs.total_earned >= ${tier.threshold}
+          AND gs.total_earned < ${tierMax}
+        ORDER BY gs.total_earned ASC
+        LIMIT 5
+      ),
+      below AS (
+        SELECT u.id, u.first_name, u.username, u.photo_url, gs.total_earned
+        FROM game_saves gs
+        JOIN users u ON u.id = gs.user_id
+        WHERE gs.total_earned <= ${gs.totalEarned}
+          AND gs.total_earned >= ${tier.threshold}
           AND gs.total_earned < ${tierMax}
         ORDER BY gs.total_earned DESC
-        OFFSET ${offset}
-        LIMIT 11
-      ) sub
+        LIMIT 6
+      )
+      SELECT * FROM (SELECT * FROM above UNION ALL SELECT * FROM below) combined
+      ORDER BY total_earned DESC
     `
+
+    // Assign ranks based on known playerRank
+    // above rows (sorted DESC after query): playerRank-N..playerRank-1
+    // below rows (sorted DESC): playerRank..playerRank+5
+    const aboveCount = neighborsRaw.filter(r => r.total_earned > gs.totalEarned).length
+    neighborsRaw = neighborsRaw.map((row, idx) => ({
+      ...row,
+      rank: playerRank - aboveCount + idx,
+    }))
   }
 
   const mapEntry = (row: typeof top100Raw[0]): LeaderboardEntry => ({

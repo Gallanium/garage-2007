@@ -252,7 +252,7 @@ describe('POST /api/game/action', () => {
     it('returns 400 with INSUFFICIENT_BALANCE error', async () => {
       const gameSave = createTestGameSave({
         balance: 1_000,
-        garageLevel: 1,
+        garageLevel: 5,
         milestonesPurchased: [],
       })
       prisma.gameSave.findUnique.mockResolvedValue(gameSave)
@@ -268,7 +268,7 @@ describe('POST /api/game/action', () => {
   })
 
   describe('idempotency', () => {
-    it('returns 409 for duplicate idempotencyKey', async () => {
+    it('returns 200 with alreadyProcessed for duplicate idempotencyKey', async () => {
       const gameSave = createTestGameSave({ balance: 10_000, clickPowerLevel: 0, clickPowerCost: 100 })
       const key = randomUUID()
 
@@ -287,8 +287,9 @@ describe('POST /api/game/action', () => {
 
       const second = await performAction(token, 'purchase_upgrade', { upgradeType: 'clickPower' }, key)
 
-      // The service throws 409 IDEMPOTENT_REQUEST
-      expect(second.status).toBe(409)
+      // Idempotent retry returns 200 with alreadyProcessed flag
+      expect(second.status).toBe(200)
+      expect(second.body.actionResult.alreadyProcessed).toBe(true)
     })
   })
 
