@@ -51,6 +51,7 @@ coverage/
 .nyc_output/
 test-results/
 playwright-report/
+testsprite_tests/
 
 # Кэш различных инструментов
 .eslintcache
@@ -66,8 +67,9 @@ docs/
 plans/
 CLAUDE.md
 
-# Файлы Claude
-.claude/
+# Файлы Claude (кроме skills — они версионируются)
+.claude/*
+!.claude/skills
 
 # Git worktrees
 .worktrees/
