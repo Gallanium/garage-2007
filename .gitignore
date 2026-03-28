@@ -70,6 +70,7 @@ CLAUDE.md
 # Файлы Claude (кроме skills — они версионируются)
 .claude/*
 !.claude/skills
+**/.claude/
 
 # Git worktrees
 .worktrees/
