@@ -19,7 +19,7 @@ export function LeaderboardRow({ entry }: LeaderboardRowProps) {
     <div
       className={`flex items-center rounded-lg p-3 font-mono transition-all
         ${isMe
-          ? 'bg-gradient-to-br from-orange-950/30 to-gray-900 border-2 border-orange-700'
+          ? 'bg-gradient-to-br from-orange-950/15 to-gray-900 border border-orange-700/30'
           : 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50'
         }`}
     >

@@ -360,6 +360,15 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       // action responses and be flushed on the next 30s sync tick.
     })
 
+    // Update claimedTiers in leagueStatus if server sent them
+    const claimedLeagueTiers = s.claimedLeagueTiers as number[] | undefined
+    if (claimedLeagueTiers !== undefined) {
+      const currentLeagueStatus = get().leagueStatus
+      if (currentLeagueStatus) {
+        _set({ leagueStatus: { ...currentLeagueStatus, claimedTiers: claimedLeagueTiers } })
+      }
+    }
+
     get().checkForMilestone()
     get().checkAchievements()
     get().checkDailyReward()

@@ -83,6 +83,7 @@ model GameSave {
   version               Int       @default(7)
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
+  @@index([totalEarned(sort: Desc)])
   @@map("game_saves")
 }
 

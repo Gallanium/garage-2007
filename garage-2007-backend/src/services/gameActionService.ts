@@ -17,6 +17,7 @@ import { DECORATION_CATALOG } from '@shared/constants/decorations.js'
 import { AppError } from '../middleware/errorHandler.js'
 import { updateGameSaveWithLock, withOccRetry } from '../utils/occ.js'
 import { logBalanceChange, logSuspiciousActivity, detectBalanceJump, detectRapidSync, detectTimingAnomaly } from './auditService.js'
+import { checkAndClaimTierRewards } from './leagueService.js'
 import { buildGameState } from './gameStateService.js'
 import {
   purchaseUpgradePayload, hireWorkerPayload, purchaseMilestonePayload,
@@ -212,6 +213,11 @@ export async function processSync(
     const boostIncomeMult = getBoostMultiplier(boosts, 'income')
     const eventClickMult = getEventMultiplier(events, 'click')
     const eventIncomeMult = getEventMultiplier(events, 'income')
+    let expectedClickMult = roundCurrency(boostClickMult * eventClickMult)
+    if (!Number.isFinite(expectedClickMult) || expectedClickMult <= 0) {
+      logSuspiciousActivity({ userId, reason: 'invalid_server_multiplier', details: { boostClickMult, eventClickMult } })
+      expectedClickMult = 1
+    }
 
     // Click income (critical clicks get CRITICAL_CLICK_MULTIPLIER bonus)
     const baseClickIncome = calculateClickIncome(gs.clickPowerLevel)
@@ -227,18 +233,25 @@ export async function processSync(
           (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * boostClickMult * eventClickMult,
         )
       } else {
-        // Valid buckets — use per-bucket multipliers
+        // Valid buckets — use SERVER-SIDE multiplier (client multiplier is untrusted)
         clickIncome = 0
         for (const bucket of clickBuckets) {
-          const clampedMult = Math.max(0.1, Math.min(bucket.multiplier, 100))
-          clickIncome += (bucket.normalClicks * baseClickIncome + bucket.criticalClicks * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * clampedMult
+          if (Math.abs(bucket.multiplier - expectedClickMult) > 0.001) {
+            logSuspiciousActivity({
+              userId,
+              reason: 'bucket_multiplier_mismatch',
+              details: { clientMult: bucket.multiplier, serverMult: expectedClickMult },
+            })
+          }
+          clickIncome += (bucket.normalClicks * baseClickIncome
+            + bucket.criticalClicks * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * expectedClickMult
         }
         clickIncome = roundCurrency(clickIncome)
       }
     } else {
       // No buckets — server-side multipliers (backward compat)
       clickIncome = roundCurrency(
-        (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * boostClickMult * eventClickMult,
+        (normal * baseClickIncome + critical * baseClickIncome * CRITICAL_CLICK_MULTIPLIER) * expectedClickMult,
       )
     }
 
@@ -251,8 +264,13 @@ export async function processSync(
       director: { count: gs.directorCount },
     }
     const passivePerSec = calculateTotalPassiveIncome(workers, gs.workSpeedLevel)
+    let expectedIncomeMult = roundCurrency(boostIncomeMult * eventIncomeMult)
+    if (!Number.isFinite(expectedIncomeMult) || expectedIncomeMult <= 0) {
+      logSuspiciousActivity({ userId, reason: 'invalid_server_multiplier', details: { boostIncomeMult, eventIncomeMult } })
+      expectedIncomeMult = 1
+    }
     const passiveIncome = roundCurrency(
-      secondsSinceLastSync * passivePerSec * boostIncomeMult * eventIncomeMult,
+      secondsSinceLastSync * passivePerSec * expectedIncomeMult,
     )
 
     const totalIncome = roundCurrency(clickIncome + passiveIncome)
@@ -337,7 +355,16 @@ export async function processSync(
       gameDataSnapshot: Prisma.DbNull,
     })
 
-    return { gameState: buildGameState(updated), serverTime: Date.now() }
+    // Auto-claim league tier rewards after totalEarned update
+    const claimResult = await checkAndClaimTierRewards(userId, updated, tx)
+
+    let finalState = updated
+    if (claimResult.claimedTiers.length > 0) {
+      const fresh = await tx.gameSave.findUnique({ where: { userId } })
+      if (fresh) finalState = fresh
+    }
+
+    return { gameState: buildGameState(finalState), serverTime: Date.now() }
   }))
 }
 

@@ -148,10 +148,16 @@ export async function loadState(userId: number): Promise<{
       }
 
       // Auto-claim league tier rewards
-      await checkAndClaimTierRewards(userId, result, tx)
+      const claimResult = await checkAndClaimTierRewards(userId, result, tx)
+
+      let finalResult = result
+      if (claimResult.claimedTiers.length > 0) {
+        const fresh = await tx.gameSave.findUnique({ where: { userId } })
+        if (fresh) finalResult = fresh
+      }
 
       return {
-        updated: result,
+        updated: finalResult,
         offlineAmount: offline,
         elapsedSeconds: elapsed,
         passiveIncome: pi,
@@ -227,5 +233,6 @@ export function buildInitialGameSaveData(userId: number): Prisma.GameSaveUncheck
     events: { activeEvent: null, cooldownEnd: 0 },
     decorationsOwned: [],
     decorationsActive: [],
+    claimedLeagueTiers: [],
   }
 }

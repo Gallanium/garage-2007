@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 const clickBucketSchema = z.object({
-  multiplier: z.number().positive().max(100),
+  multiplier: z.number().min(0.1).max(50),
   normalClicks: z.number().int().min(0).max(1000),
   criticalClicks: z.number().int().min(0).max(1000),
 })

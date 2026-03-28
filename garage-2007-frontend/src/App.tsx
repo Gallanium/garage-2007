@@ -315,7 +315,7 @@ function App() {
         >
           {mountedTabs.has('leagues') && (
             <Suspense fallback={<div className="flex items-center justify-center h-full"><span className="text-gray-500 font-mono text-xs">Загрузка...</span></div>}>
-              <LeaguesPanel />
+              <LeaguesPanel isActive={activeTab === 'leagues'} />
             </Suspense>
           )}
         </div>

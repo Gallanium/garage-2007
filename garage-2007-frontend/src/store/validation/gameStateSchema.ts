@@ -57,4 +57,5 @@ export const gameStateResponseSchema = z.object({
     owned: z.array(z.string()),
     active: z.array(z.string()),
   }),
+  claimedLeagueTiers: z.array(z.number()).optional(),
 }).passthrough()

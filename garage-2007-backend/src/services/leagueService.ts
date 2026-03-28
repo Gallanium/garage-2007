@@ -1,3 +1,4 @@
+import { AppError } from '../middleware/errorHandler.js'
 import { prisma } from '../utils/prisma.js'
 import { getCurrentTier, getNextTier, getTierProgress, getUnclaimedTierRewards } from '@shared/constants/leagues.js'
 import { logBalanceChange } from './auditService.js'
@@ -7,7 +8,7 @@ import type { GameSave, Prisma } from '@prisma/client'
 
 export async function getLeagueStatus(userId: number): Promise<LeagueStatusResponse> {
   const gs = await prisma.gameSave.findUnique({ where: { userId } })
-  if (!gs) throw new Error('Game save not found')
+  if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
   const progress = getTierProgress(gs.totalEarned)
   const tier = progress.current
@@ -40,7 +41,7 @@ export async function getLeagueStatus(userId: number): Promise<LeagueStatusRespo
 
 export async function getLeaderboard(userId: number): Promise<LeaderboardResponse> {
   const gs = await prisma.gameSave.findUnique({ where: { userId } })
-  if (!gs) throw new Error('Game save not found')
+  if (!gs) throw new AppError(404, 'NOT_FOUND', 'Game save not found')
 
   const tier = getCurrentTier(gs.totalEarned)
   const nextTier = getNextTier(gs.totalEarned)
@@ -74,18 +75,23 @@ export async function getLeaderboard(userId: number): Promise<LeaderboardRespons
 
   let neighborsRaw: typeof top100Raw = []
   if (playerRank > 100) {
+    // Offset-based approach: skip to player's vicinity without materializing full RANK() CTE.
+    // Uses RANK() (not ROW_NUMBER) for consistency with top100 query — ties get equal ranks.
+    const offset = Math.max(0, playerRank - 6) // 5 above the player (0-indexed offset)
     neighborsRaw = await prisma.$queryRaw`
-      WITH ranked AS (
+      SELECT sub.id, sub.first_name, sub.username, sub.total_earned,
+             (${offset} + sub.rn)::int as rank
+      FROM (
         SELECT u.id, u.first_name, u.username, gs.total_earned,
-               RANK() OVER (ORDER BY gs.total_earned DESC)::int as rank
+               RANK() OVER (ORDER BY gs.total_earned DESC)::int as rn
         FROM game_saves gs
         JOIN users u ON u.id = gs.user_id
         WHERE gs.total_earned >= ${tier.threshold}
           AND gs.total_earned < ${tierMax}
-      )
-      SELECT * FROM ranked
-      WHERE rank BETWEEN ${playerRank - 5} AND ${playerRank + 5}
-      ORDER BY rank
+        ORDER BY gs.total_earned DESC
+        OFFSET ${offset}
+        LIMIT 11
+      ) sub
     `
   }
 
@@ -116,6 +122,12 @@ export async function checkAndClaimTierRewards(
   const newClaimedIds = unclaimed.map(t => t.id)
   const allClaimed = [...gameSave.claimedLeagueTiers, ...newClaimedIds]
 
+  // Guard: prevent duplicate tier IDs (OCC normally prevents this, but defensive check)
+  if (new Set(allClaimed).size !== allClaimed.length) {
+    logger.warn({ userId, allClaimed }, 'duplicate_tier_claim_prevented')
+    return { claimedTiers: [], nutsAwarded: 0 }
+  }
+
   await tx.gameSave.update({
     where: { userId },
     data: {
@@ -124,15 +136,17 @@ export async function checkAndClaimTierRewards(
     },
   })
 
+  let runningNuts = gameSave.nuts
   for (const tier of unclaimed) {
+    const afterNuts = runningNuts + tier.reward
     await tx.balanceLog.create({
       data: {
         userId,
         actionType: 'league_promotion',
         currency: 'nuts',
         amount: tier.reward,
-        balanceBefore: gameSave.nuts,
-        balanceAfter: gameSave.nuts + tier.reward,
+        balanceBefore: runningNuts,
+        balanceAfter: afterNuts,
         metadata: { tierId: tier.id, tierName: tier.name },
       },
     })
@@ -141,10 +155,11 @@ export async function checkAndClaimTierRewards(
       actionType: 'league_promotion',
       currency: 'nuts',
       amount: tier.reward,
-      balanceBefore: gameSave.nuts,
-      balanceAfter: gameSave.nuts + tier.reward,
+      balanceBefore: runningNuts,
+      balanceAfter: afterNuts,
       metadata: { tierId: tier.id, tierName: tier.name },
     })
+    runningNuts = afterNuts
   }
 
   logger.info({ userId, tiers: newClaimedIds, nutsAwarded: totalNuts }, 'league_promotion')

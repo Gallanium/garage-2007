@@ -113,6 +113,17 @@ export const stateLimiter = rateLimit({
   ...storeOption(),
 })
 
+// League endpoints: per-userId, separate budget from game state
+export const leagueLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: userKeyGenerator,
+  handler: rateLimitHandler,
+  ...storeOption(),
+})
+
 export const syncLimiter = rateLimit({
   windowMs: 60_000,
   max: 4,
