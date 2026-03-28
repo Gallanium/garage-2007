@@ -166,7 +166,7 @@ export async function loadState(): Promise<GameStateResponse | null> {
 
 // ── Sync ────────────────────────────────────────────────────────────────────
 
-export async function sync(normalClicks: number, criticalClicks: number): Promise<GameStateResponse | null> {
+export async function sync(normalClicks: number, criticalClicks: number, peakClickIncome?: number): Promise<GameStateResponse | null> {
   return apiFetch<GameStateResponse>('/game/sync', {
     method: 'POST',
     body: JSON.stringify({
@@ -174,13 +174,14 @@ export async function sync(normalClicks: number, criticalClicks: number): Promis
       criticalClicks,
       clientTimestamp: Date.now(),
       syncNonce: crypto.randomUUID(),
+      ...(peakClickIncome != null && { peakClickIncome }),
     }),
   }, true)
 }
 
 // ── Sync with click buckets ────────────────────────────────────────────────
 
-export async function syncWithBuckets(clickBuckets: ClickBucket[]): Promise<GameStateResponse | null> {
+export async function syncWithBuckets(clickBuckets: ClickBucket[], peakClickIncome?: number): Promise<GameStateResponse | null> {
   const normalClicks = clickBuckets.reduce((sum, b) => sum + b.normalClicks, 0)
   const criticalClicks = clickBuckets.reduce((sum, b) => sum + b.criticalClicks, 0)
 
@@ -192,6 +193,7 @@ export async function syncWithBuckets(clickBuckets: ClickBucket[]): Promise<Game
       clickBuckets,
       clientTimestamp: Date.now(),
       syncNonce: crypto.randomUUID(),
+      ...(peakClickIncome != null && { peakClickIncome }),
     }),
   }, true)
 }
@@ -200,9 +202,9 @@ export async function syncWithBuckets(clickBuckets: ClickBucket[]): Promise<Game
 let _syncInFlight: Promise<GameStateResponse | null> | null = null
 
 /** Sync with concurrency guard — if a sync is already in flight, return its result */
-export async function syncWithLock(buckets: ClickBucket[]): Promise<GameStateResponse | null> {
+export async function syncWithLock(buckets: ClickBucket[], peakClickIncome?: number): Promise<GameStateResponse | null> {
   if (_syncInFlight) return _syncInFlight
-  _syncInFlight = syncWithBuckets(buckets).finally(() => { _syncInFlight = null })
+  _syncInFlight = syncWithBuckets(buckets, peakClickIncome).finally(() => { _syncInFlight = null })
   return _syncInFlight
 }
 

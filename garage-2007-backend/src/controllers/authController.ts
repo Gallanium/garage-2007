@@ -22,6 +22,7 @@ export async function telegramAuth(req: Request, res: Response): Promise<void> {
       lastName: tgUser.last_name ?? null,
       isPremium: tgUser.is_premium ?? false,
       languageCode: tgUser.language_code ?? null,
+      photoUrl: tgUser.photo_url ?? null,
     },
     create: {
       telegramId: BigInt(tgUser.id),
@@ -30,6 +31,7 @@ export async function telegramAuth(req: Request, res: Response): Promise<void> {
       lastName: tgUser.last_name ?? null,
       isPremium: tgUser.is_premium ?? false,
       languageCode: tgUser.language_code ?? null,
+      photoUrl: tgUser.photo_url ?? null,
     },
   })
 

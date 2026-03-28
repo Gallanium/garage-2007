@@ -3,7 +3,7 @@ import {
   useTotalClicks,
   usePeakClickIncome,
   useTotalPlayTime,
-  useTotalEarned,
+  useServerTotalEarned,
   useSessionCount,
   useBestStreak,
   formatLargeNumber,
@@ -40,7 +40,7 @@ const StatsPanel: React.FC = () => {
   const totalClicks = useTotalClicks()
   const peakClickIncome = usePeakClickIncome()
   const totalPlayTime = useTotalPlayTime()
-  const totalEarned = useTotalEarned()
+  const totalEarned = useServerTotalEarned()
   const sessionCount = useSessionCount()
   const bestStreak = useBestStreak()
   const activeEvent = useActiveEvent()

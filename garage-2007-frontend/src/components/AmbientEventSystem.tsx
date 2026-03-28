@@ -16,6 +16,10 @@ export function AmbientEventSystem() {
   const [showBanner, setShowBanner] = useState(false)
   const lastEventIdRef = useRef<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const activatedAtRef = useRef(activeEvent?.activatedAt)
+  useEffect(() => {
+    activatedAtRef.current = activeEvent?.activatedAt
+  }, [activeEvent?.activatedAt])
 
   useEffect(() => {
     // Если появилось новое активное событие...
@@ -24,7 +28,7 @@ export function AmbientEventSystem() {
 
       // Не показываем баннер при ре-логине / рефреше страницы:
       // если событие стартовало более 5 секунд назад — пропускаем
-      const eventAge = activeEvent ? Date.now() - activeEvent.activatedAt : Infinity
+      const eventAge = activatedAtRef.current ? Date.now() - activatedAtRef.current : Infinity
       if (eventAge > 5000) return
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -36,12 +40,14 @@ export function AmbientEventSystem() {
         setShowBanner(false)
       }, 3500)
     }
+  }, [activeEventId])
 
+  // Отдельный cleanup только на unmount — не убивает таймер при обновлениях стора
+  useEffect(() => {
     return () => {
-      // Очищаем таймер при смене события или анмаунте
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [activeEventId, activeEvent])
+  }, [])
 
   // Если нет активного события — сбрасываем состояние и скрываемся
   if (!activeEvent) {
@@ -90,7 +96,7 @@ export function AmbientEventSystem() {
         <AnimatePresence>
           {showBanner && (
             <motion.div
-              className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none"
+              className="fixed inset-0 z-[110] flex items-center justify-center"
               initial={{ opacity: 0, backgroundColor: 'rgba(0,0,0,0)' }}
               animate={{ opacity: 1, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
               exit={{ opacity: 0, backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}

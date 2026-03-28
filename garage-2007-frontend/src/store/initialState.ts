@@ -62,6 +62,7 @@ export const initialState: GameState = {
   serverError: false,
   degradedMode: false,
   _lastServerTime: 0,
+  _serverTotalEarned: 0,
   toasts: [],
   leagueStatus: null,
   leaderboard: null,

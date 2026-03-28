@@ -233,6 +233,8 @@ export interface GameState {
   degradedMode: boolean
   /** Timestamp of the last applied server state (staleness guard) */
   _lastServerTime: number
+  /** Server-confirmed totalEarned (not modified by optimistic clicks/passive) */
+  _serverTotalEarned: number
   /** UI-only toast notifications (not synced to server) */
   toasts: ToastItem[]
   /** League status from server (not synced — fetched on demand) */

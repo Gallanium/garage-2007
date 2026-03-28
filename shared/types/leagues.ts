@@ -24,6 +24,7 @@ export interface LeaderboardEntry {
   name: string
   totalEarned: number
   isCurrentUser: boolean
+  photoUrl?: string
 }
 
 export interface LeaderboardResponse {

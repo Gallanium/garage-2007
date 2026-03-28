@@ -12,6 +12,7 @@ import { gameStateResponseSchema } from '../validation/gameStateSchema'
 import * as api from '../../services/apiService'
 
 let _flushInProgress = false
+let _lastSyncedPeak = 0
 
 /** Aggregate PendingClick[] into ClickBuckets grouped by multiplier */
 function aggregateClickBuckets(buffer: PendingClick[]): ClickBucket[] {
@@ -322,6 +323,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       ),
       milestonesPurchased: (s.milestonesPurchased as number[]) ?? [],
       totalEarned: (s.totalEarned as number) ?? 0,
+      _serverTotalEarned: (s.totalEarned as number) ?? 0,
       sessionCount: (s.sessionCount as number) ?? 0,
       lastSessionDate: (s.lastSessionDate as string) ?? '',
       peakClickIncome: Math.max(get().peakClickIncome, (s.peakClickIncome as number) ?? 0),
@@ -369,6 +371,8 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       }
     }
 
+    _lastSyncedPeak = get().peakClickIncome
+
     get().checkForMilestone()
     get().checkAchievements()
     get().checkDailyReward()
@@ -377,15 +381,22 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
   flushPendingClicks: async () => {
     if (_flushInProgress) return true  // Already flushing — skip, not an error
     const buffer = get()._pendingClickBuffer ?? []
-    if (buffer.length === 0) return true
+    const currentPeak = get().peakClickIncome
+    const peakDirty = currentPeak > _lastSyncedPeak
+
+    // Skip only if no clicks AND peak hasn't changed
+    if (buffer.length === 0 && !peakDirty) return true
 
     _flushInProgress = true
     try {
       const clicksToSend = buffer.length
       const buckets = aggregateClickBuckets(buffer.slice(0, clicksToSend))
-      const result = await api.syncWithLock(buckets)
+      const result = await api.syncWithLock(buckets, currentPeak)
       if (result?.gameState) {
-        _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
+        if (clicksToSend > 0) {
+          _set(s => ({ _pendingClickBuffer: s._pendingClickBuffer.slice(clicksToSend) }))
+        }
+        _lastSyncedPeak = currentPeak
         get().applyServerState(result.gameState)
         return true
       }

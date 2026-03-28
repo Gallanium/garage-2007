@@ -48,9 +48,9 @@ export async function getLeaderboard(userId: number): Promise<LeaderboardRespons
   const tierMax = nextTier?.threshold ?? Number.MAX_SAFE_INTEGER
 
   const top100Raw = await prisma.$queryRaw<Array<{
-    id: number; first_name: string | null; username: string | null; total_earned: number; rank: number
+    id: number; first_name: string | null; username: string | null; photo_url: string | null; total_earned: number; rank: number
   }>>`
-    SELECT u.id, u.first_name, u.username, gs.total_earned,
+    SELECT u.id, u.first_name, u.username, u.photo_url, gs.total_earned,
            RANK() OVER (ORDER BY gs.total_earned DESC)::int as rank
     FROM game_saves gs
     JOIN users u ON u.id = gs.user_id
@@ -79,10 +79,10 @@ export async function getLeaderboard(userId: number): Promise<LeaderboardRespons
     // Uses RANK() (not ROW_NUMBER) for consistency with top100 query — ties get equal ranks.
     const offset = Math.max(0, playerRank - 6) // 5 above the player (0-indexed offset)
     neighborsRaw = await prisma.$queryRaw`
-      SELECT sub.id, sub.first_name, sub.username, sub.total_earned,
+      SELECT sub.id, sub.first_name, sub.username, sub.photo_url, sub.total_earned,
              (${offset} + sub.rn)::int as rank
       FROM (
-        SELECT u.id, u.first_name, u.username, gs.total_earned,
+        SELECT u.id, u.first_name, u.username, u.photo_url, gs.total_earned,
                RANK() OVER (ORDER BY gs.total_earned DESC)::int as rn
         FROM game_saves gs
         JOIN users u ON u.id = gs.user_id
@@ -100,6 +100,7 @@ export async function getLeaderboard(userId: number): Promise<LeaderboardRespons
     name: row.first_name || row.username || 'Игрок',
     totalEarned: row.total_earned,
     isCurrentUser: row.id === userId,
+    photoUrl: row.photo_url ?? undefined,
   })
 
   return {

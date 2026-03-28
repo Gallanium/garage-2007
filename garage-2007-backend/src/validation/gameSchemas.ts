@@ -12,6 +12,7 @@ export const syncSchema = z.object({
   clickBuckets: z.array(clickBucketSchema).max(10).optional(),
   clientTimestamp: z.number().int().positive(),
   syncNonce: z.string().uuid(),
+  peakClickIncome: z.number().nonnegative().max(100_000).optional(),
 }).strict()
 
 export const actionSchema = z.object({

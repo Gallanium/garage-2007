@@ -20,15 +20,16 @@ export async function getState(req: Request, res: Response): Promise<void> {
 
 export async function syncGame(req: Request, res: Response): Promise<void> {
   const userId = req.user!.id
-  const { normalClicks, criticalClicks, clientTimestamp, syncNonce, clickBuckets } = req.body as {
+  const { normalClicks, criticalClicks, clientTimestamp, syncNonce, clickBuckets, peakClickIncome } = req.body as {
     normalClicks: number
     criticalClicks: number
     clientTimestamp: number
     syncNonce: string
     clickBuckets?: Array<{ multiplier: number; normalClicks: number; criticalClicks: number }>
+    peakClickIncome?: number
   }
 
-  const result = await processSync(userId, normalClicks, criticalClicks, clientTimestamp, syncNonce, clickBuckets)
+  const result = await processSync(userId, normalClicks, criticalClicks, clientTimestamp, syncNonce, clickBuckets, peakClickIncome)
   logger.info({ userId, normalClicks, criticalClicks, buckets: clickBuckets?.length ?? 0 }, 'sync')
   res.json(result)
 }

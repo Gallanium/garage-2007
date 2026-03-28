@@ -157,6 +157,7 @@ export async function processSync(
   clientTimestamp?: number,
   syncNonce?: string,
   clickBuckets?: Array<{ multiplier: number; normalClicks: number; criticalClicks: number }>,
+  clientPeakClickIncome?: number,
 ): Promise<{ gameState: Record<string, unknown>; serverTime: number }> {
   // Anti-cheat: detect client timestamp anomaly (read-only, safe outside transaction)
   if (clientTimestamp) {
@@ -278,9 +279,11 @@ export async function processSync(
     const newTotalEarned = roundCurrency(gs.totalEarned + totalIncome)
     const newTotalClicks = gs.totalClicks + clicks
     const newPlayTime = gs.totalPlayTimeSeconds + Math.floor(secondsSinceLastSync)
+    const serverComputedPeak = calculateClickIncome(gs.clickPowerLevel) * boostClickMult * eventClickMult
     const newPeakClickIncome = Math.max(
       gs.peakClickIncome,
-      calculateClickIncome(gs.clickPowerLevel) * boostClickMult,
+      serverComputedPeak,
+      clientPeakClickIncome ?? 0,
     )
 
     // Anti-cheat checks (logging only, safe inside transaction)

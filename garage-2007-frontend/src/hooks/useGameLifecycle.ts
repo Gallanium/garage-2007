@@ -173,7 +173,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
       if (api.isOnline() && !api.isSyncInFlight()) {
         const buffer = useGameStore.getState()._pendingClickBuffer ?? []
         const token = api.getToken()
-        if (token && buffer.length > 0) {
+        if (token && (buffer.length > 0 || useGameStore.getState().peakClickIncome > 0)) {
           // Aggregate clicks into multiplier buckets
           const bucketMap = new Map<number, { normal: number; critical: number }>()
           for (const click of buffer) {
@@ -205,6 +205,7 @@ export function useGameLifecycle(): { retryAuth: () => void } {
               clickBuckets,
               clientTimestamp: Date.now(),
               syncNonce: crypto.randomUUID(),
+              peakClickIncome: useGameStore.getState().peakClickIncome,
             }),
           }).catch(() => {
             // Restore buffer on failure — page might stay open
