@@ -65,11 +65,11 @@ export function detectBalanceJump(
   }
 }
 
-/** Alert if sync happens too frequently (< 5 seconds since last) */
+/** Alert and flag if sync happens too frequently (< 5 seconds since last) */
 export function detectRapidSync(
   userId: number,
   lastSyncAt: Date,
-): void {
+): boolean {
   const secondsSinceLastSync = (Date.now() - lastSyncAt.getTime()) / 1000
   if (secondsSinceLastSync < 5) {
     logSuspiciousActivity({
@@ -77,14 +77,16 @@ export function detectRapidSync(
       reason: 'rapid_sync',
       details: { secondsSinceLastSync: Math.round(secondsSinceLastSync * 10) / 10 },
     })
+    return true
   }
+  return false
 }
 
 /** Alert if client timestamp is > 5 minutes in the future */
 export function detectTimingAnomaly(
   userId: number,
   clientTimestamp: number,
-): void {
+): boolean {
   const drift = clientTimestamp - Date.now()
   if (drift > 5 * 60 * 1000) {
     logSuspiciousActivity({
@@ -92,5 +94,7 @@ export function detectTimingAnomaly(
       reason: 'future_client_timestamp',
       details: { clientTimestamp, drift: Math.round(drift / 1000) },
     })
+    return true
   }
+  return false
 }

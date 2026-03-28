@@ -125,15 +125,6 @@ export async function processSuccessfulPayment(
     return
   }
 
-  // Deduplicate by telegram_payment_charge_id
-  const existing = await prisma.transaction.findUnique({
-    where: { telegramPaymentId: telegramPaymentChargeId },
-  })
-  if (existing) {
-    logger.warn({ telegramPaymentChargeId }, 'Duplicate payment — already processed')
-    return
-  }
-
   // Find user by telegram ID
   const user = await prisma.user.findUnique({
     where: { telegramId: BigInt(senderTgId) },
@@ -176,6 +167,15 @@ export async function processSuccessfulPayment(
   try {
     // Interactive transaction with OCC: read fresh gameSave, version-check the update
     const paymentResult = await withOccRetry(() => prisma.$transaction(async (tx) => {
+      // Deduplicate by telegram_payment_charge_id (inside tx for atomicity)
+      const existing = await tx.transaction.findUnique({
+        where: { telegramPaymentId: telegramPaymentChargeId },
+      })
+      if (existing) {
+        logger.warn({ telegramPaymentChargeId }, 'Duplicate payment — already processed')
+        return null
+      }
+
       let gs = gsToNumbers(await tx.gameSave.findUnique({ where: { userId } }))
       if (!gs) {
         gs = await tx.gameSave.create({
@@ -214,7 +214,12 @@ export async function processSuccessfulPayment(
       })
 
       return { nutsBefore: before, nutsAfter: after }
+    }, {
+      isolationLevel: 'Serializable' as const,
+      timeout: 10_000,
     }))
+
+    if (!paymentResult) return
 
     nutsBefore = paymentResult.nutsBefore
     nutsAfter = paymentResult.nutsAfter

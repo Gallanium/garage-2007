@@ -14,6 +14,10 @@ const envSchema = z.object({
   DEV_BYPASS_AUTH: z.enum(['true', 'false']).default('false'),
   REWARDED_VIDEO_ENABLED: z.enum(['true', 'false']).default('false'),
 })
+.refine(
+  (data) => data.NODE_ENV !== 'production' || data.REDIS_URL,
+  { message: 'REDIS_URL is required in production for distributed rate limiting and replay cache', path: ['REDIS_URL'] },
+)
 
 export type Env = z.infer<typeof envSchema>
 

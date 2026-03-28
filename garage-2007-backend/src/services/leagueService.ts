@@ -3,9 +3,11 @@ import { prisma } from '../utils/prisma.js'
 import { gsToNumbers } from '../utils/decimal.js'
 import { getCurrentTier, getNextTier, getTierProgress, getUnclaimedTierRewards } from '@shared/constants/leagues.js'
 import { logBalanceChange } from './auditService.js'
+import { updateGameSaveWithLock } from '../utils/occ.js'
 import { logger } from '../utils/logger.js'
 import type { LeagueStatusResponse, LeaderboardEntry, LeaderboardResponse } from '@shared/types/leagues.js'
-import type { GameSave, Prisma } from '@prisma/client'
+import type { GameSave } from '@prisma/client'
+import type { TxClient } from '../utils/occ.js'
 
 export async function getLeagueStatus(userId: number): Promise<LeagueStatusResponse> {
   const gs = gsToNumbers(await prisma.gameSave.findUnique({ where: { userId } }))
@@ -130,10 +132,10 @@ export async function getLeaderboard(userId: number): Promise<LeaderboardRespons
 export async function checkAndClaimTierRewards(
   userId: number,
   gameSave: GameSave,
-  tx: Prisma.TransactionClient,
-): Promise<{ claimedTiers: number[]; nutsAwarded: number }> {
+  tx: TxClient,
+): Promise<{ claimedTiers: number[]; nutsAwarded: number; updatedGs: GameSave }> {
   const unclaimed = getUnclaimedTierRewards(gameSave.totalEarned, gameSave.claimedLeagueTiers)
-  if (unclaimed.length === 0) return { claimedTiers: [], nutsAwarded: 0 }
+  if (unclaimed.length === 0) return { claimedTiers: [], nutsAwarded: 0, updatedGs: gameSave }
 
   const totalNuts = unclaimed.reduce((sum, t) => sum + t.reward, 0)
   const newClaimedIds = unclaimed.map(t => t.id)
@@ -142,15 +144,12 @@ export async function checkAndClaimTierRewards(
   // Guard: prevent duplicate tier IDs (OCC normally prevents this, but defensive check)
   if (new Set(allClaimed).size !== allClaimed.length) {
     logger.warn({ userId, allClaimed }, 'duplicate_tier_claim_prevented')
-    return { claimedTiers: [], nutsAwarded: 0 }
+    return { claimedTiers: [], nutsAwarded: 0, updatedGs: gameSave }
   }
 
-  await tx.gameSave.update({
-    where: { userId },
-    data: {
-      nuts: { increment: totalNuts },
-      claimedLeagueTiers: allClaimed,
-    },
+  const updatedGs = await updateGameSaveWithLock(tx, userId, gameSave, {
+    nuts: gameSave.nuts + totalNuts,
+    claimedLeagueTiers: allClaimed,
   })
 
   let runningNuts = gameSave.nuts
@@ -180,5 +179,5 @@ export async function checkAndClaimTierRewards(
   }
 
   logger.info({ userId, tiers: newClaimedIds, nutsAwarded: totalNuts }, 'league_promotion')
-  return { claimedTiers: newClaimedIds, nutsAwarded: totalNuts }
+  return { claimedTiers: newClaimedIds, nutsAwarded: totalNuts, updatedGs }
 }

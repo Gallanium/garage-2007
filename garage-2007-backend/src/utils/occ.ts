@@ -55,13 +55,16 @@ export async function withOccRetry<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn()
     } catch (err) {
-      if (err instanceof AppError && err.code === 'VERSION_CONFLICT' && attempt < OCC_MAX_RETRIES - 1) {
-        logger.warn({ attempt: attempt + 1 }, 'OCC version conflict, retrying')
+      const isVersionConflict = err instanceof AppError && err.code === 'VERSION_CONFLICT'
+      const isSerializationFailure = err != null && typeof err === 'object' && 'code' in err
+        && (err as { code: string }).code === 'P2034'
+      if ((isVersionConflict || isSerializationFailure) && attempt < OCC_MAX_RETRIES - 1) {
+        logger.warn({ attempt: attempt + 1 }, 'Transaction conflict, retrying')
         await new Promise(resolve => setTimeout(resolve, Math.random() * 50 * (attempt + 1)))
         continue
       }
       throw err
     }
   }
-  throw new AppError(409, 'VERSION_CONFLICT', 'Optimistic lock conflict — max retries exceeded')
+  throw new AppError(409, 'VERSION_CONFLICT', 'Transaction conflict — max retries exceeded')
 }

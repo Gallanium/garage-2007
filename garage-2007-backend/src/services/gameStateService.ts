@@ -163,11 +163,7 @@ export async function loadState(userId: number): Promise<{
       // Auto-claim league tier rewards
       const claimResult = await checkAndClaimTierRewards(userId, result, tx)
 
-      let finalResult = result
-      if (claimResult.claimedTiers.length > 0) {
-        const fresh = await tx.gameSave.findUnique({ where: { userId } })
-        if (fresh) finalResult = gsToNumbers(fresh)
-      }
+      const finalResult = claimResult.claimedTiers.length > 0 ? claimResult.updatedGs : result
 
       return {
         updated: finalResult,

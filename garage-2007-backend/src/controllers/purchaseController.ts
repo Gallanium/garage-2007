@@ -1,8 +1,7 @@
 import type { Request, Response } from 'express'
 import { createStarsInvoice, handlePreCheckoutQuery, processSuccessfulPayment } from '../services/purchaseService.js'
-import { env } from '../config/env.js'
 import { logger } from '../utils/logger.js'
-import { AppError } from '../middleware/errorHandler.js'
+import { webhookUpdateSchema } from '../validation/purchaseSchemas.js'
 import type { NutsPackId } from '@shared/types/purchase.js'
 
 export async function createInvoice(req: Request, res: Response): Promise<void> {
@@ -14,69 +13,49 @@ export async function createInvoice(req: Request, res: Response): Promise<void> 
 }
 
 export async function handleWebhook(req: Request, res: Response): Promise<void> {
-  // Verify webhook secret
-  const secretHeader = req.headers['x-telegram-bot-api-secret-token']
-  if (secretHeader !== env.WEBHOOK_SECRET) {
-    logger.warn('Webhook request with invalid secret')
-    throw new AppError(403, 'FORBIDDEN', 'Invalid webhook secret')
+  const parsed = webhookUpdateSchema.safeParse(req.body)
+  if (!parsed.success) {
+    logger.warn({ errors: parsed.error.issues }, 'Webhook body failed Zod validation')
+    res.status(200).send()
+    return
   }
 
-  const update = req.body as Record<string, unknown>
+  const update = parsed.data
 
   // Handle pre_checkout_query
-  if (update.pre_checkout_query && typeof update.pre_checkout_query === 'object') {
-    const query = update.pre_checkout_query as Record<string, unknown>
-    const queryId = query.id
-    const invoicePayload = query.invoice_payload
-    const from = query.from as Record<string, unknown> | undefined
-    const senderId = from?.id
-    const totalAmount = query.total_amount
-    const currency = query.currency
-
-    if (typeof queryId !== 'string' || typeof invoicePayload !== 'string' || typeof senderId !== 'number') {
-      logger.warn({ update: 'pre_checkout_query' }, 'Malformed pre_checkout_query — missing id, invoice_payload, or from.id')
-      res.status(200).send()
-      return
-    }
-
+  if (update.pre_checkout_query) {
+    const query = update.pre_checkout_query
     await handlePreCheckoutQuery(
-      queryId,
-      invoicePayload,
-      senderId,
-      typeof totalAmount === 'number' ? totalAmount : undefined,
-      typeof currency === 'string' ? currency : undefined,
+      query.id,
+      query.invoice_payload,
+      query.from.id,
+      query.total_amount,
+      query.currency,
     )
     res.status(200).send()
     return
   }
 
   // Handle successful_payment (inside message)
-  if (update.message && typeof update.message === 'object') {
-    const message = update.message as Record<string, unknown>
+  if (update.message?.successful_payment) {
+    const payment = update.message.successful_payment
+    const senderId = update.message.from?.id
 
-    if (message.successful_payment && typeof message.successful_payment === 'object') {
-      const payment = message.successful_payment as Record<string, unknown>
-      const from = message.from as Record<string, unknown> | undefined
-      const chargeId = payment.telegram_payment_charge_id
-      const invoicePayload = payment.invoice_payload
-      const senderId = from?.id
-      const totalAmount = payment.total_amount
-      const currency = payment.currency
-
-      if (typeof chargeId !== 'string' || typeof invoicePayload !== 'string' || typeof senderId !== 'number') {
-        logger.warn({ update: 'successful_payment' }, 'Malformed successful_payment — missing required fields')
-        res.status(200).send()
-        return
-      }
-
-      await processSuccessfulPayment(
-        chargeId, invoicePayload, senderId,
-        typeof totalAmount === 'number' ? totalAmount : undefined,
-        typeof currency === 'string' ? currency : undefined,
-      )
+    if (typeof senderId !== 'number') {
+      logger.warn({ update: 'successful_payment' }, 'Malformed successful_payment — missing from.id')
       res.status(200).send()
       return
     }
+
+    await processSuccessfulPayment(
+      payment.telegram_payment_charge_id,
+      payment.invoice_payload,
+      senderId,
+      payment.total_amount,
+      payment.currency,
+    )
+    res.status(200).send()
+    return
   }
 
   // Unknown update type — acknowledge without processing

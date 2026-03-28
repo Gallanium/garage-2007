@@ -89,8 +89,9 @@ describe('purchaseService', () => {
 
       await processSuccessfulPayment(telegramPaymentChargeId, invoicePayload, senderTgId)
 
-      // Should not call $transaction since it's a duplicate
-      expect(prisma.$transaction).not.toHaveBeenCalled()
+      // Transaction is called (dedup check is now inside tx), but no nuts are credited
+      // The transaction finds the existing record and returns null
+      expect(prisma.$transaction).toHaveBeenCalled()
     })
 
     it('does nothing if user not found', async () => {

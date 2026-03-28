@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
+import { env } from '../config/env.js'
 import { logger } from '../utils/logger.js'
 
 // Telegram Bot API webhook IP ranges
@@ -25,7 +26,15 @@ function extractIPv4(raw: string): string {
 }
 
 export function webhookIpWhitelist(req: Request, res: Response, next: NextFunction): void {
-  // Skip in development
+  // Verify webhook secret (always, even in development)
+  const secretHeader = req.headers['x-telegram-bot-api-secret-token']
+  if (secretHeader !== env.WEBHOOK_SECRET) {
+    logger.warn('webhook_secret_invalid')
+    res.status(403).json({ success: false, error: 'FORBIDDEN', message: 'Invalid webhook secret' })
+    return
+  }
+
+  // Skip IP whitelist in development (localhost not in Telegram CIDR)
   if (process.env.NODE_ENV !== 'production') {
     next()
     return
