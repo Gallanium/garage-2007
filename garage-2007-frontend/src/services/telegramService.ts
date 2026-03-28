@@ -93,6 +93,16 @@ export function getInitData(): string | null {
   }
 }
 
+/** Параметр start_param из ссылки запуска (например, ref_XXXXXX) */
+export function getStartParam(): string | null {
+  try {
+    const lp = retrieveLaunchParams(true)
+    return (lp as Record<string, unknown>).tgWebAppStartParam as string ?? null
+  } catch {
+    return null
+  }
+}
+
 /** ID текущего пользователя Telegram */
 export function getTelegramUserId(): number | null {
   try {

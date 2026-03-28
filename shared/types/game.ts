@@ -2,6 +2,7 @@
 // All shared game types. Frontend-only types (GameActions, GameStore) stay in frontend.
 
 import type { LeagueStatusResponse, LeaderboardResponse } from './leagues'
+import type { ReferralStatusResponse } from './referrals'
 
 // ── Workers ──────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,10 @@ export interface GameState {
   leaderboard: LeaderboardResponse | null
   /** Whether league data is currently being fetched */
   leagueLoading: boolean
+  /** Referral status from server (not synced — fetched on demand) */
+  referralStatus: ReferralStatusResponse | null
+  /** Whether referral data is currently being fetched */
+  referralLoading: boolean
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────

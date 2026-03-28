@@ -4,6 +4,7 @@
 import { getInitData as getTelegramInitData } from './telegramService'
 import type { ClickBucket } from '@shared/types/game.ts'
 import type { LeagueStatusResponse, LeaderboardResponse } from '@shared/types/leagues'
+import type { ReferralStatusResponse } from '@shared/types/referrals'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 let authToken: string | null = null
@@ -270,4 +271,14 @@ export async function getLeagueStatus(): Promise<LeagueStatusResponse | null> {
 
 export async function getLeaderboard(): Promise<LeaderboardResponse | null> {
   return apiFetch<LeaderboardResponse>('/leagues/leaderboard')
+}
+
+// ── Referrals ────────────────────────────────────────────────────────────────
+
+export async function getReferralStatus(): Promise<ReferralStatusResponse | null> {
+  return apiFetch<ReferralStatusResponse>('/referrals/status')
+}
+
+export async function generateReferralCode(): Promise<{ code: string } | null> {
+  return apiFetch<{ code: string }>('/referrals/generate-code', { method: 'POST' })
 }

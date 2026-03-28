@@ -66,4 +66,6 @@ export const initialState: GameState = {
   leagueStatus: null,
   leaderboard: null,
   leagueLoading: false,
+  referralStatus: null,
+  referralLoading: false,
 }
