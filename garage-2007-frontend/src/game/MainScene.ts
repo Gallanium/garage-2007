@@ -8,7 +8,7 @@ import { LevelUpEffectManager } from './managers/LevelUpEffectManager'
 import { DecorationManager } from './managers/DecorationManager'
 import { AudioManager } from './managers/AudioManager'
 import type { AudioPlaybackResult } from '../audio/types'
-import { DECORATION_CATALOG } from '../store/constants/decorations'
+import { DECORATION_CATALOG } from '@shared/constants/decorations.ts'
 import type { SfxKey } from './config/audioAssets'
 
 /**

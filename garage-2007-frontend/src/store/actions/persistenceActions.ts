@@ -259,30 +259,18 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       console.warn('[applyServerState] Invalid server response shape:', parseResult.error.issues)
       return
     }
-    const s = parseResult.data as Record<string, unknown>
+    const s = parseResult.data
 
     // Staleness guard: reject state older than the last applied state.
     // Prevents sync responses from overwriting more recent action responses.
-    const serverTime = s.serverTime as number | undefined
-    if (serverTime && serverTime < get()._lastServerTime) {
-      if (import.meta.env.DEV) console.warn('[applyServerState] Skipping stale state', { serverTime, lastServerTime: get()._lastServerTime })
+    if (s.serverTime !== undefined && s.serverTime < get()._lastServerTime) {
+      if (import.meta.env.DEV) console.warn('[applyServerState] Skipping stale state', { serverTime: s.serverTime, lastServerTime: get()._lastServerTime })
       return
     }
 
-    const workers = s.workers as Record<string, { count: number; cost: number }> | undefined
-    const upgrades = s.upgrades as Record<string, { level: number; cost: number; baseCost: number }> | undefined
-    const boostsData = s.boosts as { active: Array<{ type: string; activatedAt: number; expiresAt: number }> } | undefined
-    const eventsData = s.events as { activeEvent: { id: string; activatedAt: number; expiresAt: number; eventSeed: number } | null; cooldownEnd: number } | undefined
-    const decoData = s.decorations as { owned: string[]; active: string[] } | undefined
-    const dailyData = s.dailyRewards as { lastClaimTimestamp: number; currentStreak: number } | undefined
-    const videoData = s.rewardedVideo as { lastWatchedTimestamp: number; totalWatches: number } | undefined
-    const achievementsData = s.achievements as Record<string, { unlocked: boolean; claimed: boolean; unlockedAt?: number }> | undefined
-
     const restoredAchievements: Record<AchievementId, PlayerAchievement> = { ...initialState.achievements }
-    if (achievementsData) {
-      for (const key of Object.keys(achievementsData)) {
-        if (key in restoredAchievements) restoredAchievements[key as AchievementId] = achievementsData[key]
-      }
+    for (const key of Object.keys(s.achievements)) {
+      if (key in restoredAchievements) restoredAchievements[key as AchievementId] = s.achievements[key]
     }
 
     // garageLevel is non-decreasing: if server sends a lower value (pending clicks not yet
@@ -296,8 +284,7 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
     const pendingBuffer = get()._pendingClickBuffer ?? []
     let pendingClickIncome = 0
     if (pendingBuffer.length > 0) {
-      const clickLevel = upgrades?.clickPower?.level ?? get().upgrades.clickPower.level
-      const clickIncomePerClick = calculateClickIncome(clickLevel)
+      const clickIncomePerClick = calculateClickIncome(s.upgrades.clickPower.level)
 
       // Use per-click multiplier snapshots — accurate even when boosts expire
       for (const click of pendingBuffer) {
@@ -308,66 +295,61 @@ export const createPersistenceSlice: StateCreator<GameStore, [], [], Slice> = (_
       }
       pendingClickIncome = roundCurrency(pendingClickIncome)
     }
-    const serverBalance = (s.balance as number) ?? 0
-    const adjustedBalance = roundCurrency(serverBalance + pendingClickIncome)
+    const adjustedBalance = roundCurrency(s.balance + pendingClickIncome)
 
     _set({
-      _lastServerTime: serverTime ?? get()._lastServerTime,
+      _lastServerTime: s.serverTime ?? get()._lastServerTime,
       balance: adjustedBalance,
-      nuts: (s.nuts as number) ?? 0,
-      totalClicks: (s.totalClicks as number) ?? 0,
+      nuts: s.nuts,
+      totalClicks: s.totalClicks,
       garageLevel: Math.max(
         currentGarageLevel,
-        (s.garageLevel as number) ?? 1,
-        checkAutoLevel(adjustedBalance, currentGarageLevel, (s.milestonesPurchased as number[]) ?? []),
+        s.garageLevel,
+        checkAutoLevel(adjustedBalance, currentGarageLevel, s.milestonesPurchased),
       ),
-      milestonesPurchased: (s.milestonesPurchased as number[]) ?? [],
-      totalEarned: (s.totalEarned as number) ?? 0,
-      _serverTotalEarned: (s.totalEarned as number) ?? 0,
-      sessionCount: (s.sessionCount as number) ?? 0,
-      lastSessionDate: (s.lastSessionDate as string) ?? '',
-      peakClickIncome: Math.max(get().peakClickIncome, (s.peakClickIncome as number) ?? 0),
-      totalPlayTimeSeconds: (s.totalPlayTimeSeconds as number) ?? 0,
-      bestStreak: (s.bestStreak as number) ?? 0,
-      clickValue: calculateClickIncome(upgrades?.clickPower?.level ?? 0),
+      milestonesPurchased: s.milestonesPurchased,
+      totalEarned: s.totalEarned,
+      _serverTotalEarned: s.totalEarned,
+      sessionCount: s.sessionCount,
+      lastSessionDate: s.lastSessionDate,
+      peakClickIncome: Math.max(get().peakClickIncome, s.peakClickIncome),
+      totalPlayTimeSeconds: s.totalPlayTimeSeconds,
+      bestStreak: s.bestStreak,
+      clickValue: calculateClickIncome(s.upgrades.clickPower.level),
       passiveIncomePerSecond: calculateTotalPassiveIncome(
-        workers ?? initialState.workers as unknown as Record<string, { count: number }>,
-        upgrades?.workSpeed?.level ?? 0,
+        s.workers as Record<string, { count: number }>,
+        s.upgrades.workSpeed.level,
       ),
-      upgrades: upgrades ? {
-        clickPower: { level: upgrades.clickPower.level, cost: upgrades.clickPower.cost, baseCost: upgrades.clickPower.baseCost },
-        workSpeed: { level: upgrades.workSpeed.level, cost: upgrades.workSpeed.cost, baseCost: upgrades.workSpeed.baseCost },
-      } : initialState.upgrades,
-      workers: workers ? {
-        apprentice: workers.apprentice,
-        mechanic: workers.mechanic,
-        master: workers.master,
-        brigadier: workers.brigadier,
-        director: workers.director,
-      } : initialState.workers,
+      upgrades: {
+        clickPower: { level: s.upgrades.clickPower.level, cost: s.upgrades.clickPower.cost, baseCost: s.upgrades.clickPower.baseCost },
+        workSpeed: { level: s.upgrades.workSpeed.level, cost: s.upgrades.workSpeed.cost, baseCost: s.upgrades.workSpeed.baseCost },
+      },
+      workers: {
+        apprentice: s.workers.apprentice,
+        mechanic: s.workers.mechanic,
+        master: s.workers.master,
+        brigadier: s.workers.brigadier,
+        director: s.workers.director,
+      },
       achievements: restoredAchievements,
-      dailyRewards: dailyData ?? initialState.dailyRewards,
-      rewardedVideo: videoData
-        ? { ...initialState.rewardedVideo, ...videoData }
-        : initialState.rewardedVideo,
-      boosts: boostsData
-        ? { active: boostsData.active.map(b => ({ type: b.type as import('../types').BoostType, activatedAt: b.activatedAt, expiresAt: b.expiresAt })) }
-        : initialState.boosts,
-      events: eventsData ?? initialState.events,
-      decorations: decoData
-        ? { owned: decoData.owned.filter(id => DECORATION_CATALOG[id]), active: decoData.active.filter(id => DECORATION_CATALOG[id]) }
-        : initialState.decorations,
+      dailyRewards: s.dailyRewards,
+      rewardedVideo: { ...initialState.rewardedVideo, ...s.rewardedVideo },
+      boosts: { active: s.boosts.active.map(b => ({ type: b.type, activatedAt: b.activatedAt, expiresAt: b.expiresAt })) },
+      events: s.events,
+      decorations: {
+        owned: s.decorations.owned.filter(id => DECORATION_CATALOG[id]),
+        active: s.decorations.active.filter(id => DECORATION_CATALOG[id]),
+      },
       isLoaded: true,
       // NOTE: _pendingClickBuffer is NOT reset here — pending clicks must survive
       // action responses and be flushed on the next 30s sync tick.
     })
 
     // Update claimedTiers in leagueStatus if server sent them
-    const claimedLeagueTiers = s.claimedLeagueTiers as number[] | undefined
-    if (claimedLeagueTiers !== undefined) {
+    if (s.claimedLeagueTiers !== undefined) {
       const currentLeagueStatus = get().leagueStatus
       if (currentLeagueStatus) {
-        _set({ leagueStatus: { ...currentLeagueStatus, claimedTiers: claimedLeagueTiers } })
+        _set({ leagueStatus: { ...currentLeagueStatus, claimedTiers: s.claimedLeagueTiers } })
       }
     }
 
